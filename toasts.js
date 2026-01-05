@@ -111,6 +111,7 @@ class Toasts {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
+                --font-size: 14px;
             }
 
             .toast-container {
@@ -129,6 +130,7 @@ class Toasts {
                 height: 47px;
                 align-items: center;
                 border-radius: 3px;
+                font-size: var(--font-size);
             }
             .toast-close {
                 border-radius: 2px 0 0 2px;
