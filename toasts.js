@@ -21,9 +21,13 @@ class Toasts {
     }
 
     showToast(message, color = ToastColor.INFO, duration = 3000, closable = true) {
-        if (this.snackbar.children.length >= MAX_TOASTS) {
+        // Count only active (non-hiding) toasts
+        const activeToasts = Array.from(this.snackbar.children).filter(
+            toast => !toast.classList.contains('hiding')
+        );
+        if (activeToasts.length >= MAX_TOASTS) {
             // Remove oldest toast
-            const oldestToast = this.snackbar.children[0];
+            const oldestToast = activeToasts[0];
             this.removeToast(oldestToast.id);
         }
 
@@ -80,6 +84,8 @@ class Toasts {
     removeToast(id) {
         const toastContainer = document.getElementById(id);
         if(!toastContainer) return;
+        // Mark as hiding so it's not counted as active
+        toastContainer.classList.add('hiding');
         // Apply fade out via opacity
         toastContainer.style.opacity = '0';
         // Remove from DOM after transition
