@@ -1,5 +1,6 @@
 /*
  Brents-Toasts ("Snackbar System v2")
+ Version 1.0
  Under Apache License 2.0
  Brentspine 2026
 */
