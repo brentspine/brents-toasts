@@ -212,9 +212,11 @@ export class Toasts {
     removeToast(id: string): void {
         const toastContainer = document.getElementById(id);
         if (!toastContainer) return;
+        if (toastContainer.classList.contains('bt-hiding')) return;
         const parent = toastContainer.parentElement;
 
         const onClose = this._onCloseCallbacks.get(toastContainer);
+        this._onCloseCallbacks.delete(toastContainer);
         if (onClose) onClose();
 
         toastContainer.classList.add('bt-hiding');
