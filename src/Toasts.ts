@@ -8,6 +8,7 @@
 import { ToastColor } from './ToastColor';
 import { ToastPosition, IMPLEMENTED_POSITIONS, type ToastPositionValue } from './ToastPosition';
 import { ToastAnimation, IMPLEMENTED_ANIMATIONS, type ToastAnimationValue } from './ToastAnimation';
+import toastsCss from './toasts.css';
 
 const MAX_TOASTS = 5;
 const TOAST_GAP = 8;
@@ -325,55 +326,7 @@ export class Toasts {
         if (document.getElementById('toasts-styles')) return;
         const style = document.createElement('style');
         style.id = 'toasts-styles';
-        style.innerHTML = `
-            .bt-snackbar {
-                position: fixed;
-                width: 100vw;
-                z-index: 10000;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                --font-size: 14px;
-            }
-            .bt-toast-container {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                position: fixed !important;
-                transition: opacity ${TOAST_TRANSITION_MS}ms ease-in-out, bottom 0.2s ease-in-out;
-            }
-            .bt-toast {
-                min-width: 350px;
-                background-color: #333;
-                width: auto;
-                display: flex;
-                min-height: 47px;
-                align-items: center;
-                border-radius: 3px;
-                font-size: var(--font-size);
-                color: #fff;
-            }
-            .bt-toast-close {
-                border-radius: 2px 0 0 2px;
-                align-self: stretch;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background-color: var(--data-background, #555);
-                width: 4.5px;
-                overflow: hidden;
-                transition: width 0.2s;
-                flex-shrink: 0;
-            }
-            .bt-toast-close span { opacity: 0; }
-            .bt-toast.bt-closable:hover .bt-toast-close span { opacity: 1; }
-            .bt-toast.bt-closable:hover .bt-toast-close {
-                cursor: pointer;
-                width: 20px;
-            }
-            .bt-toast .bt-toast-content { margin-left: 10px; padding: 6px 0; }
-            .bt-toast .bt-toast-title { font-weight: 600; }
-        `;
+        style.innerHTML = toastsCss;
         document.head.appendChild(style);
     }
 
