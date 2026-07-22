@@ -1,0 +1,18 @@
+# Dev
+toasts.js
+rollup.config.js
+eslint.config.js
+.eslintrc*
+
+# Test
+test/
+*.test.js
+*.spec.js
+
+# CI
+.github/
+.gitlab-ci.yml
+
+examples/
+src/
+docs/

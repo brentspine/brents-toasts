@@ -1,0 +1,162 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+
+      - name: Verify tag matches package.json version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $PKG_VERSION"
+            exit 1
+          fi
+
+      - name: Rename dist files with version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir release
+          cp dist/index.esm.js       "release/brents-toasts-${VERSION}.esm.js"
+          cp dist/index.esm.min.js   "release/brents-toasts-${VERSION}.esm.min.js"
+          cp dist/index.cjs         "release/brents-toasts-${VERSION}.cjs"
+          cp dist/index.umd.js       "release/brents-toasts-${VERSION}.umd.js"
+          cp dist/index.umd.min.js   "release/brents-toasts-${VERSION}.umd.min.js"
+          cp dist/index.d.ts         "release/brents-toasts-${VERSION}.d.ts"
+
+      - name: Determine prerelease status
+        id: prerelease
+        run: |
+          if [[ "${GITHUB_REF_NAME}" =~ -(alpha|beta|rc) ]]; then
+            echo "flag=--prerelease" >> "$GITHUB_OUTPUT"
+          else
+            echo "flag=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Determine previous tag
+        id: prevtag
+        if: steps.prerelease.outputs.flag == ''
+        run: |
+          PREV="$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          echo "tag=${PREV}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog
+        if: steps.prerelease.outputs.flag == ''
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PREV_TAG: ${{ steps.prevtag.outputs.tag }}
+        run: |
+          export VERSION="${GITHUB_REF_NAME#v}"
+          node scripts/generate-changelog.js
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [ -z "${{ steps.prerelease.outputs.flag }}" ]; then
+            gh release create "${GITHUB_REF_NAME}" release/* \
+              --title "${GITHUB_REF_NAME}" \
+              --notes-file "docs/changelogs/${VERSION}.md"
+          else
+            gh release create "${GITHUB_REF_NAME}" release/* \
+              --title "${GITHUB_REF_NAME}" \
+              --generate-notes \
+              --prerelease
+          fi
+
+      - name: Prepare demo files
+        if: steps.prerelease.outputs.flag == ''
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p demo-deploy
+          cp demo/index.html demo-deploy/index.html
+          cp demo/styles.css demo-deploy/styles.css
+          cp dist/index.esm.min.js "demo-deploy/toasts-${VERSION}.js"
+          sed -e "s/__TOASTS_LIB__/toasts-${VERSION}.js/" -e "s/__VERSION__/${VERSION}/g" \
+            demo/app.js > demo-deploy/app.js
+
+      - name: Deploy demo to brentspine.github.io
+        if: steps.prerelease.outputs.flag == ''
+        env:
+          GH_TOKEN: ${{ secrets.PAGES_DEPLOY_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/Brentspine/brentspine.github.io.git" pages-repo
+
+          # latest (root) mirror
+          rm -f pages-repo/brents-toasts/toasts-*.js
+          cp demo-deploy/index.html pages-repo/brents-toasts/index.html
+          cp demo-deploy/styles.css pages-repo/brents-toasts/styles.css
+          cp demo-deploy/app.js pages-repo/brents-toasts/app.js
+          cp "demo-deploy/toasts-${VERSION}.js" "pages-repo/brents-toasts/toasts-${VERSION}.js"
+
+          # versioned archive, kept around indefinitely
+          ARCHIVE="pages-repo/brents-toasts/versions/${VERSION}"
+          mkdir -p "$ARCHIVE"
+          cp demo-deploy/index.html "$ARCHIVE/index.html"
+          cp demo-deploy/styles.css "$ARCHIVE/styles.css"
+          cp demo-deploy/app.js "$ARCHIVE/app.js"
+          cp "demo-deploy/toasts-${VERSION}.js" "$ARCHIVE/toasts-${VERSION}.js"
+
+          # version list, used by the demo page's "Other versions" section
+          node -e "
+            const fs = require('fs');
+            const path = 'pages-repo/brents-toasts/versions/versions.json';
+            const list = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, 'utf8')) : [];
+            if (!list.includes('${VERSION}')) list.push('${VERSION}');
+            list.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+            fs.writeFileSync(path, JSON.stringify(list, null, 2) + '\n');
+          "
+
+          cd pages-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add brents-toasts
+          if git diff --cached --quiet; then
+            echo "No changes to deploy"
+          else
+            git commit -m "Update brents-toasts demo to v${VERSION}"
+            git push
+          fi
+
+      - name: Commit changelog to main
+        if: steps.prerelease.outputs.flag == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          cp "docs/changelogs/${VERSION}.md" "/tmp/changelog-${VERSION}.md"
+          git fetch origin main
+          git checkout -B main origin/main
+          mkdir -p docs/changelogs
+          cp "/tmp/changelog-${VERSION}.md" "docs/changelogs/${VERSION}.md"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "docs/changelogs/${VERSION}.md"
+          if git diff --cached --quiet; then
+            echo "No changelog changes to commit"
+          else
+            git commit -m "Add changelog for v${VERSION}"
+            git push origin main
+          fi

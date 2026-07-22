@@ -1,0 +1,4 @@
+dist/
+.gitignore.local
+node_modules/
+.idea/
