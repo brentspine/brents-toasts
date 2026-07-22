@@ -13,9 +13,60 @@
       <p class="sub">Minimal demo for <span class="mono">brents-toasts</span> - Note: This demo was AI generated. The ToastSystem is 100% self-written</p>
     </header>
 
+    <section class="controls" aria-label="Global config">
+      <label for="configMaxToasts">Max toasts</label>
+      <div class="duration-row">
+        <input id="configMaxToasts" type="number" min="1" step="1" value="5" />
+        <span class="hint">visible at once, oldest evicted</span>
+      </div>
+
+      <label for="configColor">Default color</label>
+      <select id="configColor" aria-label="Default color">
+        <option value="INFO">INFO</option>
+        <option value="SUCCESS">SUCCESS</option>
+        <option value="WARNING">WARNING</option>
+        <option value="ERROR">ERROR</option>
+      </select>
+
+      <label for="configDuration">Default duration (ms)</label>
+      <div class="duration-row">
+        <input id="configDuration" type="number" min="0" step="100" value="3000" />
+        <span class="hint">0 = sticky</span>
+      </div>
+
+      <label for="configClosable">Default closable</label>
+      <div class="check-row">
+        <input id="configClosable" type="checkbox" checked />
+        <span class="hint">Applies whenever a toast doesn't override it</span>
+      </div>
+
+      <div class="actions">
+        <button id="applyConfig" type="button">Apply page config</button>
+      </div>
+    </section>
+
+    <section class="code" aria-label="Global config code preview">
+      <div class="code-head">
+        <span class="muted">toasts.configure(...) for this page</span>
+      </div>
+      <pre class="code-box"><code id="configCodePreview"></code></pre>
+    </section>
+
     <section class="controls" aria-label="Toast controls">
       <label for="toastText">Text</label>
       <textarea id="toastText" rows="3" spellcheck="false">Hello from Brents-Toasts 👋</textarea>
+
+      <label for="apiStyle">API style</label>
+      <select id="apiStyle" aria-label="API style">
+        <option value="direct">Direct call — showToast(...)</option>
+        <option value="builder">Builder — new ToastBuilder(...)</option>
+      </select>
+
+      <label for="useDefaults">Use page config</label>
+      <div class="check-row">
+        <input id="useDefaults" type="checkbox" />
+        <span class="hint">Skip overrides below, rely on the config above</span>
+      </div>
 
       <label for="presetColor">Color</label>
       <div class="color-row">
@@ -71,7 +122,7 @@
     </section>
 
     <footer class="foot">
-      <span class="mono">MAX_TOASTS = 5</span>
+      <span class="mono">Page config: maxToasts = <span id="maxToastsFooter">5</span></span>
     </footer>
   </main>
 

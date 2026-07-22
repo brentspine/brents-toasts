@@ -1,8 +1,18 @@
-import { toasts, ToastColor } from "./__TOASTS_LIB__";
+import { toasts, ToastColor, ToastBuilder } from "./__TOASTS_LIB__";
 
 const $ = (id) => document.getElementById(id);
 
+const configMaxToasts = $("configMaxToasts");
+const configColor = $("configColor");
+const configDuration = $("configDuration");
+const configClosable = $("configClosable");
+const applyConfigBtn = $("applyConfig");
+const configCodePreview = $("configCodePreview");
+const maxToastsFooter = $("maxToastsFooter");
+
 const toastText = $("toastText");
+const apiStyle = $("apiStyle");
+const useDefaults = $("useDefaults");
 const presetColor = $("presetColor");
 const colorPicker = $("colorPicker");
 const colorHex = $("colorHex");
@@ -33,6 +43,41 @@ function readDuration() {
   const finite = Number.isFinite(n);
   const normalized = finite ? n : 3000;
   return normalized < 0 ? 0 : normalized;
+}
+
+function readMaxToasts() {
+  const n = Number.parseInt(configMaxToasts.value, 10);
+  const valid = Number.isFinite(n) && n > 0;
+  return valid ? n : 5;
+}
+
+function readConfigDuration() {
+  const n = Number.parseInt(configDuration.value, 10);
+  const finite = Number.isFinite(n);
+  const normalized = finite ? n : 3000;
+  return normalized < 0 ? 0 : normalized;
+}
+
+function applyPageConfig() {
+  toasts.configure({
+    maxToasts: readMaxToasts(),
+    color: ToastColor[configColor.value],
+    duration: readConfigDuration(),
+    closable: configClosable.checked,
+  });
+  maxToastsFooter.textContent = String(readMaxToasts());
+}
+
+function updateConfigCodePreview() {
+  const lines = [
+    `toasts.configure({`,
+    `  maxToasts: ${readMaxToasts()},`,
+    `  color: ToastColor.${configColor.value},`,
+    `  duration: ${readConfigDuration()},`,
+    `  closable: ${configClosable.checked},`,
+    `});`,
+  ];
+  configCodePreview.textContent = lines.join("\n");
 }
 
 function readMessageRaw() {
@@ -72,17 +117,38 @@ function syncColorUIFromPicker() {
 
 function updateCodePreview() {
   const msg = readMessageRaw();
-  const dur = readDuration();
-  const canClose = readClosable();
-  const colorExpr = colorExprForPreview();
+  const style = apiStyle.value;
+  const skipOverrides = useDefaults.checked;
 
-  const lines = [
-    `import { toasts, ToastColor } from "./__TOASTS_LIB__";`,
-    ``,
-    `toasts.showToast(${JSON.stringify(msg)}, ${colorExpr}, ${dur}, ${canClose});`,
-  ];
+  const needsColorImport = !skipOverrides;
+  const importLine = style === "builder"
+    ? needsColorImport
+      ? `import { ToastBuilder, ToastColor } from "./__TOASTS_LIB__";`
+      : `import { ToastBuilder } from "./__TOASTS_LIB__";`
+    : `import { toasts, ToastColor } from "./__TOASTS_LIB__";`;
 
-  codePreview.textContent = lines.join("\n");
+  let callLines;
+  if (skipOverrides) {
+    callLines = style === "builder"
+      ? [`new ToastBuilder(${JSON.stringify(msg)}).show();`]
+      : [`toasts.showToast(${JSON.stringify(msg)});`];
+  } else {
+    const dur = readDuration();
+    const canClose = readClosable();
+    const colorExpr = colorExprForPreview();
+
+    callLines = style === "builder"
+      ? [
+        `new ToastBuilder(${JSON.stringify(msg)})`,
+        `  .withColor(${colorExpr})`,
+        `  .withDuration(${dur})`,
+        `  .withClosable(${canClose})`,
+        `  .show();`,
+      ]
+      : [`toasts.showToast(${JSON.stringify(msg)}, { color: ${colorExpr}, duration: ${dur}, closable: ${canClose} });`];
+  }
+
+  codePreview.textContent = [importLine, ``, ...callLines].join("\n");
 }
 
 function escapeHtml(s) {
@@ -159,11 +225,27 @@ async function loadVersionList() {
 
 function showOneToast() {
   const msg = readMessageRaw();
+  const style = apiStyle.value;
+  const skipOverrides = useDefaults.checked;
+
+  if (skipOverrides) {
+    if (style === "builder") {
+      new ToastBuilder(msg).show();
+    } else {
+      toasts.showToast(msg);
+    }
+    return;
+  }
+
   const col = colorValueForToast();
   const dur = readDuration();
   const canClose = readClosable();
 
-  toasts.showToast(msg, col, dur, canClose);
+  if (style === "builder") {
+    new ToastBuilder(msg).withColor(col).withDuration(dur).withClosable(canClose).show();
+  } else {
+    toasts.showToast(msg, { color: col, duration: dur, closable: canClose });
+  }
 }
 
 function showFiveToasts() {
@@ -174,12 +256,26 @@ function showFiveToasts() {
   }
 }
 
+function updateOverrideInputsDisabled() {
+  const disabled = useDefaults.checked;
+  presetColor.disabled = disabled;
+  colorPicker.disabled = disabled;
+  durationMs.disabled = disabled;
+  closable.disabled = disabled;
+}
+
 function wirePreviewUpdates() {
   const update = () => updateCodePreview();
 
   toastText.addEventListener("input", update);
   durationMs.addEventListener("input", update);
   closable.addEventListener("change", update);
+  apiStyle.addEventListener("change", update);
+
+  useDefaults.addEventListener("change", () => {
+    updateOverrideInputsDisabled();
+    updateCodePreview();
+  });
 
   presetColor.addEventListener("change", () => {
     syncColorUIFromPreset();
@@ -192,6 +288,20 @@ function wirePreviewUpdates() {
   });
 }
 
+function wireConfigUpdates() {
+  const update = () => updateConfigCodePreview();
+
+  configMaxToasts.addEventListener("input", update);
+  configColor.addEventListener("change", update);
+  configDuration.addEventListener("input", update);
+  configClosable.addEventListener("change", update);
+
+  applyConfigBtn.addEventListener("click", () => {
+    applyPageConfig();
+    updateConfigCodePreview();
+  });
+}
+
 makeToast.addEventListener("click", showOneToast);
 makeFive.addEventListener("click", showFiveToasts);
 
@@ -199,7 +309,11 @@ makeFive.addEventListener("click", showFiveToasts);
 presetColor.value = "INFO";
 colorPicker.value = presetToHex6("INFO");
 syncColorUIFromPreset();
+updateOverrideInputsDisabled();
 wirePreviewUpdates();
+wireConfigUpdates();
+applyPageConfig();
 updateCodePreview();
+updateConfigCodePreview();
 loadChangelog();
 loadVersionList();

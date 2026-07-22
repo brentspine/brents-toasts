@@ -73,6 +73,9 @@ select{
 textarea{ resize: vertical; min-height: 70px; }
 select{ padding: 10px 8px; }
 
+input:disabled,
+select:disabled{ opacity: 0.45; cursor: not-allowed; }
+
 input[type="color"]{
   width: 48px;
   height: 40px;
