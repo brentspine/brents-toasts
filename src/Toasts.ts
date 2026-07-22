@@ -101,22 +101,26 @@ export class Toasts {
 
     /**
      * @param message The text to display. HTML only if `allowHtml` is true.
+     *   Pass a `Node` (e.g. an `HTMLElement`/`DocumentFragment`) instead for
+     *   fully custom, interactive content — it's appended directly, so
+     *   `allowHtml`/XSS sanitization concerns don't apply to it.
      * @param options Per-toast overrides. See `ToastOptions`.
      * @returns The toast's unique ID (can be used with `removeToast`).
      */
-    showToast(message: string, options?: ToastOptions): string;
+    showToast(message: string | Node, options?: ToastOptions): string;
     /**
      * Legacy positional signature — equivalent to showToast(message, { color, duration, closable, allowHtml }).
      * @param message  The text to display. HTML only if `allowHtml` is true.
+     *   Pass a `Node` for fully custom content — `allowHtml` is ignored in that case.
      * @param color    Background color of the indicator bar. Defaults to `ToastColor.INFO`.
      * @param duration Auto-dismiss after ms. Use `0` to disable. Defaults to `3000`.
      * @param closable Whether clicking the toast dismisses it. Defaults to `true`.
      * @param allowHtml If true, `message` is rendered as HTML. XSS: sanitize input yourself...
      * @returns The toast's unique ID (can be used with `removeToast`).
      */
-    showToast(message: string, color?: string, duration?: number, closable?: boolean, allowHtml?: boolean): string;
+    showToast(message: string | Node, color?: string, duration?: number, closable?: boolean, allowHtml?: boolean): string;
     showToast(
-        message: string,
+        message: string | Node,
         colorOrOptions?: string | ToastOptions,
         duration?: number,
         closable?: boolean,
@@ -173,7 +177,9 @@ export class Toasts {
         }
         const toastMessage = document.createElement('div');
         toastMessage.className = 'bt-toast-message';
-        if (opts.allowHtml) {
+        if (message instanceof Node) {
+            toastMessage.appendChild(message);
+        } else if (opts.allowHtml) {
             toastMessage.innerHTML = message;
         } else {
             toastMessage.textContent = message;
@@ -221,6 +227,9 @@ export class Toasts {
 
         toastContainer.classList.add('bt-hiding');
         toastContainer.style.opacity = '0';
+        // Reposition the remaining toasts now, in parallel with the fade-out,
+        // instead of waiting for this one to finish disappearing.
+        if (parent) this._recalculatePositions(parent);
 
         setTimeout(() => {
             toastContainer.remove();
@@ -288,11 +297,14 @@ export class Toasts {
     // overlap their neighbors.
     private _recalculatePositions(snackbar: HTMLElement): void {
         let offset = TOAST_BOTTOM_OFFSET;
-        Array.from(snackbar.children).reverse().forEach((el) => {
-            const toastEl = el as HTMLElement;
-            toastEl.style.bottom = `${offset}px`;
-            offset += toastEl.getBoundingClientRect().height + TOAST_GAP;
-        });
+        Array.from(snackbar.children)
+            .filter(el => !el.classList.contains('bt-hiding'))
+            .reverse()
+            .forEach((el) => {
+                const toastEl = el as HTMLElement;
+                toastEl.style.bottom = `${offset}px`;
+                offset += toastEl.getBoundingClientRect().height + TOAST_GAP;
+            });
     }
 
     // Pushes every toast other than `newToast` up to make room for it,
@@ -336,7 +348,6 @@ export class Toasts {
                 width: auto;
                 display: flex;
                 min-height: 47px;
-                padding: 6px 0;
                 align-items: center;
                 border-radius: 3px;
                 font-size: var(--font-size);
@@ -360,7 +371,7 @@ export class Toasts {
                 cursor: pointer;
                 width: 20px;
             }
-            .bt-toast .bt-toast-content { margin-left: 10px; }
+            .bt-toast .bt-toast-content { margin-left: 10px; padding: 6px 0; }
             .bt-toast .bt-toast-title { font-weight: 600; }
         `;
         document.head.appendChild(style);

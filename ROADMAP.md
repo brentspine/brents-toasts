@@ -28,6 +28,23 @@ per-toast options) without fully implementing every value yet.
 - **`onClose`**, **`removeOtherToasts`** — supported end-to-end.
 - **`configure()`** for library-wide defaults (position, animation, color,
   duration, closable, allowHtml, maxToasts, evictOldest) — supported.
+- **Custom content** — `message` accepts either a string (plain text, or
+  HTML via `allowHtml`) or a real `Node` (`HTMLElement`/`DocumentFragment`),
+  appended directly with no `innerHTML`/XSS surface. Supported in both
+  `showToast()` and `ToastBuilder`.
+
+## Decided (don't re-litigate)
+
+- **Exports**: `src/index.ts` exports `toasts` (singleton) both as a named
+  export and as `default`, alongside `Toasts`, `ToastColor`,
+  `ToastPosition`, `ToastAnimation`, `ToastBuilder`. Both `import { toasts }
+  from 'brents-toasts'` and `import toasts from 'brents-toasts'` must keep
+  working — dropping either broke the live demo once already (v2.0.2).
+- **UMD global**: `window.BrentsToasts` is a namespace object mirroring the
+  ESM named exports 1:1 (`BrentsToasts.toasts`, `BrentsToasts.Toasts`, ...),
+  not the singleton itself. Comes for free from `rollup.config.js`'s `{
+  format: 'umd', exports: 'named', name: 'BrentsToasts' }` — don't change
+  `exports` to `'default'` there.
 
 ## Not ported (from the old codebase, intentionally)
 

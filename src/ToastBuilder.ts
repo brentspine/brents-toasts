@@ -11,10 +11,10 @@ import type { ToastAnimationValue } from './ToastAnimation';
 */
 export class ToastBuilder {
     private _toasts: Toasts;
-    private _message: string;
+    private _message: string | Node;
     private _options: ToastOptions;
 
-    constructor(message: string, toastsInstance: Toasts = defaultToasts) {
+    constructor(message: string | Node, toastsInstance: Toasts = defaultToasts) {
         this._toasts = toastsInstance;
         this._message = message;
         this._options = {};

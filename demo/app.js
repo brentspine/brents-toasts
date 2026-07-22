@@ -143,7 +143,8 @@ async function loadVersionList() {
     const res = await fetch("/brents-toasts/versions/versions.json");
     if (!res.ok) throw new Error(`status ${res.status}`);
     const versions = await res.json();
-    versionList.innerHTML = versions
+    versionList.innerHTML = `<li><a href="/brents-toasts">Latest</a></li>`;
+    versionList.innerHTML += versions
       .slice()
       .reverse()
       .map((v) => {
