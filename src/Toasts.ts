@@ -9,6 +9,7 @@ import { ToastColor } from './ToastColor';
 import { ToastPosition, IMPLEMENTED_POSITIONS, type ToastPositionValue } from './ToastPosition';
 import { ToastAnimation, IMPLEMENTED_ANIMATIONS, type ToastAnimationValue } from './ToastAnimation';
 import toastsCss from './toasts.css';
+import VERSION from 'virtual:version';
 
 const MAX_TOASTS = 5;
 const TOAST_GAP = 8;
@@ -328,6 +329,7 @@ export class Toasts {
         style.id = 'toasts-styles';
         style.innerHTML = toastsCss;
         document.head.appendChild(style);
+        document.head.insertBefore(document.createComment(`brents-toasts v${VERSION} styles`), style);
     }
 
     /**
@@ -354,6 +356,7 @@ export class Toasts {
         snackbar.setAttribute('role', 'region');
         snackbar.setAttribute('aria-label', 'Notifications');
         document.body.appendChild(snackbar);
+        document.body.insertBefore(document.createComment(`brents-toasts v${VERSION} snackbar container`), snackbar);
         this.snackbars.set(position, snackbar);
         return snackbar;
     }
