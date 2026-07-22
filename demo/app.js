@@ -11,6 +11,9 @@ const configCodePreview = $("configCodePreview");
 const maxToastsFooter = $("maxToastsFooter");
 
 const toastText = $("toastText");
+const toastTitle = $("toastTitle");
+const contentType = $("contentType");
+const contentTypeHint = $("contentTypeHint");
 const apiStyle = $("apiStyle");
 const useDefaults = $("useDefaults");
 const presetColor = $("presetColor");
@@ -18,11 +21,21 @@ const colorPicker = $("colorPicker");
 const colorHex = $("colorHex");
 const durationMs = $("durationMs");
 const closable = $("closable");
+const removeOthers = $("removeOthers");
+const presetSuccessBtn = $("presetSuccess");
+const presetHtmlBtn = $("presetHtml");
+const presetUndoBtn = $("presetUndo");
 const makeToast = $("makeToast");
 const makeFive = $("makeFive");
 const codePreview = $("codePreview");
 const changelogBox = $("changelog");
 const versionList = $("versionList");
+
+const CONTENT_TYPE_HINTS = {
+  text: "Rendered as plain text — safe with untrusted input.",
+  html: "Rendered via innerHTML — sanitize untrusted input yourself.",
+  interactive: "A real DOM Node with a click handler — no innerHTML, no XSS surface.",
+};
 
 function presetToHex6(key) {
   const c = ToastColor[key];
@@ -90,6 +103,29 @@ function readClosable() {
   return Boolean(closable.checked);
 }
 
+function readTitle() {
+  const t = toastTitle.value.trim();
+  return t.length ? t : undefined;
+}
+
+// Mirrors the README's custom-content example: a plain Node appended
+// directly, so it's interactive and needs no innerHTML/allowHtml at all.
+function buildUndoContent() {
+  const content = document.createElement("span");
+  content.textContent = "Item deleted. ";
+  const undoBtn = document.createElement("button");
+  undoBtn.textContent = "Undo";
+  undoBtn.onclick = () => toasts.showToast("Restored!", ToastColor.SUCCESS);
+  content.appendChild(undoBtn);
+  return content;
+}
+
+function updateContentModeUI() {
+  const mode = contentType.value;
+  toastText.disabled = mode === "interactive";
+  contentTypeHint.textContent = CONTENT_TYPE_HINTS[mode];
+}
+
 function colorExprForPreview() {
   const preset = presetColor.value;
   const custom = preset === "CUSTOM";
@@ -115,40 +151,64 @@ function syncColorUIFromPicker() {
   colorHex.value = colorPicker.value.toUpperCase();
 }
 
+// Per-call options as [key, sourceExpression] pairs — used to render both
+// the options-object form and the equivalent ToastBuilder chain below.
+function optionPairsForPreview(includeStyleOverrides) {
+  const pairs = [];
+  const title = readTitle();
+  if (title) pairs.push(["title", JSON.stringify(title)]);
+  if (contentType.value === "html") pairs.push(["allowHtml", "true"]);
+  if (removeOthers.checked) pairs.push(["removeOtherToasts", "true"]);
+  if (includeStyleOverrides) {
+    pairs.push(["color", colorExprForPreview()]);
+    pairs.push(["duration", String(readDuration())]);
+    pairs.push(["closable", String(readClosable())]);
+  }
+  return pairs;
+}
+
+function builderMethodLine([key, valueExpr]) {
+  if (key === "removeOtherToasts") return `  .andRemoveOtherToasts()`;
+  const method = `with${key[0].toUpperCase()}${key.slice(1)}`;
+  return `  .${method}(${valueExpr})`;
+}
+
 function updateCodePreview() {
-  const msg = readMessageRaw();
   const style = apiStyle.value;
   const skipOverrides = useDefaults.checked;
+  const isInteractive = contentType.value === "interactive";
+  const pairs = optionPairsForPreview(!skipOverrides);
 
-  const needsColorImport = !skipOverrides;
-  const importLine = style === "builder"
-    ? needsColorImport
-      ? `import { ToastBuilder, ToastColor } from "./__TOASTS_LIB__";`
-      : `import { ToastBuilder } from "./__TOASTS_LIB__";`
-    : `import { toasts, ToastColor } from "./__TOASTS_LIB__";`;
+  const names = new Set(style === "builder" ? ["ToastBuilder"] : ["toasts"]);
+  if (isInteractive || pairs.some(([key]) => key === "color")) names.add("ToastColor");
+  if (isInteractive) names.add("toasts");
 
-  let callLines;
-  if (skipOverrides) {
-    callLines = style === "builder"
-      ? [`new ToastBuilder(${JSON.stringify(msg)}).show();`]
-      : [`toasts.showToast(${JSON.stringify(msg)});`];
+  const lines = [`import { ${Array.from(names).join(", ")} } from "./__TOASTS_LIB__";`, ``];
+
+  let msgExpr;
+  if (isInteractive) {
+    lines.push(
+      `const content = document.createElement('span');`,
+      `content.textContent = 'Item deleted. ';`,
+      `const undoBtn = document.createElement('button');`,
+      `undoBtn.textContent = 'Undo';`,
+      `undoBtn.onclick = () => toasts.showToast('Restored!', ToastColor.SUCCESS);`,
+      `content.appendChild(undoBtn);`,
+      ``,
+    );
+    msgExpr = "content";
   } else {
-    const dur = readDuration();
-    const canClose = readClosable();
-    const colorExpr = colorExprForPreview();
-
-    callLines = style === "builder"
-      ? [
-        `new ToastBuilder(${JSON.stringify(msg)})`,
-        `  .withColor(${colorExpr})`,
-        `  .withDuration(${dur})`,
-        `  .withClosable(${canClose})`,
-        `  .show();`,
-      ]
-      : [`toasts.showToast(${JSON.stringify(msg)}, { color: ${colorExpr}, duration: ${dur}, closable: ${canClose} });`];
+    msgExpr = JSON.stringify(readMessageRaw());
   }
 
-  codePreview.textContent = [importLine, ``, ...callLines].join("\n");
+  if (style === "builder") {
+    lines.push(`new ToastBuilder(${msgExpr})`, ...pairs.map(builderMethodLine), `  .show();`);
+  } else {
+    const objLine = pairs.length ? `, { ${pairs.map(([key, v]) => `${key}: ${v}`).join(", ")} }` : "";
+    lines.push(`toasts.showToast(${msgExpr}${objLine});`);
+  }
+
+  codePreview.textContent = lines.join("\n");
 }
 
 function escapeHtml(s) {
@@ -224,27 +284,32 @@ async function loadVersionList() {
 }
 
 function showOneToast() {
-  const msg = readMessageRaw();
   const style = apiStyle.value;
   const skipOverrides = useDefaults.checked;
+  const message = contentType.value === "interactive" ? buildUndoContent() : readMessageRaw();
 
-  if (skipOverrides) {
-    if (style === "builder") {
-      new ToastBuilder(msg).show();
-    } else {
-      toasts.showToast(msg);
-    }
-    return;
+  const opts = {};
+  const title = readTitle();
+  if (title) opts.title = title;
+  if (contentType.value === "html") opts.allowHtml = true;
+  if (removeOthers.checked) opts.removeOtherToasts = true;
+  if (!skipOverrides) {
+    opts.color = colorValueForToast();
+    opts.duration = readDuration();
+    opts.closable = readClosable();
   }
 
-  const col = colorValueForToast();
-  const dur = readDuration();
-  const canClose = readClosable();
-
   if (style === "builder") {
-    new ToastBuilder(msg).withColor(col).withDuration(dur).withClosable(canClose).show();
+    const builder = new ToastBuilder(message);
+    if (opts.title) builder.withTitle(opts.title);
+    if (opts.allowHtml) builder.withAllowHtml(true);
+    if (opts.removeOtherToasts) builder.andRemoveOtherToasts();
+    if (!skipOverrides) {
+      builder.withColor(opts.color).withDuration(opts.duration).withClosable(opts.closable);
+    }
+    builder.show();
   } else {
-    toasts.showToast(msg, { color: col, duration: dur, closable: canClose });
+    toasts.showToast(message, opts);
   }
 }
 
@@ -264,13 +329,57 @@ function updateOverrideInputsDisabled() {
   closable.disabled = disabled;
 }
 
+// Quick-fill buttons — set the underlying fields and then behave like any
+// other manual edit (no separate "preset mode" to fall out of sync with).
+const CONTENT_PRESETS = {
+  success: {
+    contentType: "text",
+    title: "Saved",
+    text: "Your changes have been saved.",
+    color: "SUCCESS",
+  },
+  html: {
+    contentType: "html",
+    title: "",
+    text: "<b>Update available.</b> Refresh to apply.",
+    color: "INFO",
+  },
+  undo: {
+    contentType: "interactive",
+    title: "Item deleted",
+    text: "",
+    color: "WARNING",
+    duration: "6000",
+  },
+};
+
+function applyPreset(name) {
+  const preset = CONTENT_PRESETS[name];
+  contentType.value = preset.contentType;
+  toastTitle.value = preset.title;
+  toastText.value = preset.text;
+  presetColor.value = preset.color;
+  if (preset.duration) durationMs.value = preset.duration;
+
+  syncColorUIFromPreset();
+  updateContentModeUI();
+  updateCodePreview();
+}
+
 function wirePreviewUpdates() {
   const update = () => updateCodePreview();
 
   toastText.addEventListener("input", update);
+  toastTitle.addEventListener("input", update);
   durationMs.addEventListener("input", update);
   closable.addEventListener("change", update);
+  removeOthers.addEventListener("change", update);
   apiStyle.addEventListener("change", update);
+
+  contentType.addEventListener("change", () => {
+    updateContentModeUI();
+    updateCodePreview();
+  });
 
   useDefaults.addEventListener("change", () => {
     updateOverrideInputsDisabled();
@@ -286,6 +395,10 @@ function wirePreviewUpdates() {
     syncColorUIFromPicker();
     updateCodePreview();
   });
+
+  presetSuccessBtn.addEventListener("click", () => applyPreset("success"));
+  presetHtmlBtn.addEventListener("click", () => applyPreset("html"));
+  presetUndoBtn.addEventListener("click", () => applyPreset("undo"));
 }
 
 function wireConfigUpdates() {
@@ -310,6 +423,7 @@ presetColor.value = "INFO";
 colorPicker.value = presetToHex6("INFO");
 syncColorUIFromPreset();
 updateOverrideInputsDisabled();
+updateContentModeUI();
 wirePreviewUpdates();
 wireConfigUpdates();
 applyPageConfig();

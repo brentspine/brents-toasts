@@ -53,8 +53,28 @@
     </section>
 
     <section class="controls" aria-label="Toast controls">
+      <label>Presets</label>
+      <div class="preset-row">
+        <button id="presetSuccess" type="button" class="ghost">Success + title</button>
+        <button id="presetHtml" type="button" class="ghost">Rich HTML</button>
+        <button id="presetUndo" type="button" class="ghost">Undo action</button>
+      </div>
+
       <label for="toastText">Text</label>
       <textarea id="toastText" rows="3" spellcheck="false">Hello from Brents-Toasts 👋</textarea>
+
+      <label for="toastTitle">Title (optional)</label>
+      <input id="toastTitle" type="text" placeholder="(none)" />
+
+      <label for="contentType">Content type</label>
+      <div class="duration-row">
+        <select id="contentType" aria-label="Content type">
+          <option value="text">Plain text</option>
+          <option value="html">HTML string (allowHtml)</option>
+          <option value="interactive">Interactive node (Undo demo)</option>
+        </select>
+        <span id="contentTypeHint" class="hint"></span>
+      </div>
 
       <label for="apiStyle">API style</label>
       <select id="apiStyle" aria-label="API style">
@@ -92,6 +112,12 @@
       <div class="check-row">
         <input id="closable" type="checkbox" checked />
         <span class="hint">Click toast to close</span>
+      </div>
+
+      <label for="removeOthers">Remove others</label>
+      <div class="check-row">
+        <input id="removeOthers" type="checkbox" />
+        <span class="hint">Dismiss every other visible toast first</span>
       </div>
 
       <div class="actions">

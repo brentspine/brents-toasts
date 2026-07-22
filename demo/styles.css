@@ -114,6 +114,12 @@ input[type="color"]{
   margin-top: 4px;
 }
 
+.preset-row{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 button{
   background: var(--info);
   color: #081018;
@@ -200,3 +206,18 @@ button.ghost:hover{ border-color: #555; }
   border-top: 1px solid var(--line);
   color: var(--muted);
 }
+
+/* Undo button injected into the "Undo action" preset toast (see buildUndoContent in app.js) */
+.bt-toast-message button{
+  margin-left: 8px;
+  background: transparent;
+  color: inherit;
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bt-toast-message button:hover{ background: rgba(255,255,255,0.12); }
