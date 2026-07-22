@@ -6,7 +6,7 @@
 //   VERSION           - version being released, e.g. "1.2.0"
 //   PREV_TAG          - previous release tag, e.g. "v1.1.0" (empty for the first release)
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 
 const EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
@@ -28,9 +28,11 @@ if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
 if (!version) throw new Error("VERSION is not set");
 
 const diffBase = prevTag || EMPTY_TREE;
-let diff = execSync(`git diff ${diffBase}..HEAD -- . ':!dist' ':!docs/changelogs' ':!package-lock.json' ':!.idea/' ':!.claude/'`, {
-  maxBuffer: 1024 * 1024 * 20,
-}).toString();
+let diff = execFileSync(
+  "git",
+  ["diff", `${diffBase}..HEAD`, "--", ".", ":!dist", ":!docs/changelogs", ":!package-lock.json", ":!.idea/", ":!.claude/"],
+  { maxBuffer: 1024 * 1024 * 20 },
+).toString();
 
 if (diff.length > MAX_DIFF_CHARS) {
   diff = `${diff.slice(0, MAX_DIFF_CHARS)}\n\n[diff truncated]`;

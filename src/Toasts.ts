@@ -10,7 +10,7 @@ import { ToastPosition, IMPLEMENTED_POSITIONS, type ToastPositionValue } from '.
 import { ToastAnimation, IMPLEMENTED_ANIMATIONS, type ToastAnimationValue } from './ToastAnimation';
 
 const MAX_TOASTS = 5;
-const TOAST_HEIGHT = 50;
+const TOAST_GAP = 8;
 const TOAST_BOTTOM_OFFSET = 22;
 const TOAST_TRANSITION_MS = 300;
 
@@ -141,10 +141,6 @@ export class Toasts {
             if (oldest) this.removeToast(oldest.id);
         }
 
-        Array.from(snackbar.children).reverse().forEach((el, index) => {
-            (el as HTMLElement).style.bottom = `${TOAST_BOTTOM_OFFSET + (index + 1) * TOAST_HEIGHT}px`;
-        });
-
         const id = `toast-${Math.random().toString(36).slice(2, 11)}`;
 
         const toastContainer = document.createElement('div');
@@ -189,6 +185,8 @@ export class Toasts {
         toastContainer.appendChild(toast);
         snackbar.appendChild(toastContainer);
 
+        this._stackExistingAbove(snackbar, toastContainer);
+
         // Minimaler Delay damit CSS-Transition greift
         requestAnimationFrame(() => {
             toastContainer.style.bottom = `${TOAST_BOTTOM_OFFSET}px`;
@@ -196,7 +194,13 @@ export class Toasts {
         });
 
         if (opts.closable) {
+            toast.setAttribute('tabindex', '0');
             toast.addEventListener('click', () => this.removeToast(id));
+            toast.addEventListener('keydown', (e: KeyboardEvent) => {
+                if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+                e.preventDefault();
+                this.removeToast(id);
+            });
         }
         if (opts.duration > 0) {
             setTimeout(() => this.removeToast(id), opts.duration);
@@ -276,10 +280,31 @@ export class Toasts {
         console.warn(`[brents-toasts] ${kind} "${value}" is not implemented yet, falling back to "${fallback}".`);
     }
 
+    // Repositions all remaining toasts, newest-first (matching the stacking
+    // order established when a toast is added), using each toast's actual
+    // rendered height so variable-height toasts (e.g. with a title) don't
+    // overlap their neighbors.
     private _recalculatePositions(snackbar: HTMLElement): void {
-        Array.from(snackbar.children).forEach((el, index) => {
-            (el as HTMLElement).style.bottom = `${TOAST_BOTTOM_OFFSET + index * TOAST_HEIGHT}px`;
+        let offset = TOAST_BOTTOM_OFFSET;
+        Array.from(snackbar.children).reverse().forEach((el) => {
+            const toastEl = el as HTMLElement;
+            toastEl.style.bottom = `${offset}px`;
+            offset += toastEl.getBoundingClientRect().height + TOAST_GAP;
         });
+    }
+
+    // Pushes every toast other than `newToast` up to make room for it,
+    // stacking newest-to-oldest by each toast's actual rendered height.
+    private _stackExistingAbove(snackbar: HTMLElement, newToast: HTMLElement): void {
+        let offset = TOAST_BOTTOM_OFFSET + newToast.getBoundingClientRect().height + TOAST_GAP;
+        Array.from(snackbar.children)
+            .filter(el => el !== newToast)
+            .reverse()
+            .forEach((el) => {
+                const toastEl = el as HTMLElement;
+                toastEl.style.bottom = `${offset}px`;
+                offset += toastEl.getBoundingClientRect().height + TOAST_GAP;
+            });
     }
 
     private _appendStyle(): void {
@@ -308,7 +333,8 @@ export class Toasts {
                 background-color: #333;
                 width: auto;
                 display: flex;
-                height: 47px;
+                min-height: 47px;
+                padding: 6px 0;
                 align-items: center;
                 border-radius: 3px;
                 font-size: var(--font-size);
@@ -316,7 +342,7 @@ export class Toasts {
             }
             .bt-toast-close {
                 border-radius: 2px 0 0 2px;
-                height: 100%;
+                align-self: stretch;
                 display: flex;
                 align-items: center;
                 justify-content: center;

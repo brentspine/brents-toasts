@@ -86,7 +86,12 @@ function updateCodePreview() {
 }
 
 function escapeHtml(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function renderChangelogMarkdown(md) {
@@ -141,7 +146,10 @@ async function loadVersionList() {
     versionList.innerHTML = versions
       .slice()
       .reverse()
-      .map((v) => `<li><a href="/brents-toasts/versions/${v}/">v${v}</a></li>`)
+      .map((v) => {
+        const safe = escapeHtml(String(v));
+        return `<li><a href="/brents-toasts/versions/${safe}/">v${safe}</a></li>`;
+      })
       .join("\n");
   } catch {
     versionList.textContent = "";
