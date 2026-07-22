@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Brents-Toasts Demo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="top">
+      <h1>Brents-Toasts</h1>
+      <p class="sub">Minimal demo for <span class="mono">brents-toasts</span> - Note: This demo was AI generated. The ToastSystem is 100% self-written</p>
+    </header>
+
+    <section class="controls" aria-label="Toast controls">
+      <label for="toastText">Text</label>
+      <textarea id="toastText" rows="3" spellcheck="false">Hello from Brents-Toasts 👋</textarea>
+
+      <label for="presetColor">Color</label>
+      <div class="color-row">
+        <select id="presetColor" aria-label="Preset color">
+          <option value="INFO">INFO</option>
+          <option value="SUCCESS">SUCCESS</option>
+          <option value="WARNING">WARNING</option>
+          <option value="ERROR">ERROR</option>
+          <option value="CUSTOM">CUSTOM</option>
+        </select>
+
+        <input id="colorPicker" type="color" aria-label="Custom color picker" />
+        <input id="colorHex" type="text" class="mono" aria-label="Selected color hex" readonly />
+      </div>
+
+      <label for="durationMs">Duration (ms)</label>
+      <div class="duration-row">
+        <input id="durationMs" type="number" min="0" step="100" value="3000" />
+        <span class="hint">0 = sticky</span>
+      </div>
+
+      <label for="closable">Closable</label>
+      <div class="check-row">
+        <input id="closable" type="checkbox" checked />
+        <span class="hint">Click toast to close</span>
+      </div>
+
+      <div class="actions">
+        <button id="makeToast" type="button">Generate toast</button>
+        <button id="makeFive" type="button" class="ghost">+5 (max test)</button>
+      </div>
+    </section>
+
+    <section class="code" aria-label="Code preview">
+      <div class="code-head">
+        <span class="muted">Code needed for this toast</span>
+      </div>
+      <pre class="code-box"><code id="codePreview"></code></pre>
+    </section>
+
+    <section class="code changelog" aria-label="Changelog">
+      <div class="code-head">
+        <span class="muted">Changelog</span>
+      </div>
+      <div id="changelog" class="changelog-box"></div>
+    </section>
+
+    <section class="code" aria-label="Other versions">
+      <div class="code-head">
+        <span class="muted">Other versions</span>
+      </div>
+      <ul id="versionList" class="version-list mono"></ul>
+    </section>
+
+    <footer class="foot">
+      <span class="mono">MAX_TOASTS = 5</span>
+    </footer>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
