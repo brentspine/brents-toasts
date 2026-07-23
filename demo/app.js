@@ -360,6 +360,15 @@ function escapeHtml(s) {
     .replace(/'/g, "&#39;");
 }
 
+// Splits on `code` spans so changelog entries referencing option/method
+// names (very common) render as <code>, not literal backticks.
+function renderInline(text) {
+  return text
+    .split(/`([^`]+)`/g)
+    .map((part, i) => (i % 2 === 1 ? `<code>${escapeHtml(part)}</code>` : escapeHtml(part)))
+    .join("");
+}
+
 function renderChangelogMarkdown(md) {
   const html = [];
   let inList = false;
@@ -370,21 +379,20 @@ function renderChangelogMarkdown(md) {
 
   for (const raw of md.split("\n")) {
     const line = raw.trim();
-    if (line.startsWith("### ")) {
+    const heading = line.match(/^(#{1,6})\s+(.*)$/);
+    if (heading) {
       closeList();
-      html.push(`<h4>${escapeHtml(line.slice(4))}</h4>`);
-    } else if (line.startsWith("# ")) {
-      closeList();
-      html.push(`<h3>${escapeHtml(line.slice(2))}</h3>`);
+      const tag = heading[1].length === 1 ? "h3" : "h4";
+      html.push(`<${tag}>${renderInline(heading[2])}</${tag}>`);
     } else if (line.startsWith("- ")) {
       if (!inList) {
         html.push("<ul>");
         inList = true;
       }
-      html.push(`<li>${escapeHtml(line.slice(2))}</li>`);
+      html.push(`<li>${renderInline(line.slice(2))}</li>`);
     } else if (line.length) {
       closeList();
-      html.push(`<p>${escapeHtml(line)}</p>`);
+      html.push(`<p>${renderInline(line)}</p>`);
     }
   }
   closeList();
