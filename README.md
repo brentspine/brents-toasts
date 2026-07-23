@@ -122,6 +122,35 @@ dismiss behavior. `label` always renders as plain text, like `title`. Pass
 look. Builder equivalent: `.withButton(label, onClick, className)`
 (repeatable — call it once per button).
 
+### Details (expandable extra info)
+
+For information that shouldn't clutter the main message — a status code, a
+backend error, anything only needed on request — pass `details` instead of
+building your own button. A "Details" toggle button is added automatically;
+clicking it reveals a block below the message that's visually distinct
+(bordered, monospace) and structurally separate from the clickable/
+dismissable part of the toast, so it never accidentally triggers dismissal.
+Each item gets its own "Copy" button:
+
+```ts
+toasts.showToast('Account settings could not be updated.', {
+  title: 'Action Failed',
+  color: ToastColor.ERROR,
+  details: [
+    { label: 'Error', value: '500 Internal Server Error' },
+    { label: 'Status', value: 'failed' },
+  ],
+});
+```
+
+Strings are shorthand for `{ value: '...' }` with no label. Set
+`copyable: false` on an item to hide its "Copy" button. Toggling details
+open/closed (or mutating a toast's own content some other way) automatically
+repositions the whole stack, so an expanded toast never overlaps the ones
+above it. Customize the toggle button text with `detailsLabel`/
+`detailsHideLabel` (default `"Details"`/`"Hide details"`). Builder
+equivalent: `.withDetails(details, detailsLabel?, detailsHideLabel?)`.
+
 ### Config: project-wide vs. page/section-local
 
 `toasts.configure({...})` sets defaults on the shared singleton — use this
@@ -148,4 +177,4 @@ new ToastBuilder('Also this page only.', pageToasts).show();
 
 See `ToastOptions`/`ToastsConfig` in `dist/index.d.ts` for the full list of
 per-toast and library-wide settings (position, animation, `onClose`,
-`removeOtherToasts`, `buttons`, `maxToasts`, `evictOldest`, ...).
+`removeOtherToasts`, `buttons`, `details`, `maxToasts`, `evictOldest`, ...).

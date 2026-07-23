@@ -43,7 +43,7 @@ const CONTENT_TYPE_HINTS = {
 const BUTTON_PRESET_HINTS = {
   none: "",
   undo: "Dismisses this toast, then shows a new one.",
-  details: "Appends one line of detail to this toast's own content.",
+  details: "Native details toggle — expands a distinct block with structured info, each item copyable.",
 };
 
 function presetToHex6(key) {
@@ -142,50 +142,45 @@ function updateButtonPresetUI() {
 
 // Real button behavior for showOneToast() — canned, not free-form, since
 // callbacks can't be represented as simple form fields the way text/color/
-// duration can.
+// duration can. "Details" uses the native `details` option instead (see
+// buildDetailsForToast()) — it gets its own toggle button for free.
 function buildButtonsForToast() {
-  const preset = buttonPreset.value;
-  if (preset === "none") return undefined;
-  if (preset === "undo") {
-    return [
-      {
-        label: "Undo",
-        onClick: (event, id) => {
-          toasts.removeToast(id);
-          toasts.showToast("Restored!", ToastColor.SUCCESS);
-        },
-      },
-    ];
-  }
+  if (buttonPreset.value !== "undo") return undefined;
   return [
     {
-      label: "Details",
+      label: "Undo",
       onClick: (event, id) => {
-        const msgEl = document.getElementById(id)?.querySelector(".bt-toast-message");
-        if (msgEl) msgEl.insertAdjacentHTML("beforeend", "<br>Error: 500 Internal Server Error");
+        toasts.removeToast(id);
+        toasts.showToast("Restored!", ToastColor.SUCCESS);
       },
     },
   ];
 }
 
-// Mirrors buildButtonsForToast() as [label, body-lines] preview data instead
-// of real callbacks — used by updateCodePreview()'s buttons special case.
+function buildDetailsForToast() {
+  if (buttonPreset.value !== "details") return undefined;
+  return [
+    { label: "Error", value: "500 Internal Server Error" },
+    { label: "Status", value: "failed" },
+  ];
+}
+
+// Mirrors buildButtonsForToast()/buildDetailsForToast() as preview data
+// instead of real callbacks — used by updateCodePreview().
 function buttonsBlockForPreview() {
-  const preset = buttonPreset.value;
-  if (preset === "none") return null;
-  if (preset === "undo") {
-    return {
-      label: "Undo",
-      body: [`toasts.removeToast(id);`, `toasts.showToast("Restored!", ToastColor.SUCCESS);`],
-    };
-  }
+  if (buttonPreset.value !== "undo") return null;
   return {
-    label: "Details",
-    body: [
-      `const msgEl = document.getElementById(id)?.querySelector(".bt-toast-message");`,
-      `if (msgEl) msgEl.insertAdjacentHTML("beforeend", "<br>Error: 500 Internal Server Error");`,
-    ],
+    label: "Undo",
+    body: [`toasts.removeToast(id);`, `toasts.showToast("Restored!", ToastColor.SUCCESS);`],
   };
+}
+
+function detailsBlockForPreview() {
+  if (buttonPreset.value !== "details") return null;
+  return [
+    { label: "Error", value: "500 Internal Server Error" },
+    { label: "Status", value: "failed" },
+  ];
 }
 
 function colorExprForPreview() {
@@ -241,6 +236,7 @@ function updateCodePreview() {
   const isInteractive = contentType.value === "interactive";
   const pairs = optionPairsForPreview(!skipOverrides);
   const btn = buttonsBlockForPreview();
+  const details = detailsBlockForPreview();
 
   const names = new Set(style === "builder" ? ["ToastBuilder"] : ["toasts"]);
   if (pairs.some(([key]) => key === "color")) names.add("ToastColor");
@@ -265,30 +261,41 @@ function updateCodePreview() {
     msgExpr = JSON.stringify(readMessageRaw());
   }
 
+  const detailsItemLines = (indent) =>
+    (details ?? []).map((d) => `${indent}{ label: ${JSON.stringify(d.label)}, value: ${JSON.stringify(d.value)} },`);
+
   if (style === "builder") {
-    const btnLine = btn
-      ? [
-          `  .withButton(${JSON.stringify(btn.label)}, (event, id) => {`,
-          ...btn.body.map((l) => `    ${l}`),
-          `  })`,
-        ].join("\n")
-      : null;
-    lines.push(`new ToastBuilder(${msgExpr})`, ...pairs.map(builderMethodLine), ...(btnLine ? [btnLine] : []), `  .show();`);
-  } else if (btn) {
-    const objLines = [
-      `, {`,
-      ...pairs.map(([key, v]) => `  ${key}: ${v},`),
-      `  buttons: [`,
-      `    {`,
-      `      label: ${JSON.stringify(btn.label)},`,
-      `      onClick: (event, id) => {`,
-      ...btn.body.map((l) => `        ${l}`),
-      `      },`,
-      `    },`,
-      `  ],`,
-      `}`,
-    ].join("\n");
-    lines.push(`toasts.showToast(${msgExpr}${objLines});`);
+    const bodyLines = [];
+    if (btn) {
+      bodyLines.push(
+        `  .withButton(${JSON.stringify(btn.label)}, (event, id) => {`,
+        ...btn.body.map((l) => `    ${l}`),
+        `  })`,
+      );
+    }
+    if (details) {
+      bodyLines.push(`  .withDetails([`, ...detailsItemLines("    "), `  ])`);
+    }
+    lines.push(`new ToastBuilder(${msgExpr})`, ...pairs.map(builderMethodLine), ...bodyLines, `  .show();`);
+  } else if (btn || details) {
+    const objLines = [`, {`, ...pairs.map(([key, v]) => `  ${key}: ${v},`)];
+    if (btn) {
+      objLines.push(
+        `  buttons: [`,
+        `    {`,
+        `      label: ${JSON.stringify(btn.label)},`,
+        `      onClick: (event, id) => {`,
+        ...btn.body.map((l) => `        ${l}`),
+        `      },`,
+        `    },`,
+        `  ],`,
+      );
+    }
+    if (details) {
+      objLines.push(`  details: [`, ...detailsItemLines("    "), `  ],`);
+    }
+    objLines.push(`}`);
+    lines.push(`toasts.showToast(${msgExpr}${objLines.join("\n")});`);
   } else {
     const objLine = pairs.length ? `, { ${pairs.map(([key, v]) => `${key}: ${v}`).join(", ")} }` : "";
     lines.push(`toasts.showToast(${msgExpr}${objLine});`);
@@ -381,6 +388,8 @@ function showOneToast() {
   if (removeOthers.checked) opts.removeOtherToasts = true;
   const buttons = buildButtonsForToast();
   if (buttons) opts.buttons = buttons;
+  const details = buildDetailsForToast();
+  if (details) opts.details = details;
   if (!skipOverrides) {
     opts.color = colorValueForToast();
     opts.duration = readDuration();
@@ -393,6 +402,7 @@ function showOneToast() {
     if (opts.allowHtml) builder.withAllowHtml(true);
     if (opts.removeOtherToasts) builder.andRemoveOtherToasts();
     if (opts.buttons) opts.buttons.forEach((b) => builder.withButton(b.label, b.onClick, b.className));
+    if (opts.details) builder.withDetails(opts.details);
     if (!skipOverrides) {
       builder.withColor(opts.color).withDuration(opts.duration).withClosable(opts.closable);
     }

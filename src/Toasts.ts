@@ -25,6 +25,14 @@ export interface ToastButton {
     className?: string;
 }
 
+export interface ToastDetailItem {
+    /** Optional label shown before the value, e.g. "Status". */
+    label?: string;
+    value: string;
+    /** Show a "Copy" button for this item. Defaults to true (when the Clipboard API is available). */
+    copyable?: boolean;
+}
+
 export interface ToastOptions {
     /** Background color of the indicator bar. Defaults to `ToastColor.INFO` or the configured default. */
     color?: string;
@@ -46,6 +54,12 @@ export interface ToastOptions {
     removeOtherToasts?: boolean;
     /** Action buttons rendered to the right of the message, vertically centered regardless of whether `title` is present. Styled as plain clickable text, not native-looking buttons, by default. Clicks never trigger `closable` dismissal. */
     buttons?: ToastButton[];
+    /** Extra detail lines revealed by an auto-added "Details" toggle button, rendered in a visually distinct block below the message — structurally outside the clickable/dismissable part of the toast. Strings are shorthand for `{ value }`. */
+    details?: (string | ToastDetailItem)[];
+    /** Label for the auto-added details toggle button. Defaults to `"Details"`. */
+    detailsLabel?: string;
+    /** Label for the toggle button while details are expanded. Defaults to `"Hide details"`. */
+    detailsHideLabel?: string;
 }
 
 export interface ToastsConfig {
@@ -70,6 +84,9 @@ interface ResolvedToastOptions {
     onClose?: () => void;
     removeOtherToasts: boolean;
     buttons?: ToastButton[];
+    details?: (string | ToastDetailItem)[];
+    detailsLabel?: string;
+    detailsHideLabel?: string;
 }
 
 const DEFAULT_CONFIG: ToastsConfig = {
@@ -89,6 +106,7 @@ export class Toasts {
     private _initialized: boolean;
     private _warned: Set<string>;
     private _onCloseCallbacks: WeakMap<HTMLElement, () => void>;
+    private _resizeObservers: WeakMap<HTMLElement, ResizeObserver>;
 
     constructor() {
         this._initialized = false;
@@ -96,6 +114,7 @@ export class Toasts {
         this.config = { ...DEFAULT_CONFIG };
         this._warned = new Set();
         this._onCloseCallbacks = new WeakMap();
+        this._resizeObservers = new WeakMap();
     }
 
     /**
@@ -170,9 +189,16 @@ export class Toasts {
 
         const isAlert = opts.color === ToastColor.ERROR || opts.color === ToastColor.WARNING;
         const toast = document.createElement('div');
-        toast.className = `bt-toast${opts.closable ? ' bt-closable' : ''}`;
+        toast.className = 'bt-toast';
         toast.setAttribute('role', isAlert ? 'alert' : 'status');
         toast.setAttribute('aria-live', isAlert ? 'assertive' : 'polite');
+
+        // Everything that dismisses the toast on click/Enter/Space lives on
+        // this row, not on `toast` itself — so the details block below (a
+        // sibling of this row, not a descendant) is structurally outside the
+        // dismiss listener's reach and can never trigger it.
+        const toastRow = document.createElement('div');
+        toastRow.className = `bt-toast-row${opts.closable ? ' bt-closable' : ''}`;
 
         const toastClose = document.createElement('div');
         toastClose.className = 'bt-toast-close';
@@ -200,37 +226,112 @@ export class Toasts {
         }
         toastContent.appendChild(toastMessage);
 
+        // Builds a `<button class="bt-toast-action">` wired so mouse and
+        // keyboard activation both stop the event from ever reaching the
+        // row's own Enter/Space/click-to-dismiss listeners (see below) — no
+        // preventDefault, so the button's native click activation still
+        // fires normally.
+        const makeActionButton = (label: string, onClick: (e: MouseEvent) => void, className?: string): HTMLButtonElement => {
+            const el = document.createElement('button');
+            el.type = 'button';
+            el.className = className ? `bt-toast-action ${className}` : 'bt-toast-action';
+            el.textContent = label;
+            el.addEventListener('click', (e: MouseEvent) => {
+                e.stopPropagation();
+                onClick(e);
+            });
+            el.addEventListener('keydown', (e: KeyboardEvent) => {
+                if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+                e.stopPropagation();
+            });
+            return el;
+        };
+
         let toastActions: HTMLDivElement | undefined;
+        const ensureActions = (): HTMLDivElement => {
+            if (!toastActions) {
+                toastActions = document.createElement('div');
+                toastActions.className = 'bt-toast-actions';
+            }
+            return toastActions;
+        };
+
         if (opts.buttons && opts.buttons.length) {
-            toastActions = document.createElement('div');
-            toastActions.className = 'bt-toast-actions';
             opts.buttons.forEach((btn) => {
-                const buttonEl = document.createElement('button');
-                buttonEl.type = 'button';
-                buttonEl.className = btn.className ? `bt-toast-action ${btn.className}` : 'bt-toast-action';
-                buttonEl.textContent = btn.label;
-                buttonEl.addEventListener('click', (e: MouseEvent) => {
-                    e.stopPropagation();
-                    btn.onClick?.(e, id);
-                });
-                buttonEl.addEventListener('keydown', (e: KeyboardEvent) => {
-                    if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
-                    // Stop the wrapper's own Enter/Space-to-dismiss handler from seeing this
-                    // event at all — no preventDefault, so the button's native click activation
-                    // (and therefore its onClick above) still fires normally.
-                    e.stopPropagation();
-                });
-                toastActions!.appendChild(buttonEl);
+                ensureActions().appendChild(makeActionButton(btn.label, (e) => btn.onClick?.(e, id), btn.className));
             });
         }
 
-        toast.appendChild(toastClose);
-        toast.appendChild(toastContent);
-        if (toastActions) toast.appendChild(toastActions);
+        let detailsEl: HTMLDivElement | undefined;
+        if (opts.details && opts.details.length) {
+            detailsEl = document.createElement('div');
+            detailsEl.className = 'bt-toast-details';
+            detailsEl.id = `${id}-details`;
+
+            opts.details.forEach((raw) => {
+                const item: ToastDetailItem = typeof raw === 'string' ? { value: raw } : raw;
+                const row = document.createElement('div');
+                row.className = 'bt-toast-detail-item';
+
+                const text = document.createElement('span');
+                text.className = 'bt-toast-detail-text';
+                if (item.label) {
+                    const label = document.createElement('span');
+                    label.className = 'bt-toast-detail-label';
+                    label.textContent = item.label;
+                    text.appendChild(label);
+                }
+                const value = document.createElement('span');
+                value.className = 'bt-toast-detail-value';
+                value.textContent = item.value;
+                text.appendChild(value);
+                row.appendChild(text);
+
+                if (item.copyable !== false && navigator.clipboard) {
+                    const copyText = item.label ? `${item.label}: ${item.value}` : item.value;
+                    let copyBtn: HTMLButtonElement;
+                    copyBtn = makeActionButton('Copy', () => {
+                        navigator.clipboard.writeText(copyText).then(() => {
+                            const original = copyBtn.textContent;
+                            copyBtn.textContent = 'Copied!';
+                            setTimeout(() => { copyBtn.textContent = original; }, 2000);
+                        });
+                    }, 'bt-toast-detail-copy');
+                    row.appendChild(copyBtn);
+                }
+
+                detailsEl!.appendChild(row);
+            });
+
+            const detailsLabel = opts.detailsLabel ?? 'Details';
+            const detailsHideLabel = opts.detailsHideLabel ?? 'Hide details';
+            let toggleBtn: HTMLButtonElement;
+            toggleBtn = makeActionButton(detailsLabel, () => {
+                const isOpen = detailsEl!.classList.toggle('bt-open');
+                toggleBtn.textContent = isOpen ? detailsHideLabel : detailsLabel;
+                toggleBtn.setAttribute('aria-expanded', String(isOpen));
+            });
+            toggleBtn.setAttribute('aria-expanded', 'false');
+            toggleBtn.setAttribute('aria-controls', detailsEl.id);
+            ensureActions().appendChild(toggleBtn);
+        }
+
+        toastRow.appendChild(toastClose);
+        toastRow.appendChild(toastContent);
+        if (toastActions) toastRow.appendChild(toastActions);
+        toast.appendChild(toastRow);
+        if (detailsEl) toast.appendChild(detailsEl);
         toastContainer.appendChild(toast);
         snackbar.appendChild(toastContainer);
 
         this._stackExistingAbove(snackbar, toastContainer);
+
+        // Any later height change (details toggled open/closed, or a
+        // consumer mutating the toast's own content in place) reflows the
+        // whole stack, so an expanded toast never overlaps the ones above it.
+        const resizeObserver = new ResizeObserver(() => this._recalculatePositions(snackbar));
+        resizeObserver.observe(toast);
+        this._resizeObservers.set(toastContainer, resizeObserver);
 
         // Minimaler Delay damit CSS-Transition greift
         requestAnimationFrame(() => {
@@ -239,9 +340,9 @@ export class Toasts {
         });
 
         if (opts.closable) {
-            toast.setAttribute('tabindex', '0');
-            toast.addEventListener('click', () => this.removeToast(id));
-            toast.addEventListener('keydown', (e: KeyboardEvent) => {
+            toastRow.setAttribute('tabindex', '0');
+            toastRow.addEventListener('click', () => this.removeToast(id));
+            toastRow.addEventListener('keydown', (e: KeyboardEvent) => {
                 if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
                 e.preventDefault();
                 this.removeToast(id);
@@ -272,6 +373,8 @@ export class Toasts {
 
         setTimeout(() => {
             toastContainer.remove();
+            this._resizeObservers.get(toastContainer)?.disconnect();
+            this._resizeObservers.delete(toastContainer);
             if (parent) this._recalculatePositions(parent);
         }, TOAST_TRANSITION_MS);
     }
@@ -299,6 +402,9 @@ export class Toasts {
             onClose: undefined,
             removeOtherToasts: false,
             buttons: undefined,
+            details: undefined,
+            detailsLabel: undefined,
+            detailsHideLabel: undefined,
         };
 
         if (colorOrOptions !== null && typeof colorOrOptions === 'object') {

@@ -1,4 +1,4 @@
-import { toasts as defaultToasts, Toasts, type ToastOptions } from './Toasts';
+import { toasts as defaultToasts, Toasts, type ToastOptions, type ToastDetailItem } from './Toasts';
 import { ToastColor } from './ToastColor';
 import type { ToastPositionValue } from './ToastPosition';
 import type { ToastAnimationValue } from './ToastAnimation';
@@ -37,6 +37,13 @@ export class ToastBuilder {
     withButton(label: string, onClick?: (event: MouseEvent, id: string) => void, className?: string): this {
         if (!this._options.buttons) this._options.buttons = [];
         this._options.buttons.push({ label, onClick, className });
+        return this;
+    }
+    /** Adds an auto-toggled "Details" block. See `ToastOptions.details`. */
+    withDetails(details: (string | ToastDetailItem)[], detailsLabel?: string, detailsHideLabel?: string): this {
+        this._options.details = details;
+        if (detailsLabel !== undefined) this._options.detailsLabel = detailsLabel;
+        if (detailsHideLabel !== undefined) this._options.detailsHideLabel = detailsHideLabel;
         return this;
     }
 

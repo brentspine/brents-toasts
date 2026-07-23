@@ -44,9 +44,21 @@ per-toast options) without fully implementing every value yet.
   of whether `title` is present, and clicks/keyboard activation both
   `stopPropagation()` so they never trigger the toast's own `closable`
   dismissal. `onClick(event, id)` gives consumers the toast's own id, so
-  patterns like "Undo" (dismiss + show a new toast) or "Details" (mutate the
-  toast's own DOM node to reveal more info) are both buildable without a
-  dedicated built-in API for either.
+  patterns like "Undo" (dismiss + show a new toast) are buildable without a
+  dedicated built-in API.
+- **`details: (string | ToastDetailItem)[]`** — the fuller, purpose-built
+  replacement for `Hinweis`'s expand/collapse + clipboard-copy UX (see "Not
+  ported" below). Auto-adds a "Details" toggle button; the revealed block
+  (`.bt-toast-details`) is a sibling of `.bt-toast-row` (the part that
+  actually has the click/keydown-to-dismiss listeners), not a descendant of
+  it — so it's structurally impossible for anything inside it (including a
+  hover near it) to trigger dismissal, not just accidentally-prevented via
+  `stopPropagation()`. Each item gets its own "Copy" button
+  (`navigator.clipboard`, `copyable: false` to opt out per item). A
+  `ResizeObserver` on every toast's root element calls `_recalculatePositions`
+  on any height change — covers details being toggled open/closed, and any
+  other future in-place content mutation — so an expanded toast never
+  overlaps the ones stacked above it.
 
 - **Exports**: `src/index.ts` exports `toasts` (singleton) both as a named
   export and as `default`, alongside `Toasts`, `ToastColor`,
@@ -62,12 +74,15 @@ per-toast options) without fully implementing every value yet.
 ## Not ported (from the old codebase, intentionally)
 
 - **`Hinweis`** — a list-of-detail-items-with-clipboard-copy feature tied to
-  a specific internal API error-object shape from the old employer's backend.
-  Still not a generic toast concept and still not ported as-is. The generic
-  building block it would need — a button whose `onClick` can reveal more
-  content on the same toast — now exists via `buttons`/`ToastButton`; a real
-  `details: string[]` + clipboard-copy UI would still need its own design if
-  ever wanted.
+  a specific internal API error-object shape from the old employer's backend
+  (`Hinweis.getHinweisListFromApiErrorObject()` there parsed that shape
+  directly). The *generic* UX it needed — expandable, distinct, per-item
+  copyable details — is now built-in via `details`/`ToastDetailItem` (see
+  "Decided" above). What's still intentionally not ported is the
+  employer-specific error-object parsing itself and the "too many
+  lines/items → collapse to a single copy-all button" density heuristic from
+  the old `hinweisLineCountToBig()`; both are one-off concerns an app can
+  layer on top by mapping its own error shape into `details` items itself.
 - **Click-to-open-modal (`ToastClick` + `NgbModal`)** — Angular DI specific.
   If wanted, the vanilla equivalent is just exposing a raw `onClick` option
   and letting consumers open whatever modal/dialog they use.
