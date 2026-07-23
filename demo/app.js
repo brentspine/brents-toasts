@@ -33,6 +33,7 @@ const makeFive = $("makeFive");
 const codePreview = $("codePreview");
 const changelogBox = $("changelog");
 const versionList = $("versionList");
+const githubStarCount = $("githubStarCount");
 
 const optionsReference = $("optionsReference");
 const playgroundCode = $("playgroundCode");
@@ -411,6 +412,25 @@ async function loadChangelog() {
   }
 }
 
+// e.g. 2100 -> "2.1k", 999 -> "999", 1000000 -> "1M".
+function formatCompactCount(n) {
+  if (n < 1000) return String(n);
+  if (n < 1_000_000) return `${Math.round((n / 1000) * 10) / 10}k`;
+  return `${Math.round((n / 1_000_000) * 10) / 10}M`;
+}
+
+async function loadGithubStars() {
+  if (!githubStarCount) return;
+  try {
+    const res = await fetch("https://api.github.com/repos/Brentspine/brents-toasts");
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    const data = await res.json();
+    githubStarCount.textContent = formatCompactCount(data.stargazers_count);
+  } catch {
+    githubStarCount.textContent = "";
+  }
+}
+
 async function loadVersionList() {
   if (!versionList) return;
   try {
@@ -671,5 +691,6 @@ updateCodePreview();
 updateConfigCodePreview();
 loadChangelog();
 loadVersionList();
+loadGithubStars();
 renderOptionsReference();
 wirePlayground();

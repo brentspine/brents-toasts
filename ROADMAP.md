@@ -70,6 +70,15 @@ per-toast options) without fully implementing every value yet.
   not the singleton itself. Comes for free from `rollup.config.js`'s `{
   format: 'umd', exports: 'named', name: 'BrentsToasts' }` — don't change
   `exports` to `'default'` there.
+- **Demo header GitHub badge**: fetches `stargazers_count` from
+  `api.github.com/repos/Brentspine/brents-toasts` client-side (unauthenticated,
+  same pattern as the existing changelog `raw.githubusercontent.com` fetch),
+  formatted compactly (`2100` → `"2.1k"`). Lives in the same flex row as the
+  `<h1>` so it never pushes below the fold on mobile; below 420px the
+  "Star on GitHub" label itself is hidden and only the icon/star/count remain,
+  rather than wrapping to a second line. The "All releases & changelogs" link
+  next to "Other versions" points straight at the GitHub Releases page instead
+  of duplicating changelog content in the demo.
 
 ## Not ported (from the old codebase, intentionally)
 
@@ -103,5 +112,5 @@ per-toast options) without fully implementing every value yet.
    - text color
  - Auto wrap for larger bodies
  - Preset types (define your own types for errors, info, warning and success for example)
- - Add Github Link with Stargaze amount
- - Add a link to all releases & changelogs
+ - Compact version list in demo
+ - Pause timer for disappearing toasts for certain actions or via function call
