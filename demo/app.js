@@ -74,6 +74,18 @@ const TOAST_OPTION_DOCS = [
   { name: "details", type: "(string | ToastDetailItem)[]", default: "(none)", note: "Adds a Details toggle revealing { label?, value, buttons? } rows. Nothing is copyable automatically — opt a row into a Copy button via buttons: [toasts.detailsCopyButton(value)]." },
   { name: "detailsLabel", type: "string", default: '"Details"', note: "Label for the auto-added details toggle button." },
   { name: "detailsHideLabel", type: "string", default: '"Hide details"', note: "Label for the toggle button while details are expanded." },
+  { name: "pauseOnHover", type: "boolean", default: "true", note: "Hovering pauses the auto-dismiss timer, resuming on mouseleave. No effect on sticky (duration: 0) toasts." },
+];
+
+// Instance methods for controlling an already-shown toast's auto-dismiss
+// timer, keyed by that toast's own id (the string showToast()/.show() returns).
+// All are no-ops for a sticky toast (duration: 0) — there's no timer to touch.
+const TIMER_METHOD_DOCS = [
+  { name: "pauseToastTimer(id)", type: "void", default: "—", note: "Pauses the countdown, remembering the time left." },
+  { name: "resumeToastTimer(id)", type: "void", default: "—", note: "Resumes from wherever pauseToastTimer left it." },
+  { name: "resetToastTimer(id, newDuration?)", type: "void", default: "—", note: "Restarts the countdown at full duration (or newDuration, if given)." },
+  { name: "extendToastTimer(id, ms)", type: "void", default: "—", note: "Adds ms to the remaining time (negative to shrink it)." },
+  { name: "removeToastTimer(id)", type: "void", default: "—", note: "Cancels the timer entirely — the toast becomes sticky." },
 ];
 
 const CONFIG_OPTION_DOCS = [
@@ -572,6 +584,8 @@ function renderOptionsReference() {
     optionsTable(CONFIG_OPTION_DOCS),
     `<p class="muted">Ready-made action buttons — <span class="mono">toasts.xyz(...)</span>, appended to <span class="mono">buttons</span> (or a details item's own):</p>`,
     optionsTable(BUTTON_FACTORY_DOCS, "Method"),
+    `<p class="muted">Timer control — <span class="mono">toasts.xyz(id)</span>, called any time after the toast is shown:</p>`,
+    optionsTable(TIMER_METHOD_DOCS, "Method"),
   ].join("\n");
 }
 

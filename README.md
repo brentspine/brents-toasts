@@ -191,6 +191,38 @@ and reuse across multiple simultaneously-visible toasts (e.g. hoisted out
 of a loop) — each rendered button tracks its own current step
 independently. Builder equivalent: `.withStepButton(steps, className?)`.
 
+### Controlling the auto-dismiss timer
+
+A timed toast (`duration > 0`) pauses its own countdown while hovered and
+resumes where it left off on mouseleave, no config needed — this is
+`pauseOnHover`, on by default (`toasts.showToast(msg, { pauseOnHover: false })`
+or `toasts.configure({ pauseOnHover: false })` to turn it off). A sticky toast
+(`duration: 0`) is unaffected either way — hovering and un-hovering it never
+starts a timer, so it can't suddenly disappear after a hover.
+
+For anything else — reset on a button click, extend while a related async
+action is running, pause while a dropdown opened from the toast is open — call
+the same timer controls the built-in hover behavior is built on, using the
+toast's own `id`:
+
+```ts
+const id = toasts.showToast('Uploading…', { duration: 5000 });
+
+toasts.pauseToastTimer(id);   // stop the countdown, remembering time left
+toasts.resumeToastTimer(id);  // continue from where it was paused
+toasts.resetToastTimer(id);   // back to the full duration, right now
+toasts.resetToastTimer(id, 8000); // ...or a new duration, which sticks for future resets
+toasts.extendToastTimer(id, 2000); // add (or, negative, remove) time
+toasts.removeToastTimer(id);  // cancel it entirely — the toast becomes sticky
+```
+
+All five are no-ops on a sticky toast — there's nothing to pause, resume,
+reset, extend, or remove — and `resetToastTimer`/`extendToastTimer` won't
+turn a sticky toast into a timed one; pass `duration` at `showToast()` time
+for that instead. `confirmButton()` (see above) calls `resetToastTimer()` on
+every click for exactly this reason: so the toast can't time out from under
+the user mid-confirmation.
+
 ### Details (expandable extra info)
 
 For information that shouldn't clutter the main message — a status code, a
@@ -285,8 +317,8 @@ new ToastBuilder('Also this page only.', pageToasts).show();
 
 See `ToastOptions`/`ToastsConfig` in `dist/index.d.ts` for the full list of
 per-toast and library-wide settings (position, animation, `onClose`,
-`removeOtherToasts`, `buttons`, `details`, `maxToasts`, `evictOldest`,
-`locale`, `translations`, ...).
+`removeOtherToasts`, `buttons`, `details`, `pauseOnHover`, `maxToasts`,
+`evictOldest`, `locale`, `translations`, ...).
 
 ### Localization
 

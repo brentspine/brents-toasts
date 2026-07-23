@@ -56,6 +56,8 @@ export interface ToastOptions {
     detailsLabel?: string;
     /** Label for the toggle button while details are expanded. Defaults to `"Hide details"`. */
     detailsHideLabel?: string;
+    /** Whether hovering the toast pauses its auto-dismiss timer, resuming from where it left off on mouseleave. Has no effect on sticky toasts (`duration: 0`) — they have no timer to pause. Defaults to `true` or the configured default. */
+    pauseOnHover?: boolean;
 }
 
 export interface ToastsConfig {
@@ -67,6 +69,8 @@ export interface ToastsConfig {
     animation: ToastAnimationValue;
     maxToasts: number;
     evictOldest: boolean;
+    /** Whether hovering a toast pauses its auto-dismiss timer by default. See `ToastOptions.pauseOnHover`. */
+    pauseOnHover: boolean;
     /** Force a specific bundled locale (e.g. `"de"`). Omit to auto-detect from `navigator.language`(s), falling back to `"en"` if nothing bundled matches. See `ToastLocales` for the bundled packs. */
     locale?: string;
     /** Partial string overrides layered on top of the resolved locale pack — for unbundled languages, or tweaking individual defaults. */
@@ -87,6 +91,7 @@ interface ResolvedToastOptions {
     details?: (string | ToastDetailItem)[];
     detailsLabel?: string;
     detailsHideLabel?: string;
+    pauseOnHover: boolean;
 }
 
 const DEFAULT_CONFIG: ToastsConfig = {
@@ -98,7 +103,24 @@ const DEFAULT_CONFIG: ToastsConfig = {
     animation: ToastAnimation.SLIDE,
     maxToasts: MAX_TOASTS,
     evictOldest: true,
+    pauseOnHover: true,
 };
+
+// Per-toast auto-dismiss timer bookkeeping, keyed off the toast's own root
+// element like `_onCloseCallbacks`/`_resizeObservers` below — so state is
+// automatically released once the toast is removed from the DOM. Only ever
+// created for toasts with `duration > 0`; a sticky toast (`duration: 0`)
+// never gets an entry, which is what makes every public timer method below
+// a safe no-op for it — pause/resume-on-hover included.
+interface ToastTimerState {
+    /** The "full" duration `resetToastTimer()` reverts to when called without `newDuration`. */
+    duration: number;
+    /** Time left, in ms. Authoritative while paused; while running, `startedAt` + this is when it fires. */
+    remaining: number;
+    /** `Date.now()` when the current countdown segment started, or `null` while paused. */
+    startedAt: number | null;
+    timeoutId: ReturnType<typeof setTimeout> | null;
+}
 
 export class Toasts {
     public config: ToastsConfig;
@@ -107,6 +129,7 @@ export class Toasts {
     private _warned: Set<string>;
     private _onCloseCallbacks: WeakMap<HTMLElement, () => void>;
     private _resizeObservers: WeakMap<HTMLElement, ResizeObserver>;
+    private _timers: WeakMap<HTMLElement, ToastTimerState>;
 
     constructor() {
         this._initialized = false;
@@ -115,6 +138,7 @@ export class Toasts {
         this._warned = new Set();
         this._onCloseCallbacks = new WeakMap();
         this._resizeObservers = new WeakMap();
+        this._timers = new WeakMap();
     }
 
     /**
@@ -322,7 +346,14 @@ export class Toasts {
             });
         }
         if (opts.duration > 0) {
-            setTimeout(() => this.removeToast(id), opts.duration);
+            this._startToastTimer(toastContainer, opts.duration);
+        }
+        // No-ops for a sticky toast (`duration: 0`) — there's no timer state
+        // for pause/resume to touch, so hovering and un-hovering it can never
+        // start one. See `ToastTimerState` above.
+        if (opts.pauseOnHover) {
+            toastContainer.addEventListener('mouseenter', () => this.pauseToastTimer(id));
+            toastContainer.addEventListener('mouseleave', () => this.resumeToastTimer(id));
         }
 
         return id;
@@ -338,6 +369,10 @@ export class Toasts {
         this._onCloseCallbacks.delete(toastContainer);
         if (onClose) onClose();
 
+        const timer = this._timers.get(toastContainer);
+        if (timer?.timeoutId) clearTimeout(timer.timeoutId);
+        this._timers.delete(toastContainer);
+
         toastContainer.classList.add('bt-hiding');
         toastContainer.style.opacity = '0';
         // Reposition the remaining toasts now, in parallel with the fade-out,
@@ -350,6 +385,93 @@ export class Toasts {
             this._resizeObservers.delete(toastContainer);
             if (parent) this._recalculatePositions(parent);
         }, TOAST_TRANSITION_MS);
+    }
+
+    /**
+     * Pauses `id`'s auto-dismiss countdown, remembering the time left so a later
+     * `resumeToastTimer` continues from where it left off instead of restarting. Built-in
+     * hover-to-pause (see `pauseOnHover`) is implemented on top of this — call it yourself
+     * for other pause triggers (e.g. while a related modal/dropdown is open). No-op for a
+     * sticky toast (`duration: 0`) — it has no timer to pause — and for an already-paused one.
+     */
+    pauseToastTimer(id: string): void {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const state = this._timers.get(el);
+        if (!state || state.startedAt === null) return;
+        if (state.timeoutId) clearTimeout(state.timeoutId);
+        state.remaining = Math.max(0, state.remaining - (Date.now() - state.startedAt));
+        state.startedAt = null;
+        state.timeoutId = null;
+    }
+
+    /**
+     * Resumes `id`'s auto-dismiss countdown from wherever `pauseToastTimer` left it. No-op
+     * for a sticky toast and for one that isn't currently paused — in particular, hovering and
+     * un-hovering a sticky toast never starts a timer on it, since it never had timer state
+     * to begin with (see `ToastTimerState`).
+     */
+    resumeToastTimer(id: string): void {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const state = this._timers.get(el);
+        if (!state || state.startedAt !== null) return;
+        state.startedAt = Date.now();
+        state.timeoutId = setTimeout(() => this.removeToast(id), state.remaining);
+    }
+
+    /**
+     * Resets `id`'s auto-dismiss countdown back to its full duration — or `newDuration`, if
+     * given, which also becomes the new "full" duration for any future `resetToastTimer(id)`
+     * call. Restarts the countdown immediately if it's currently running, or just refills the
+     * remaining time if it's paused (stays paused until `resumeToastTimer`). No-op for a
+     * sticky toast — there's no timer to reset, and this deliberately won't turn a sticky
+     * toast into a timed one; pass `duration` at `showToast()` time for that instead.
+     */
+    resetToastTimer(id: string, newDuration?: number): void {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const state = this._timers.get(el);
+        if (!state) return;
+        if (newDuration !== undefined) state.duration = newDuration;
+        state.remaining = state.duration;
+        if (state.startedAt !== null) {
+            if (state.timeoutId) clearTimeout(state.timeoutId);
+            state.startedAt = Date.now();
+            state.timeoutId = setTimeout(() => this.removeToast(id), state.remaining);
+        }
+    }
+
+    /**
+     * Adds `ms` (negative to shrink instead) to `id`'s remaining auto-dismiss time.
+     * Rescheduled immediately if the timer's running, or just applied to the stored
+     * remaining time if it's paused. No-op for a sticky toast.
+     */
+    extendToastTimer(id: string, ms: number): void {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const state = this._timers.get(el);
+        if (!state) return;
+        state.remaining = Math.max(0, state.remaining + ms);
+        if (state.startedAt !== null) {
+            if (state.timeoutId) clearTimeout(state.timeoutId);
+            state.startedAt = Date.now();
+            state.timeoutId = setTimeout(() => this.removeToast(id), state.remaining);
+        }
+    }
+
+    /**
+     * Cancels `id`'s auto-dismiss timer entirely and makes it sticky from now on — same as if
+     * it had been shown with `duration: 0`. Every other timer method becomes a no-op for it
+     * afterwards, same as for any sticky toast.
+     */
+    removeToastTimer(id: string): void {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const state = this._timers.get(el);
+        if (!state) return;
+        if (state.timeoutId) clearTimeout(state.timeoutId);
+        this._timers.delete(el);
     }
 
     /**
@@ -390,7 +512,10 @@ export class Toasts {
      * button is disabled while an async `onConfirm` is pending, so it can't be double-fired), then shows
      * `doneLabel` for `doneTimeoutMs` before reverting back to `label`. If the confirm step is left
      * untouched for `confirmTimeoutMs`, it reverts to `label` on its own without ever running `onConfirm`.
-     * Built on `stepButton()` — use that directly for flows with more/different steps.
+     * Every click also calls `resetToastTimer(id)` — see that method — so the toast's own auto-dismiss
+     * timer can't fire out from under the user while they're mid-confirmation; a no-op if the toast is
+     * sticky or `pauseOnHover`/duration weren't in play to begin with. Built on `stepButton()` — use
+     * that directly for flows with more/different steps.
      */
     confirmButton(
         label: string,
@@ -413,8 +538,23 @@ export class Toasts {
         } = options ?? {};
 
         return this.stepButton([
-            { label },
-            { label: confirmLabel, onClick: onConfirm, revertAfterMs: confirmTimeoutMs, revertToStep: 0 },
+            {
+                label,
+                // step[0]'s onClick isn't for guarding advancement (it always
+                // advances) — it exists purely to re-arm the toast's timer the
+                // moment the user starts a confirmation, same as the confirm
+                // step below.
+                onClick: (_event, id) => { this.resetToastTimer(id); },
+            },
+            {
+                label: confirmLabel,
+                onClick: (event, id) => {
+                    this.resetToastTimer(id);
+                    return onConfirm(event, id);
+                },
+                revertAfterMs: confirmTimeoutMs,
+                revertToStep: 0,
+            },
             { label: doneLabel, revertAfterMs: doneTimeoutMs, revertToStep: 0 },
         ], className);
     }
@@ -437,6 +577,15 @@ export class Toasts {
         });
     }
 
+    // Only called for `duration > 0` — a sticky toast never gets a `_timers`
+    // entry at all, which is what every public pause/resume/reset/extend
+    // method above relies on to no-op for it.
+    private _startToastTimer(el: HTMLElement, duration: number): void {
+        const state: ToastTimerState = { duration, remaining: duration, startedAt: Date.now(), timeoutId: null };
+        state.timeoutId = setTimeout(() => this.removeToast(el.id), duration);
+        this._timers.set(el, state);
+    }
+
     private _resolveOptions(
         colorOrOptions?: string | ToastOptions,
         duration?: number,
@@ -457,6 +606,7 @@ export class Toasts {
             details: undefined,
             detailsLabel: undefined,
             detailsHideLabel: undefined,
+            pauseOnHover: this.config.pauseOnHover,
         };
 
         if (colorOrOptions !== null && typeof colorOrOptions === 'object') {

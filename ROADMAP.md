@@ -151,6 +151,35 @@ per-toast options) without fully implementing every value yet.
   plus a relative "Last commit" time computed from `pushed_at` (hand-rolled
   formatting, hover title shows the absolute local timestamp) — same
   unauthenticated-fetch-with-silent-fallback pattern as the star badge.
+- **Timer control** (`pauseToastTimer`/`resumeToastTimer`/`resetToastTimer`/
+  `extendToastTimer`/`removeToastTimer`, all `Toasts` methods taking the
+  toast's own `id`) — the generic interface for pausing, resetting,
+  extending, or cancelling a toast's auto-dismiss countdown, for the library
+  itself and consumers alike to build on ("pause on hover", "reset on
+  interaction", etc. are all just call sites of this, not separate features).
+  State (`duration`/`remaining`/`startedAt`/`timeoutId`) lives in a
+  `WeakMap<HTMLElement, ToastTimerState>` keyed off the toast's own root
+  element, mirroring `_onCloseCallbacks`/`_resizeObservers`. Deliberately
+  **only created for `duration > 0`** — a sticky toast (`duration: 0`) never
+  gets an entry, which is what makes every method above a safe no-op for it
+  rather than needing an explicit sticky check at every call site. This is
+  the direct fix for the bug this feature had to avoid: hovering, then
+  un-hovering, a sticky toast must never cause it to start (and later fire) a
+  timer it was never supposed to have. `resetToastTimer`/`extendToastTimer`
+  keep that same guarantee — no-ops on a sticky toast rather than
+  "helpfully" promoting it into a timed one; pass `duration` at `showToast()`
+  time if that's actually wanted.
+  - **`pauseOnHover`** (`ToastOptions`/`ToastsConfig`, defaults `true`) —
+    built directly on the timer control API above: `mouseenter`/`mouseleave`
+    listeners on the toast's root call `pauseToastTimer`/`resumeToastTimer`.
+    Listeners are unconditionally attached whenever `pauseOnHover` isn't
+    explicitly turned off, even for a toast that turns out to be sticky —
+    safe, since both calls no-op without timer state to act on.
+  - **`confirmButton()`** now calls `resetToastTimer(id)` on every click
+    (both the initial "arm" click and the confirm click) — the concrete
+    "reset the timer on button click" example this was built for: without
+    it, a toast could time out and disappear while showing "Are you sure?",
+    losing the in-progress confirmation out from under the user.
 
 ## Not ported (from the old codebase, intentionally)
 
@@ -185,10 +214,13 @@ per-toast options) without fully implementing every value yet.
  - Auto wrap for larger bodies
  - Preset types (define your own types for errors, info, warning and success for example)
  - ~~Compact version list in demo~~
- - Pause timer for disappearing toasts for certain actions or via function call
+ - ~~Pause timer for disappearing toasts for certain actions or via function call~~
  - ~~Changelog generation for minor and major which also get the changelogs for previous versions as context https://docs.npmjs.com/cli/v10/commands/npm-version?v=true~~
  - Improvement for minor and major releases by checking work and potentially changing args, like Model and max in/out tokens
  - Add a "Copy all" button for details with many items (or just a single long string)
  - ~~Hovering a large toast, that is closable will make the toast grow because of the missing space for the close button. Make it so the close button has enough space to expand without growing the toast. Remember, that we might add other toast designs later on, which would not need the logic.~~
- - meta description tag write, if not present
+ - not planned, does not make any sense meta description tag write, if not present
+ - Refactor /* 300ms must match TOAST_TRANSITION_MS in Toasts.ts */. Erstmal nicht ig, das ist nen Ding für den Zeitpunkt wenn wir andere Positionen und Styles einfügen
+ - Remove Toast Instantly functionality -> No animation or fade, instant removal. Optional: Also instantly move toasts up/down
+
 
