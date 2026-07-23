@@ -191,6 +191,74 @@ and reuse across multiple simultaneously-visible toasts (e.g. hoisted out
 of a loop) — each rendered button tracks its own current step
 independently. Builder equivalent: `.withStepButton(steps, className?)`.
 
+### Removing toasts
+
+`toasts.removeToast(id)` dismisses a single toast by the id returned from
+`showToast`. To clear everything at once — across all positions — use
+`toasts.removeAllToasts()`:
+
+```ts
+const id = toasts.showToast('Uploading...', { duration: 0 });
+// ...
+toasts.removeAllToasts(); // fades out every currently visible toast
+```
+
+Each toast still animates out individually via `removeToast` under the hood.
+`showToast(msg, { removeOtherToasts: true })` does the same thing before
+showing its own toast, for the common "replace whatever's on screen" case.
+
+### Updating a toast
+
+`toasts.updateToast(id, update)` changes an already-shown toast in place,
+instead of removing it and showing a new one. `update` is the same shape as
+`showToast`'s `options` (plus `message`, since that's normally the separate
+first argument) — only the keys you pass change, everything else about the
+toast stays as it was:
+
+```ts
+const id = toasts.showToast('Uploading…', { color: ToastColor.INFO, duration: 5000 });
+
+toasts.updateToast(id, {
+  message: 'Upload complete!',
+  color: ToastColor.SUCCESS,
+});
+```
+
+A common use: reflecting `getToastTimer(id)`'s countdown back onto the toast
+itself instead of spawning a new one every time —
+
+```ts
+const timer = toasts.getToastTimer(id);
+const ratio = timer.remaining / timer.duration;
+toasts.updateToast(id, {
+  message: `Closes in ${(timer.remaining / 1000).toFixed(1)}s`,
+  color: ratio > 0.5 ? ToastColor.SUCCESS : ratio > 0.2 ? ToastColor.WARNING : ToastColor.ERROR,
+});
+```
+
+`buttons`/`details` passed to `updateToast` replace the whole array. To
+append or insert/remove a single button or detail line without reconstructing
+the current array yourself, use:
+
+```ts
+toasts.addToastButton(id, { label: 'Retry', onClick: retry });     // append
+toasts.addToastButton(id, { label: 'Retry', onClick: retry }, 0);  // insert at index 0
+toasts.removeToastButton(id, 0);
+
+toasts.addToastDetail(id, 'Retried once already');
+toasts.removeToastDetail(id, 1);
+```
+
+`position`, `animation`, and `removeOtherToasts` are accepted (for
+shape-compatibility with `ToastOptions`) but are no-ops here — they only
+describe how a toast is shown, not a state it can be updated into.
+`updateToast` is a no-op if `id` doesn't exist.
+
+Passing `duration` restarts the countdown at the new value (or cancels/starts
+a timer outright, if the toast was sticky or vice versa) — see the timer
+controls below for finer-grained alternatives like `extendToastTimer`, which
+adjust the countdown without also touching the toast's content.
+
 ### Controlling the auto-dismiss timer
 
 A timed toast (`duration > 0`) pauses its own countdown while hovered and

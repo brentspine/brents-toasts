@@ -702,8 +702,16 @@ function handleSharedTimeLeftClick(event, id) {
   const item = toasts.getToastData(id);
   const timer = toasts.getToastTimer(id);
   const name = item?.name ?? "This toast";
-  const msg = timer ? `${name} closes in ${(timer.remaining / 1000).toFixed(1)}s` : `${name} is sticky — no timer.`;
-  toasts.showToast(msg, { color: ToastColor.INFO, duration: 2500 });
+  if (!timer) {
+    toasts.updateToast(id, { message: `${name} is sticky — no timer.` });
+    return;
+  }
+  const ratio = timer.remaining / timer.duration;
+  const color = ratio > 0.5 ? ToastColor.SUCCESS : ratio > 0.2 ? ToastColor.WARNING : ToastColor.ERROR;
+  toasts.updateToast(id, {
+    message: `${name} closes in ${(timer.remaining / 1000).toFixed(1)}s`,
+    color,
+  });
 }
 
 function runSharedUndoDemo() {
@@ -738,7 +746,11 @@ function handleUndo(event, id) {
 function handleTimeLeft(event, id) {
   const item = toasts.getToastData(id);
   const timer = toasts.getToastTimer(id); // { duration, remaining, paused } | null
-  toasts.showToast(\`\${item.name} closes in \${(timer.remaining / 1000).toFixed(1)}s\`);
+  const ratio = timer.remaining / timer.duration;
+  toasts.updateToast(id, {
+    message: \`\${item.name} closes in \${(timer.remaining / 1000).toFixed(1)}s\`,
+    color: ratio > 0.5 ? ToastColor.SUCCESS : ratio > 0.2 ? ToastColor.WARNING : ToastColor.ERROR,
+  });
 }
 
 deletedItems.forEach((item) => {

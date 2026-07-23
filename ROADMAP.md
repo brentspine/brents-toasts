@@ -260,8 +260,35 @@ per-toast options) without fully implementing every value yet.
  - Improvement for minor and major releases by checking work and potentially changing args, like Model and max in/out tokens
  - Add a "Copy all" button for details with many items (or just a single long string)
  - ~~Hovering a large toast, that is closable will make the toast grow because of the missing space for the close button. Make it so the close button has enough space to expand without growing the toast. Remember, that we might add other toast designs later on, which would not need the logic.~~
- - not planned, does not make any sense meta description tag write, if not present
+ - not planned, does not make any sense: meta description tag write, if not present
  - Refactor /* 300ms must match TOAST_TRANSITION_MS in Toasts.ts */. Erstmal nicht ig, das ist nen Ding für den Zeitpunkt wenn wir andere Positionen und Styles einfügen
  - Remove Toast Instantly functionality -> No animation or fade, instant removal. Optional: Also instantly move toasts up/down
  - https://not-a-toast.vercel.app/
+ - ~~Update toast easily by id~~
 
+## Not a toast Ideas
+
+Ranked list (to build into the artifact)
+
+Tier 1 — right now (cheap, high value, architecture already supports it):
+1. ❓ Multiline messages (white-space: pre-line on .bt-toast-message) — CSS-only.
+2. ✅ Public removeAllToasts() — _removeAllToasts already exists privately, just needs exposing.
+3. Finish TOP_CENTER/TOP_LEFT/TOP_RIGHT/BOTTOM_LEFT/BOTTOM_RIGHT — already scaffolded per ROADMAP.md, "just" needs CSS + stacking-direction flip for top-anchored positions.
+4. Finish FADE animation — already scaffolded, opacity-only path.
+
+Tier 2 — near future (valuable, needs a bit of new infrastructure, but fits the grain of the existing design):
+5. ✅ updateToast(id, options) — done, along with addToastButton/removeToastButton/addToastDetail/removeToastDetail for incremental changes. Prerequisite for #6.
+6. Promise-based toasts (toasts.promise(promise, { loading, success, error })) — built on #5.
+7. Icon system (success/error/info/warn/loader + custom emoji/SVG) — natural pairing with the existing ToastColor semantic colors.
+8. Progress bar — genuinely the best architectural fit of anything on this list: getToastTimer()/the _timers WeakMap already track exactly the state (duration/remaining/paused) a progress bar needs to nder.
+   CSS custom-property theming layer (--bt-bg, --bt-fg, --bt-radius, ...) via a data-theme attribute (mirrors the existing data-position pattern) — not 40 themes, but the hook for a handful of curated ones.
+
+Tier 3 — distant future (real value, but large scope or needs an architectural rework first):
+. A real animation library beyond fade/slide (zoom, bounce, flip, directional slides) — requires switching from JS-computed bottom/opacity to transform+class-toggle CSS keyframes; not a small change.
+11. A curated set of built-in themes (5-10, not 40+) once #9's token layer exists.
+12. orderReversed stacking — folds naturally into the top-position work (#3) once that stacking-direction logic exists.
+
+Tier 4 — maybe never (conflicts with brents-toasts' already-decided design philosophy, or low value for the added surface area):
+. Heavily-styleable/native-looking action buttons and close buttons — ROADMAP.md already documents these as deliberately plain/minimal (see "Decided" section); chasing not-a-toast's button styling knobs reverses a stance the project already took on purpose.
+14. 40+ preset themes / 20+ preset animations at parity — conflicts with "lightweight, beginner-friendly" positioning from README.md; bloat risk outweighs benefit vs. a small curated set (#11).
+    . Framework-specific wrappers (React/Vue hooks) — not-a-toast doesn't really have these either (framework-agnostic like brents-toasts already is); no real gap to close.

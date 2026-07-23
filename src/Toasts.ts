@@ -97,6 +97,20 @@ interface ResolvedToastOptions {
     data?: unknown;
 }
 
+/**
+ * Patch object for `updateToast(id, update)` — the same shape as `ToastOptions`
+ * (so an update reads exactly like a fresh `showToast(message, options)` call),
+ * plus `message` since that's normally the separate first positional argument.
+ * Only the keys present are applied; `position`/`animation`/`removeOtherToasts`
+ * are accepted for shape-compatibility but are no-ops post-creation.
+ */
+export type ToastUpdateOptions = Partial<ToastOptions> & { message?: string | Node };
+
+// The state `updateToast`/`addToastButton`/etc. read and merge into — the
+// only place a toast's currently-effective options are remembered after
+// `showToast` returns.
+type ToastState = ResolvedToastOptions & { message: string | Node };
+
 const DEFAULT_CONFIG: ToastsConfig = {
     color: ToastColor.INFO,
     duration: 3000,
@@ -144,6 +158,7 @@ export class Toasts {
     private _resizeObservers: WeakMap<HTMLElement, ResizeObserver>;
     private _timers: WeakMap<HTMLElement, ToastTimerState>;
     private _data: WeakMap<HTMLElement, unknown>;
+    private _toastState: WeakMap<HTMLElement, ToastState>;
 
     constructor() {
         this._initialized = false;
@@ -154,6 +169,7 @@ export class Toasts {
         this._resizeObservers = new WeakMap();
         this._timers = new WeakMap();
         this._data = new WeakMap();
+        this._toastState = new WeakMap();
     }
 
     /**
@@ -203,7 +219,7 @@ export class Toasts {
         const t = this._getTranslations();
 
         if (opts.removeOtherToasts) {
-            this._removeAllToasts();
+            this.removeAllToasts();
         }
 
         const position = this._resolvePosition(opts.position);
@@ -227,12 +243,10 @@ export class Toasts {
         toastContainer.id = id;
         if (opts.onClose) this._onCloseCallbacks.set(toastContainer, opts.onClose);
         if (opts.data !== undefined) this._data.set(toastContainer, opts.data);
+        this._toastState.set(toastContainer, { ...opts, message });
 
-        const isAlert = opts.color === ToastColor.ERROR || opts.color === ToastColor.WARNING;
         const toast = document.createElement('div');
         toast.className = 'bt-toast';
-        toast.setAttribute('role', isAlert ? 'alert' : 'status');
-        toast.setAttribute('aria-live', isAlert ? 'assertive' : 'polite');
 
         // Everything that dismisses the toast on click/Enter/Space lives on
         // this row, not on `toast` itself — so the details block below (a
@@ -243,101 +257,19 @@ export class Toasts {
 
         const toastClose = document.createElement('div');
         toastClose.className = 'bt-toast-close';
-        toastClose.style.setProperty('--data-background', opts.color);
         const closeSpan = document.createElement('span');
         closeSpan.innerHTML = '&times;';
         toastClose.appendChild(closeSpan);
+        this._applyColor(toastClose, toast, opts.color);
 
         const toastContent = document.createElement('div');
         toastContent.className = 'bt-toast-content';
-        if (opts.title) {
-            const toastTitle = document.createElement('div');
-            toastTitle.className = 'bt-toast-title';
-            toastTitle.textContent = opts.title;
-            toastContent.appendChild(toastTitle);
-        }
-        const toastMessage = document.createElement('div');
-        toastMessage.className = 'bt-toast-message';
-        if (message instanceof Node) {
-            toastMessage.appendChild(message);
-        } else if (opts.allowHtml) {
-            toastMessage.innerHTML = message;
-        } else {
-            toastMessage.textContent = message;
-        }
-        toastContent.appendChild(toastMessage);
-
-        let toastActions: HTMLDivElement | undefined;
-        const ensureActions = (): HTMLDivElement => {
-            if (!toastActions) {
-                toastActions = document.createElement('div');
-                toastActions.className = 'bt-toast-actions';
-            }
-            return toastActions;
-        };
-
-        if (opts.buttons && opts.buttons.length) {
-            opts.buttons.forEach((btn) => {
-                ensureActions().appendChild(renderToastButton(btn, id));
-            });
-        }
-
-        let detailsEl: HTMLDivElement | undefined;
-        if (opts.details && opts.details.length) {
-            detailsEl = document.createElement('div');
-            detailsEl.className = 'bt-toast-details';
-            detailsEl.id = `${id}-details`;
-
-            opts.details.forEach((raw) => {
-                const item: ToastDetailItem = typeof raw === 'string' ? { value: raw } : raw;
-                const row = document.createElement('div');
-                row.className = 'bt-toast-detail-item';
-
-                const text = document.createElement('span');
-                text.className = 'bt-toast-detail-text';
-                if (item.label) {
-                    const label = document.createElement('span');
-                    label.className = 'bt-toast-detail-label';
-                    label.textContent = item.label;
-                    text.appendChild(label);
-                }
-                const value = document.createElement('span');
-                value.className = 'bt-toast-detail-value';
-                value.textContent = item.value;
-                text.appendChild(value);
-                row.appendChild(text);
-
-                if (item.buttons && item.buttons.length) {
-                    item.buttons.forEach((btn) => {
-                        row.appendChild(renderToastButton(btn, id, 'bt-toast-detail-action'));
-                    });
-                }
-
-                detailsEl!.appendChild(row);
-            });
-
-            const detailsLabel = opts.detailsLabel ?? t.details;
-            const detailsHideLabel = opts.detailsHideLabel ?? t.hideDetails;
-            let toggleBtn: HTMLButtonElement;
-            toggleBtn = createActionButton(detailsLabel, () => {
-                const isOpen = detailsEl!.classList.toggle('bt-open');
-                toggleBtn.textContent = isOpen ? detailsHideLabel : detailsLabel;
-                toggleBtn.setAttribute('aria-expanded', String(isOpen));
-                // Opening details re-arms the toast's timer, same reasoning as
-                // confirmButton()/detailsCopyButton() below — a user who just
-                // asked to read more shouldn't have it disappear mid-read.
-                if (isOpen) this.resetToastTimer(id);
-            });
-            toggleBtn.setAttribute('aria-expanded', 'false');
-            toggleBtn.setAttribute('aria-controls', detailsEl.id);
-            ensureActions().appendChild(toggleBtn);
-        }
+        this._applyContent(toastContent, message, opts);
 
         toastRow.appendChild(toastClose);
         toastRow.appendChild(toastContent);
-        if (toastActions) toastRow.appendChild(toastActions);
         toast.appendChild(toastRow);
-        if (detailsEl) toast.appendChild(detailsEl);
+        this._renderActions(toastRow, toast, opts, id, t);
         toastContainer.appendChild(toast);
         snackbar.appendChild(toastContainer);
 
@@ -356,25 +288,32 @@ export class Toasts {
             toastContainer.style.opacity = '1';
         });
 
-        if (opts.closable) {
-            toastRow.setAttribute('tabindex', '0');
-            toastRow.addEventListener('click', () => this.removeToast(id));
-            toastRow.addEventListener('keydown', (e: KeyboardEvent) => {
-                if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
-                e.preventDefault();
-                this.removeToast(id);
-            });
-        }
+        // Listeners are always attached (not just `if (opts.closable)`/`if
+        // (opts.pauseOnHover)`) and read the live flag from `_toastState` at
+        // event time — not a value captured here at creation — so `updateToast`
+        // can flip `closable`/`pauseOnHover` on an already-rendered toast.
+        if (opts.closable) toastRow.setAttribute('tabindex', '0');
+        toastRow.addEventListener('click', () => {
+            if (this._toastState.get(toastContainer)?.closable) this.removeToast(id);
+        });
+        toastRow.addEventListener('keydown', (e: KeyboardEvent) => {
+            if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+            if (!this._toastState.get(toastContainer)?.closable) return;
+            e.preventDefault();
+            this.removeToast(id);
+        });
         if (opts.duration > 0) {
             this._startToastTimer(toastContainer, opts.duration);
         }
         // No-ops for a sticky toast (`duration: 0`) — there's no timer state
         // for pause/resume to touch, so hovering and un-hovering it can never
         // start one. See `ToastTimerState` above.
-        if (opts.pauseOnHover) {
-            toastContainer.addEventListener('mouseenter', () => this.pauseToastTimer(id));
-            toastContainer.addEventListener('mouseleave', () => this.resumeToastTimer(id));
-        }
+        toastContainer.addEventListener('mouseenter', () => {
+            if (this._toastState.get(toastContainer)?.pauseOnHover) this.pauseToastTimer(id);
+        });
+        toastContainer.addEventListener('mouseleave', () => {
+            if (this._toastState.get(toastContainer)?.pauseOnHover) this.resumeToastTimer(id);
+        });
 
         return id;
     }
@@ -392,6 +331,7 @@ export class Toasts {
         const timer = this._timers.get(toastContainer);
         if (timer?.timeoutId) clearTimeout(timer.timeoutId);
         this._timers.delete(toastContainer);
+        this._toastState.delete(toastContainer);
 
         toastContainer.classList.add('bt-hiding');
         toastContainer.style.opacity = '0';
@@ -405,6 +345,103 @@ export class Toasts {
             this._resizeObservers.delete(toastContainer);
             if (parent) this._recalculatePositions(parent);
         }, TOAST_TRANSITION_MS);
+    }
+
+    /**
+     * Updates an already-shown toast in place — same option shape as `showToast`'s
+     * `options` (plus `message`, since that's normally the separate first argument),
+     * applied as a patch: only the keys present in `update` change, everything else
+     * about the toast is left exactly as it was. No-op if `id` doesn't exist.
+     *
+     * `buttons`/`details` are whole-array replacements — see `addToastButton`/
+     * `removeToastButton`/`addToastDetail`/`removeToastDetail` for appending or
+     * index-based insertion/removal without reconstructing the array yourself.
+     * `position`/`animation`/`removeOtherToasts` are accepted for shape-compatibility
+     * with `ToastOptions` but don't describe a meaningful post-creation change, so
+     * they're no-ops here.
+     */
+    updateToast(id: string, update: ToastUpdateOptions): void {
+        const toastContainer = document.getElementById(id);
+        if (!toastContainer) return;
+        const prev = this._toastState.get(toastContainer);
+        if (!prev) return;
+
+        const toast = toastContainer.querySelector<HTMLElement>('.bt-toast');
+        const toastRow = toastContainer.querySelector<HTMLElement>('.bt-toast-row');
+        const toastClose = toastContainer.querySelector<HTMLElement>('.bt-toast-close');
+        const toastContent = toastContainer.querySelector<HTMLElement>('.bt-toast-content');
+        if (!toast || !toastRow || !toastClose || !toastContent) return;
+
+        const state: ToastState = { ...prev, ...update };
+        this._toastState.set(toastContainer, state);
+
+        if ('message' in update || 'title' in update || 'allowHtml' in update) {
+            this._applyContent(toastContent, state.message, state);
+        }
+        if ('color' in update) this._applyColor(toastClose, toast, state.color);
+        if ('buttons' in update || 'details' in update || 'detailsLabel' in update || 'detailsHideLabel' in update) {
+            this._renderActions(toastRow, toast, state, id, this._getTranslations());
+        }
+        if ('data' in update) this.setToastData(id, update.data);
+        if ('onClose' in update) {
+            if (update.onClose) this._onCloseCallbacks.set(toastContainer, update.onClose);
+            else this._onCloseCallbacks.delete(toastContainer);
+        }
+        if ('closable' in update) {
+            toastRow.classList.toggle('bt-closable', !!state.closable);
+            if (state.closable) toastRow.setAttribute('tabindex', '0');
+            else toastRow.removeAttribute('tabindex');
+        }
+        if ('duration' in update) {
+            if (state.duration <= 0) {
+                this.removeToastTimer(id);
+            } else if (this._timers.get(toastContainer)) {
+                this.resetToastTimer(id, state.duration);
+            } else {
+                this._startToastTimer(toastContainer, state.duration);
+            }
+        }
+        // `pauseOnHover` needs no DOM change — the hover listeners set up in
+        // `showToast` already read it live from `_toastState` on every
+        // mouseenter/mouseleave, so updating the stored state above is enough.
+    }
+
+    /** Appends (or, with `index`, inserts) one button into `id`'s `buttons` — same as passing a
+     *  full new array to `updateToast(id, { buttons })`, but without needing the current array. */
+    addToastButton(id: string, button: ToastButton, index?: number): void {
+        const state = this._getState(id);
+        if (!state) return;
+        const buttons = state.buttons ? [...state.buttons] : [];
+        buttons.splice(index === undefined ? buttons.length : Math.max(0, Math.min(index, buttons.length)), 0, button);
+        this.updateToast(id, { buttons });
+    }
+
+    /** Removes the button at `index` from `id`'s `buttons`. No-op if `id`/`index` don't exist. */
+    removeToastButton(id: string, index: number): void {
+        const state = this._getState(id);
+        if (!state?.buttons) return;
+        const buttons = [...state.buttons];
+        buttons.splice(index, 1);
+        this.updateToast(id, { buttons });
+    }
+
+    /** Appends (or, with `index`, inserts) one detail line into `id`'s `details` — same as passing
+     *  a full new array to `updateToast(id, { details })`, but without needing the current array. */
+    addToastDetail(id: string, detail: string | ToastDetailItem, index?: number): void {
+        const state = this._getState(id);
+        if (!state) return;
+        const details = state.details ? [...state.details] : [];
+        details.splice(index === undefined ? details.length : Math.max(0, Math.min(index, details.length)), 0, detail);
+        this.updateToast(id, { details });
+    }
+
+    /** Removes the detail line at `index` from `id`'s `details`. No-op if `id`/`index` don't exist. */
+    removeToastDetail(id: string, index: number): void {
+        const state = this._getState(id);
+        if (!state?.details) return;
+        const details = [...state.details];
+        details.splice(index, 1);
+        this.updateToast(id, { details });
     }
 
     /**
@@ -641,10 +678,140 @@ export class Toasts {
         return createStepButton(steps, className);
     }
 
-    private _removeAllToasts(): void {
+    /**
+     * Dismisses every currently visible toast, across all positions/snackbars —
+     * each one animates out via `removeToast` rather than vanishing instantly.
+     */
+    removeAllToasts(): void {
         this.snackbars.forEach(snackbar => {
             Array.from(snackbar.children).forEach(child => this.removeToast(child.id));
         });
+    }
+
+    private _getState(id: string): ToastState | undefined {
+        const el = document.getElementById(id);
+        return el ? this._toastState.get(el) : undefined;
+    }
+
+    // Shared by showToast (creation) and updateToast — sets the indicator bar
+    // color and the role/aria-live pair it drives, so both paths can never
+    // fall out of sync with each other.
+    private _applyColor(toastClose: HTMLElement, toast: HTMLElement, color: string): void {
+        toastClose.style.setProperty('--data-background', color);
+        const isAlert = color === ToastColor.ERROR || color === ToastColor.WARNING;
+        toast.setAttribute('role', isAlert ? 'alert' : 'status');
+        toast.setAttribute('aria-live', isAlert ? 'assertive' : 'polite');
+    }
+
+    // Shared by showToast and updateToast — (re)builds the title/message
+    // children of `toastContent` in place, handling title appearing/
+    // disappearing between calls.
+    private _applyContent(toastContent: HTMLElement, message: string | Node, opts: { title?: string; allowHtml: boolean }): void {
+        let toastTitle = toastContent.querySelector<HTMLElement>('.bt-toast-title');
+        if (opts.title) {
+            if (!toastTitle) {
+                toastTitle = document.createElement('div');
+                toastTitle.className = 'bt-toast-title';
+                toastContent.insertBefore(toastTitle, toastContent.firstChild);
+            }
+            toastTitle.textContent = opts.title;
+        } else if (toastTitle) {
+            toastTitle.remove();
+        }
+
+        let toastMessage = toastContent.querySelector<HTMLElement>('.bt-toast-message');
+        if (!toastMessage) {
+            toastMessage = document.createElement('div');
+            toastMessage.className = 'bt-toast-message';
+            toastContent.appendChild(toastMessage);
+        }
+        toastMessage.replaceChildren();
+        if (message instanceof Node) {
+            toastMessage.appendChild(message);
+        } else if (opts.allowHtml) {
+            toastMessage.innerHTML = message;
+        } else {
+            toastMessage.textContent = message;
+        }
+    }
+
+    // Shared by showToast and updateToast — fully rebuilds the `.bt-toast-actions`
+    // (buttons + details-toggle) and `.bt-toast-details` subtrees from `opts`,
+    // rather than diffing against whatever's currently rendered. Toasts are
+    // small, so a full rebuild is cheap and keeps this the single place that
+    // knows how buttons/details/the toggle button relate to each other.
+    private _renderActions(toastRow: HTMLElement, toast: HTMLElement, opts: ResolvedToastOptions, id: string, t: ToastTranslations): void {
+        toastRow.querySelector('.bt-toast-actions')?.remove();
+        toast.querySelector('.bt-toast-details')?.remove();
+
+        let toastActions: HTMLDivElement | undefined;
+        const ensureActions = (): HTMLDivElement => {
+            if (!toastActions) {
+                toastActions = document.createElement('div');
+                toastActions.className = 'bt-toast-actions';
+            }
+            return toastActions;
+        };
+
+        if (opts.buttons && opts.buttons.length) {
+            opts.buttons.forEach((btn) => {
+                ensureActions().appendChild(renderToastButton(btn, id));
+            });
+        }
+
+        let detailsEl: HTMLDivElement | undefined;
+        if (opts.details && opts.details.length) {
+            detailsEl = document.createElement('div');
+            detailsEl.className = 'bt-toast-details';
+            detailsEl.id = `${id}-details`;
+
+            opts.details.forEach((raw) => {
+                const item: ToastDetailItem = typeof raw === 'string' ? { value: raw } : raw;
+                const row = document.createElement('div');
+                row.className = 'bt-toast-detail-item';
+
+                const text = document.createElement('span');
+                text.className = 'bt-toast-detail-text';
+                if (item.label) {
+                    const label = document.createElement('span');
+                    label.className = 'bt-toast-detail-label';
+                    label.textContent = item.label;
+                    text.appendChild(label);
+                }
+                const value = document.createElement('span');
+                value.className = 'bt-toast-detail-value';
+                value.textContent = item.value;
+                text.appendChild(value);
+                row.appendChild(text);
+
+                if (item.buttons && item.buttons.length) {
+                    item.buttons.forEach((btn) => {
+                        row.appendChild(renderToastButton(btn, id, 'bt-toast-detail-action'));
+                    });
+                }
+
+                detailsEl!.appendChild(row);
+            });
+
+            const detailsLabel = opts.detailsLabel ?? t.details;
+            const detailsHideLabel = opts.detailsHideLabel ?? t.hideDetails;
+            let toggleBtn: HTMLButtonElement;
+            toggleBtn = createActionButton(detailsLabel, () => {
+                const isOpen = detailsEl!.classList.toggle('bt-open');
+                toggleBtn.textContent = isOpen ? detailsHideLabel : detailsLabel;
+                toggleBtn.setAttribute('aria-expanded', String(isOpen));
+                // Opening details re-arms the toast's timer, same reasoning as
+                // confirmButton()/detailsCopyButton() below — a user who just
+                // asked to read more shouldn't have it disappear mid-read.
+                if (isOpen) this.resetToastTimer(id);
+            });
+            toggleBtn.setAttribute('aria-expanded', 'false');
+            toggleBtn.setAttribute('aria-controls', detailsEl.id);
+            ensureActions().appendChild(toggleBtn);
+        }
+
+        if (toastActions) toastRow.appendChild(toastActions);
+        if (detailsEl) toast.appendChild(detailsEl);
     }
 
     // Only called for `duration > 0` — a sticky toast never gets a `_timers`
