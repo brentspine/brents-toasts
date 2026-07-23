@@ -67,9 +67,10 @@ const TOAST_OPTION_DOCS = [
   { name: "onClose", type: "() => void", default: "(none)", note: "Called as soon as the toast starts closing." },
   { name: "removeOtherToasts", type: "boolean", default: "false", note: "Dismisses every other visible toast before showing this one." },
   { name: "buttons", type: "ToastButton[]", default: "(none)", note: "{ label, onClick(event, id), className? } — right-aligned, never triggers dismissal." },
-  { name: "details", type: "(string | ToastDetailItem)[]", default: "(none)", note: "Adds a Details toggle revealing { label?, value, copyable? } rows, each with its own Copy button." },
+  { name: "details", type: "(string | ToastDetailItem)[]", default: "(none)", note: "Adds a Details toggle revealing { label?, value, copyable?, buttons? } rows, each with its own Copy button plus optional custom buttons." },
   { name: "detailsLabel", type: "string", default: '"Details"', note: "Label for the auto-added details toggle button." },
   { name: "detailsHideLabel", type: "string", default: '"Hide details"', note: "Label for the toggle button while details are expanded." },
+  { name: "detailsCopyable", type: "boolean", default: "true", note: "Default copyable for every details item that doesn't set its own — set false to hide every item's Copy button at once." },
 ];
 
 const CONFIG_OPTION_DOCS = [

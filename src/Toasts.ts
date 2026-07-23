@@ -29,8 +29,10 @@ export interface ToastDetailItem {
     /** Optional label shown before the value, e.g. "Status". */
     label?: string;
     value: string;
-    /** Show a "Copy" button for this item. Defaults to true (when the Clipboard API is available). */
+    /** Show a "Copy" button for this item. Defaults to `detailsCopyable` (which itself defaults to true, when the Clipboard API is available). */
     copyable?: boolean;
+    /** Extra action buttons rendered after this item's Copy button. Same shape and click/keyboard behavior as the top-level `buttons` option. */
+    buttons?: ToastButton[];
 }
 
 export interface ToastOptions {
@@ -60,6 +62,8 @@ export interface ToastOptions {
     detailsLabel?: string;
     /** Label for the toggle button while details are expanded. Defaults to `"Hide details"`. */
     detailsHideLabel?: string;
+    /** Default `copyable` for every details item that doesn't set its own. Defaults to `true`. Set `false` to hide every item's "Copy" button without repeating `copyable: false` on each one. */
+    detailsCopyable?: boolean;
 }
 
 export interface ToastsConfig {
@@ -87,6 +91,7 @@ interface ResolvedToastOptions {
     details?: (string | ToastDetailItem)[];
     detailsLabel?: string;
     detailsHideLabel?: string;
+    detailsCopyable?: boolean;
 }
 
 const DEFAULT_CONFIG: ToastsConfig = {
@@ -287,7 +292,8 @@ export class Toasts {
                 text.appendChild(value);
                 row.appendChild(text);
 
-                if (item.copyable !== false && navigator.clipboard) {
+                const copyable = item.copyable ?? opts.detailsCopyable ?? true;
+                if (copyable && navigator.clipboard) {
                     const copyText = item.label ? `${item.label}: ${item.value}` : item.value;
                     let copyBtn: HTMLButtonElement;
                     copyBtn = makeActionButton('Copy', () => {
@@ -298,6 +304,13 @@ export class Toasts {
                         });
                     }, 'bt-toast-detail-copy');
                     row.appendChild(copyBtn);
+                }
+
+                if (item.buttons && item.buttons.length) {
+                    item.buttons.forEach((btn) => {
+                        const className = btn.className ? `bt-toast-detail-action ${btn.className}` : 'bt-toast-detail-action';
+                        row.appendChild(makeActionButton(btn.label, (e) => btn.onClick?.(e, id), className));
+                    });
                 }
 
                 detailsEl!.appendChild(row);
@@ -405,6 +418,7 @@ export class Toasts {
             details: undefined,
             detailsLabel: undefined,
             detailsHideLabel: undefined,
+            detailsCopyable: undefined,
         };
 
         if (colorOrOptions !== null && typeof colorOrOptions === 'object') {

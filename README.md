@@ -144,12 +144,32 @@ toasts.showToast('Account settings could not be updated.', {
 ```
 
 Strings are shorthand for `{ value: '...' }` with no label. Set
-`copyable: false` on an item to hide its "Copy" button. Toggling details
-open/closed (or mutating a toast's own content some other way) automatically
-repositions the whole stack, so an expanded toast never overlaps the ones
-above it. Customize the toggle button text with `detailsLabel`/
-`detailsHideLabel` (default `"Details"`/`"Hide details"`). Builder
-equivalent: `.withDetails(details, detailsLabel?, detailsHideLabel?)`.
+`copyable: false` on an item to hide its "Copy" button, or `detailsCopyable: false`
+on the toast to hide every item's Copy button at once without repeating it
+(an item's own `copyable` still wins if set). Toggling details open/closed
+(or mutating a toast's own content some other way) automatically repositions
+the whole stack, so an expanded toast never overlaps the ones above it.
+Customize the toggle button text with `detailsLabel`/`detailsHideLabel`
+(default `"Details"`/`"Hide details"`). Builder equivalent:
+`.withDetails(details, detailsLabel?, detailsHideLabel?)` /
+`.withDetailsCopyable(copyable)`.
+
+Each detail item can also have its own action buttons, same shape as the
+top-level `buttons` option:
+
+```ts
+toasts.showToast('Payment failed.', {
+  title: 'Payment Failed',
+  color: ToastColor.ERROR,
+  details: [
+    {
+      label: 'Transaction',
+      value: 'tx_8f2a1c',
+      buttons: [{ label: 'Retry', onClick: (event, id) => retryPayment('tx_8f2a1c') }],
+    },
+  ],
+});
+```
 
 ### Config: project-wide vs. page/section-local
 

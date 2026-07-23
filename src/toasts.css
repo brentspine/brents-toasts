@@ -53,10 +53,12 @@
 }
 .bt-toast-row .bt-toast-content { margin-left: 10px; padding: 6px 0; flex: 1 1 auto; min-width: 0; }
 .bt-toast-row .bt-toast-title { font-weight: 600; }
-/* align-self: stretch makes this column span the row's full height, so
-   :has(.bt-toast-actions:hover) above also covers the gap above/below the
-   button itself — not just the button's own tight content box. */
-.bt-toast-actions { display: flex; align-items: center; gap: 4px; margin: 0 10px 0 6px; flex-shrink: 0; align-self: stretch; }
+/* align-self: stretch makes this column span the row's full height, and
+   padding (not margin) folds the former side gaps into the hoverable box
+   itself, so :has(.bt-toast-actions:hover) above covers the whole right-hand
+   column — approaching from the right edge, or from above/below the
+   button's own tight content box, never counts as hovering the row. */
+.bt-toast-actions { display: flex; align-items: center; gap: 4px; padding: 0 10px 0 6px; box-sizing: border-box; flex-shrink: 0; align-self: stretch; }
 .bt-toast-action {
     -webkit-appearance: none;
     appearance: none;
@@ -99,4 +101,5 @@
     word-break: break-word;
 }
 .bt-toast-detail-label { font-weight: 600; opacity: 0.8; margin-right: 6px; }
-.bt-toast-detail-copy { flex-shrink: 0; font-size: 0.95em; }
+.bt-toast-detail-copy,
+.bt-toast-detail-action { flex-shrink: 0; font-size: 0.95em; }

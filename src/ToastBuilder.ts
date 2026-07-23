@@ -46,6 +46,8 @@ export class ToastBuilder {
         if (detailsHideLabel !== undefined) this._options.detailsHideLabel = detailsHideLabel;
         return this;
     }
+    /** Default `copyable` for every details item that doesn't set its own. See `ToastOptions.detailsCopyable`. */
+    withDetailsCopyable(copyable: boolean): this { this._options.detailsCopyable = copyable; return this; }
 
     /** @returns the toast's id, same as showToast() */
     show(): string {

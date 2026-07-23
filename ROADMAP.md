@@ -102,3 +102,6 @@ per-toast options) without fully implementing every value yet.
    - close button
    - text color
  - Auto wrap for larger bodies
+ - Preset types (define your own types for errors, info, warning and success for example)
+ - Add Github Link with Stargaze amount
+ - Add a link to all releases & changelogs
