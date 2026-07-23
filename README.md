@@ -285,4 +285,38 @@ new ToastBuilder('Also this page only.', pageToasts).show();
 
 See `ToastOptions`/`ToastsConfig` in `dist/index.d.ts` for the full list of
 per-toast and library-wide settings (position, animation, `onClose`,
-`removeOtherToasts`, `buttons`, `details`, `maxToasts`, `evictOldest`, ...).
+`removeOtherToasts`, `buttons`, `details`, `maxToasts`, `evictOldest`,
+`locale`, `translations`, ...).
+
+### Localization
+
+The library's own text — `closeButton()`'s `"Close"`, `detailsLabel`
+(`"Details"`) / `detailsHideLabel` (`"Hide details"`), `detailsCopyButton()`'s
+`"Copy"`/`"Copied!"`, `confirmButton()`'s `confirmLabel` (`"Are you sure?"`) /
+`doneLabel` (`"Done"`), and the snackbar region's `aria-label`
+(`"Notifications"`) — is auto-translated based on the browser's
+`navigator.language`(s), no config required. Bundled packs today: `en`
+(default/fallback), `de`, `es`, `fr` (see `ToastLocales` in
+`dist/index.d.ts`). Everything else — `title`, `message`, per-button/detail
+text, `confirmButton()`'s own `label` (e.g. `"Delete"`) — is your own
+application text and was never auto-translated.
+
+To force a specific bundled pack instead of auto-detecting:
+
+```ts
+toasts.configure({ locale: 'de' });
+```
+
+To add a language that isn't bundled, or tweak individual strings, layer a
+partial override on top of the resolved pack:
+
+```ts
+toasts.configure({ translations: { close: 'Schließen', done: 'Erledigt' } });
+```
+
+An unrecognized `locale` falls back to `en` with a one-time console warning,
+same as an unimplemented `position`/`animation` value. Per-call params
+(`detailsLabel`, `closeButton(label)`, `detailsCopyButton(text, label,
+copiedLabel)`, `confirmButton(label, onConfirm, { confirmLabel, doneLabel })`)
+still win over the resolved translations, same precedence as every other
+option.

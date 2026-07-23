@@ -9,10 +9,12 @@ import { ToastColor } from './ToastColor';
 import { ToastPosition, IMPLEMENTED_POSITIONS, type ToastPositionValue } from './ToastPosition';
 import { ToastAnimation, IMPLEMENTED_ANIMATIONS, type ToastAnimationValue } from './ToastAnimation';
 import { createActionButton, renderToastButton, createStepButton, type ToastButton, type ToastButtonStep } from './ToastButton';
+import { ToastLocales, matchToastLocale, detectBrowserLocales, type ToastTranslations } from './ToastLocale';
 import toastsCss from './toasts.css';
 import VERSION from 'virtual:version';
 
 export type { ToastButton, ToastButtonStep } from './ToastButton';
+export type { ToastTranslations } from './ToastLocale';
 
 const MAX_TOASTS = 5;
 const TOAST_GAP = 8;
@@ -65,6 +67,10 @@ export interface ToastsConfig {
     animation: ToastAnimationValue;
     maxToasts: number;
     evictOldest: boolean;
+    /** Force a specific bundled locale (e.g. `"de"`). Omit to auto-detect from `navigator.language`(s), falling back to `"en"` if nothing bundled matches. See `ToastLocales` for the bundled packs. */
+    locale?: string;
+    /** Partial string overrides layered on top of the resolved locale pack — for unbundled languages, or tweaking individual defaults. */
+    translations?: Partial<ToastTranslations>;
 }
 
 interface ResolvedToastOptions {
@@ -155,6 +161,7 @@ export class Toasts {
     ): string {
         this._init();
         const opts = this._resolveOptions(colorOrOptions, duration, closable, allowHtml);
+        const t = this._getTranslations();
 
         if (opts.removeOtherToasts) {
             this._removeAllToasts();
@@ -162,7 +169,7 @@ export class Toasts {
 
         const position = this._resolvePosition(opts.position);
         this._resolveAnimation(opts.animation);
-        const snackbar = this._getSnackbar(position);
+        const snackbar = this._getSnackbar(position, t);
 
         const activeToasts = Array.from(snackbar.children).filter(
             t => !t.classList.contains('bt-hiding')
@@ -269,8 +276,8 @@ export class Toasts {
                 detailsEl!.appendChild(row);
             });
 
-            const detailsLabel = opts.detailsLabel ?? 'Details';
-            const detailsHideLabel = opts.detailsHideLabel ?? 'Hide details';
+            const detailsLabel = opts.detailsLabel ?? t.details;
+            const detailsHideLabel = opts.detailsHideLabel ?? t.hideDetails;
             let toggleBtn: HTMLButtonElement;
             toggleBtn = createActionButton(detailsLabel, () => {
                 const isOpen = detailsEl!.classList.toggle('bt-open');
@@ -349,11 +356,12 @@ export class Toasts {
      * A ready-made "Close" action button (for the `buttons` option / `ToastBuilder.withCloseButton()`)
      * that dismisses the toast it's on, wired to this `Toasts` instance's `removeToast`.
      * `label` is a plain parameter rather than a hardcoded string — like `detailsLabel` — so it can be
-     * translated by the caller (e.g. once localization is added) instead of being baked in.
+     * overridden by the caller; defaults to the resolved locale's translation (see `configure()`'s
+     * `locale`/`translations`).
      */
-    closeButton(label: string = 'Close', className?: string): ToastButton {
+    closeButton(label?: string, className?: string): ToastButton {
         return {
-            label,
+            label: label ?? this._getTranslations().close,
             className,
             onClick: (_event, id) => this.removeToast(id),
         };
@@ -364,14 +372,15 @@ export class Toasts {
      * clipboard and flashes the button's own label to `copiedLabel` for 2s. Nothing copyable is added
      * automatically; push this into a specific item's `buttons` (or every item's, via `.map()`) to opt
      * that item in, same opt-in pattern as `closeButton()`. No-ops if the Clipboard API is unavailable
-     * (e.g. insecure context). `label`/`copiedLabel` are plain parameters, not hardcoded, for the same
-     * future-localization reason as `closeButton()`'s `label`. Built on `stepButton()` — see that for
+     * (e.g. insecure context). `label`/`copiedLabel` are plain parameters, not hardcoded — same
+     * locale-defaulting as `closeButton()`'s `label`. Built on `stepButton()` — see that for
      * the underlying multi-step mechanics.
      */
-    detailsCopyButton(text: string, label: string = 'Copy', copiedLabel: string = 'Copied!', className?: string): ToastButton {
+    detailsCopyButton(text: string, label?: string, copiedLabel?: string, className?: string): ToastButton {
+        const t = this._getTranslations();
         return this.stepButton([
-            { label, onClick: () => (!navigator.clipboard ? false : navigator.clipboard.writeText(text)) },
-            { label: copiedLabel, revertAfterMs: 2000 },
+            { label: label ?? t.copy, onClick: () => (!navigator.clipboard ? false : navigator.clipboard.writeText(text)) },
+            { label: copiedLabel ?? t.copied, revertAfterMs: 2000 },
         ], className);
     }
 
@@ -394,9 +403,10 @@ export class Toasts {
             doneTimeoutMs?: number;
         }
     ): ToastButton {
+        const t = this._getTranslations();
         const {
-            confirmLabel = 'Are you sure?',
-            doneLabel = 'Done',
+            confirmLabel = t.areYouSure,
+            doneLabel = t.done,
             className,
             confirmTimeoutMs = 4000,
             doneTimeoutMs = 2000,
@@ -472,6 +482,25 @@ export class Toasts {
         return ToastAnimation.SLIDE;
     }
 
+    private _resolveLocaleKey(): string {
+        if (this.config.locale) {
+            const match = matchToastLocale(this.config.locale);
+            if (match) return match;
+            this._warnUnimplemented('locale', this.config.locale, 'en');
+            return 'en';
+        }
+        for (const candidate of detectBrowserLocales()) {
+            const match = matchToastLocale(candidate);
+            if (match) return match;
+        }
+        return 'en';
+    }
+
+    private _getTranslations(): ToastTranslations {
+        const base = ToastLocales[this._resolveLocaleKey()]!;
+        return this.config.translations ? { ...base, ...this.config.translations } : base;
+    }
+
     private _warnUnimplemented(kind: string, value: string, fallback: string): void {
         const key = `${kind}:${value}`;
         if (this._warned.has(key)) return;
@@ -523,14 +552,21 @@ export class Toasts {
      * so every position currently renders through the same #snackbar element.
      * Other positions get their own container/id once they're implemented.
      */
-    private _getSnackbar(position: ToastPositionValue): HTMLElement {
+    private _getSnackbar(position: ToastPositionValue, t: ToastTranslations): HTMLElement {
         const cached = this.snackbars.get(position);
-        if (cached) return cached;
+        if (cached) {
+            // Refreshed on every call (not just at creation) so a later
+            // configure({ locale }) updates an already-rendered snackbar's
+            // accessible name, not just newly-created ones.
+            cached.setAttribute('aria-label', t.notificationsRegion);
+            return cached;
+        }
 
         const existing = position === ToastPosition.BOTTOM_CENTER
             ? document.getElementById('snackbar')
             : null;
         if (existing) {
+            existing.setAttribute('aria-label', t.notificationsRegion);
             this.snackbars.set(position, existing);
             return existing;
         }
@@ -540,7 +576,7 @@ export class Toasts {
         snackbar.dataset.position = position;
         if (position === ToastPosition.BOTTOM_CENTER) snackbar.id = 'snackbar';
         snackbar.setAttribute('role', 'region');
-        snackbar.setAttribute('aria-label', 'Notifications');
+        snackbar.setAttribute('aria-label', t.notificationsRegion);
         document.body.appendChild(snackbar);
         document.body.insertBefore(document.createComment(`brents-toasts v${VERSION} snackbar container`), snackbar);
         this.snackbars.set(position, snackbar);

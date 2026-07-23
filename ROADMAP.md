@@ -189,6 +189,6 @@ per-toast options) without fully implementing every value yet.
  - ~~Changelog generation for minor and major which also get the changelogs for previous versions as context https://docs.npmjs.com/cli/v10/commands/npm-version?v=true~~
  - Improvement for minor and major releases by checking work and potentially changing args, like Model and max in/out tokens
  - Add a "Copy all" button for details with many items (or just a single long string)
- - Hovering a large toast, that is closable will make the toast grow because of the missing space for the close button. Make it so the close button has enough space to expand without growing the toast. Remember, that we might add other toast designs later on, which would not need the logic.
-
+ - ~~Hovering a large toast, that is closable will make the toast grow because of the missing space for the close button. Make it so the close button has enough space to expand without growing the toast. Remember, that we might add other toast designs later on, which would not need the logic.~~
+ - meta description tag write, if not present
 

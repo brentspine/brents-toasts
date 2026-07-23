@@ -4,6 +4,7 @@ const $ = (id) => document.getElementById(id);
 
 const configMaxToasts = $("configMaxToasts");
 const configColor = $("configColor");
+const configLanguage = $("configLanguage");
 const configDuration = $("configDuration");
 const configClosable = $("configClosable");
 const applyConfigBtn = $("applyConfig");
@@ -78,6 +79,8 @@ const TOAST_OPTION_DOCS = [
 const CONFIG_OPTION_DOCS = [
   { name: "maxToasts", type: "number", default: "5", note: "Toasts visible at once before the oldest is evicted." },
   { name: "evictOldest", type: "boolean", default: "true", note: "Evict the oldest toast once maxToasts is exceeded." },
+  { name: "locale", type: "string", default: "(auto-detected)", note: "Overrides auto-detection — forces a bundled locale (en/de/es/fr) for built-in button/label text." },
+  { name: "translations", type: "Partial<ToastTranslations>", default: "(none)", note: "Overrides individual translated strings on top of the resolved locale." },
 ];
 
 // Ready-made ToastButton factories on `toasts` (methods, not ToastOptions
@@ -138,24 +141,32 @@ function readConfigDuration() {
   return normalized < 0 ? 0 : normalized;
 }
 
+function readConfigLocale() {
+  const v = configLanguage.value;
+  return v === "auto" ? undefined : v;
+}
+
 function applyPageConfig() {
   toasts.configure({
     maxToasts: readMaxToasts(),
     color: ToastColor[configColor.value],
     duration: readConfigDuration(),
     closable: configClosable.checked,
+    locale: readConfigLocale(),
   });
 }
 
 function updateConfigCodePreview() {
+  const locale = readConfigLocale();
   const lines = [
     `toasts.configure({`,
     `  maxToasts: ${readMaxToasts()},`,
     `  color: ToastColor.${configColor.value},`,
     `  duration: ${readConfigDuration()},`,
     `  closable: ${configClosable.checked},`,
-    `});`,
   ];
+  if (locale) lines.push(`  locale: ${JSON.stringify(locale)},`);
+  lines.push(`});`);
   configCodePreview.textContent = lines.join("\n");
 }
 
@@ -760,6 +771,7 @@ function wireConfigUpdates() {
 
   configMaxToasts.addEventListener("input", update);
   configColor.addEventListener("change", update);
+  configLanguage.addEventListener("change", update);
   configDuration.addEventListener("input", update);
   configClosable.addEventListener("change", update);
 
