@@ -120,5 +120,7 @@ per-toast options) without fully implementing every value yet.
    - text color
  - Auto wrap for larger bodies
  - Preset types (define your own types for errors, info, warning and success for example)
- - Compact version list in demo
+ - ~~Compact version list in demo~~
  - Pause timer for disappearing toasts for certain actions or via function call
+ - Changelog generation for minor and major which also get the changelogs for previous versions as context https://docs.npmjs.com/cli/v10/commands/npm-version?v=true
+ - Add a "Copy all" button for details with many items (or just a single long string)

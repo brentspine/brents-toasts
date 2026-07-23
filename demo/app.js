@@ -8,7 +8,6 @@ const configDuration = $("configDuration");
 const configClosable = $("configClosable");
 const applyConfigBtn = $("applyConfig");
 const configCodePreview = $("configCodePreview");
-const maxToastsFooter = $("maxToastsFooter");
 
 const toastText = $("toastText");
 const toastTitle = $("toastTitle");
@@ -136,7 +135,6 @@ function applyPageConfig() {
     duration: readConfigDuration(),
     closable: configClosable.checked,
   });
-  maxToastsFooter.textContent = String(readMaxToasts());
 }
 
 function updateConfigCodePreview() {
@@ -452,7 +450,7 @@ function renderRepoStats(data) {
     <span class="repo-stat-sep">&middot;</span>
     <a class="repo-stat" href="${data.html_url}/watchers" target="_blank" rel="noopener noreferrer">${data.watchers_count} watchers</a>
     <span class="repo-stat-sep">&middot;</span>
-    <span class="repo-stat" title="${escapeHtml(new Date(data.pushed_at).toLocaleString())}">Last commit ${formatRelativeTime(data.pushed_at)}</span>
+    <a class="repo-stat" href="https://github.com/brentspine/brents-toasts/commits/main/" target="_blank" rel="noopener noreferrer" title="${escapeHtml(new Date(data.pushed_at).toLocaleString())}">Last commit ${formatRelativeTime(data.pushed_at)}</a>
   `;
 }
 
