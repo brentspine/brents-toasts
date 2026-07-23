@@ -33,6 +33,12 @@ export class ToastBuilder {
     withAnimation(animation: ToastAnimationValue): this { this._options.animation = animation; return this; }
     withOnClose(onClose: () => void): this { this._options.onClose = onClose; return this; }
     andRemoveOtherToasts(): this { this._options.removeOtherToasts = true; return this; }
+    /** Adds one action button (repeatable — call multiple times for multiple buttons). */
+    withButton(label: string, onClick?: (event: MouseEvent, id: string) => void, className?: string): this {
+        if (!this._options.buttons) this._options.buttons = [];
+        this._options.buttons.push({ label, onClick, className });
+        return this;
+    }
 
     /** @returns the toast's id, same as showToast() */
     show(): string {

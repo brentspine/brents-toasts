@@ -35,6 +35,19 @@ per-toast options) without fully implementing every value yet.
 
 ## Decided (don't re-litigate)
 
+- **`buttons: ToastButton[]`** — the generic, deliberate replacement for
+  porting `Hinweis`/`ToastClick` directly (see "Not ported" below). Supported
+  end-to-end (`ToastOptions`, `ToastBuilder.withButton()`, rendered as
+  `.bt-toast-actions`/`.bt-toast-action` — styled as plain clickable text, not
+  native-looking buttons, per design intent). Buttons render as a flex
+  sibling of the title/message column so they vertically center regardless
+  of whether `title` is present, and clicks/keyboard activation both
+  `stopPropagation()` so they never trigger the toast's own `closable`
+  dismissal. `onClick(event, id)` gives consumers the toast's own id, so
+  patterns like "Undo" (dismiss + show a new toast) or "Details" (mutate the
+  toast's own DOM node to reveal more info) are both buildable without a
+  dedicated built-in API for either.
+
 - **Exports**: `src/index.ts` exports `toasts` (singleton) both as a named
   export and as `default`, alongside `Toasts`, `ToastColor`,
   `ToastPosition`, `ToastAnimation`, `ToastBuilder`. Both `import { toasts }
@@ -50,8 +63,11 @@ per-toast options) without fully implementing every value yet.
 
 - **`Hinweis`** — a list-of-detail-items-with-clipboard-copy feature tied to
   a specific internal API error-object shape from the old employer's backend.
-  Not a generic toast concept; would need a fresh design if wanted here
-  (e.g. a generic `details: string[]` option with an expand/collapse UI).
+  Still not a generic toast concept and still not ported as-is. The generic
+  building block it would need — a button whose `onClick` can reveal more
+  content on the same toast — now exists via `buttons`/`ToastButton`; a real
+  `details: string[]` + clipboard-copy UI would still need its own design if
+  ever wanted.
 - **Click-to-open-modal (`ToastClick` + `NgbModal`)** — Angular DI specific.
   If wanted, the vanilla equivalent is just exposing a raw `onClick` option
   and letting consumers open whatever modal/dialog they use.

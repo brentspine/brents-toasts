@@ -58,6 +58,7 @@
         <button id="presetSuccess" type="button" class="ghost">Success + title</button>
         <button id="presetHtml" type="button" class="ghost">Rich HTML</button>
         <button id="presetUndo" type="button" class="ghost">Undo action</button>
+        <button id="presetDetails" type="button" class="ghost">Action failed</button>
       </div>
 
       <label for="toastText">Text</label>
@@ -71,9 +72,19 @@
         <select id="contentType" aria-label="Content type">
           <option value="text">Plain text</option>
           <option value="html">HTML string (allowHtml)</option>
-          <option value="interactive">Interactive node (Undo demo)</option>
+          <option value="interactive">Interactive node</option>
         </select>
         <span id="contentTypeHint" class="hint"></span>
+      </div>
+
+      <label for="buttonPreset">Buttons</label>
+      <div class="duration-row">
+        <select id="buttonPreset" aria-label="Button preset">
+          <option value="none">None</option>
+          <option value="undo">Undo</option>
+          <option value="details">Details (expand)</option>
+        </select>
+        <span id="buttonPresetHint" class="hint"></span>
       </div>
 
       <label for="apiStyle">API style</label>

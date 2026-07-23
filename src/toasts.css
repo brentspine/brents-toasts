@@ -44,5 +44,23 @@
     cursor: pointer;
     width: 20px;
 }
-.bt-toast .bt-toast-content { margin-left: 10px; padding: 6px 0; }
+.bt-toast .bt-toast-content { margin-left: 10px; padding: 6px 0; flex: 1 1 auto; min-width: 0; }
 .bt-toast .bt-toast-title { font-weight: 600; }
+.bt-toast-actions { display: flex; align-items: center; gap: 4px; margin: 0 10px 0 6px; flex-shrink: 0; }
+.bt-toast-action {
+    -webkit-appearance: none;
+    appearance: none;
+    background: none;
+    border: none;
+    margin: 0;
+    padding: 4px 2px;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    opacity: 0.85;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.bt-toast-action:hover,
+.bt-toast-action:focus-visible { opacity: 1; }

@@ -14,6 +14,8 @@ const toastText = $("toastText");
 const toastTitle = $("toastTitle");
 const contentType = $("contentType");
 const contentTypeHint = $("contentTypeHint");
+const buttonPreset = $("buttonPreset");
+const buttonPresetHint = $("buttonPresetHint");
 const apiStyle = $("apiStyle");
 const useDefaults = $("useDefaults");
 const presetColor = $("presetColor");
@@ -25,6 +27,7 @@ const removeOthers = $("removeOthers");
 const presetSuccessBtn = $("presetSuccess");
 const presetHtmlBtn = $("presetHtml");
 const presetUndoBtn = $("presetUndo");
+const presetDetailsBtn = $("presetDetails");
 const makeToast = $("makeToast");
 const makeFive = $("makeFive");
 const codePreview = $("codePreview");
@@ -34,7 +37,13 @@ const versionList = $("versionList");
 const CONTENT_TYPE_HINTS = {
   text: "Rendered as plain text — safe with untrusted input.",
   html: "Rendered via innerHTML — sanitize untrusted input yourself.",
-  interactive: "A real DOM Node with a click handler — no innerHTML, no XSS surface.",
+  interactive: "A real DOM Node appended directly — no innerHTML, no XSS surface.",
+};
+
+const BUTTON_PRESET_HINTS = {
+  none: "",
+  undo: "Dismisses this toast, then shows a new one.",
+  details: "Appends one line of detail to this toast's own content.",
 };
 
 function presetToHex6(key) {
@@ -109,14 +118,15 @@ function readTitle() {
 }
 
 // Mirrors the README's custom-content example: a plain Node appended
-// directly, so it's interactive and needs no innerHTML/allowHtml at all.
-function buildUndoContent() {
+// directly, so it needs no innerHTML/allowHtml at all. Independent of the
+// native `buttons` option — see buildButtonsForToast().
+function buildInteractiveContent() {
   const content = document.createElement("span");
-  content.textContent = "Item deleted. ";
-  const undoBtn = document.createElement("button");
-  undoBtn.textContent = "Undo";
-  undoBtn.onclick = () => toasts.showToast("Restored!", ToastColor.SUCCESS);
-  content.appendChild(undoBtn);
+  content.textContent = "This part is a real DOM node, and ";
+  const em = document.createElement("em");
+  em.textContent = "this part is nested inside it";
+  content.appendChild(em);
+  content.append(".");
   return content;
 }
 
@@ -124,6 +134,58 @@ function updateContentModeUI() {
   const mode = contentType.value;
   toastText.disabled = mode === "interactive";
   contentTypeHint.textContent = CONTENT_TYPE_HINTS[mode];
+}
+
+function updateButtonPresetUI() {
+  buttonPresetHint.textContent = BUTTON_PRESET_HINTS[buttonPreset.value];
+}
+
+// Real button behavior for showOneToast() — canned, not free-form, since
+// callbacks can't be represented as simple form fields the way text/color/
+// duration can.
+function buildButtonsForToast() {
+  const preset = buttonPreset.value;
+  if (preset === "none") return undefined;
+  if (preset === "undo") {
+    return [
+      {
+        label: "Undo",
+        onClick: (event, id) => {
+          toasts.removeToast(id);
+          toasts.showToast("Restored!", ToastColor.SUCCESS);
+        },
+      },
+    ];
+  }
+  return [
+    {
+      label: "Details",
+      onClick: (event, id) => {
+        const msgEl = document.getElementById(id)?.querySelector(".bt-toast-message");
+        if (msgEl) msgEl.insertAdjacentHTML("beforeend", "<br>Error: 500 Internal Server Error");
+      },
+    },
+  ];
+}
+
+// Mirrors buildButtonsForToast() as [label, body-lines] preview data instead
+// of real callbacks — used by updateCodePreview()'s buttons special case.
+function buttonsBlockForPreview() {
+  const preset = buttonPreset.value;
+  if (preset === "none") return null;
+  if (preset === "undo") {
+    return {
+      label: "Undo",
+      body: [`toasts.removeToast(id);`, `toasts.showToast("Restored!", ToastColor.SUCCESS);`],
+    };
+  }
+  return {
+    label: "Details",
+    body: [
+      `const msgEl = document.getElementById(id)?.querySelector(".bt-toast-message");`,
+      `if (msgEl) msgEl.insertAdjacentHTML("beforeend", "<br>Error: 500 Internal Server Error");`,
+    ],
+  };
 }
 
 function colorExprForPreview() {
@@ -178,10 +240,12 @@ function updateCodePreview() {
   const skipOverrides = useDefaults.checked;
   const isInteractive = contentType.value === "interactive";
   const pairs = optionPairsForPreview(!skipOverrides);
+  const btn = buttonsBlockForPreview();
 
   const names = new Set(style === "builder" ? ["ToastBuilder"] : ["toasts"]);
-  if (isInteractive || pairs.some(([key]) => key === "color")) names.add("ToastColor");
-  if (isInteractive) names.add("toasts");
+  if (pairs.some(([key]) => key === "color")) names.add("ToastColor");
+  if (btn && btn.label === "Undo") names.add("ToastColor");
+  if (btn) names.add("toasts");
 
   const lines = [`import { ${Array.from(names).join(", ")} } from "./__TOASTS_LIB__";`, ``];
 
@@ -189,11 +253,11 @@ function updateCodePreview() {
   if (isInteractive) {
     lines.push(
       `const content = document.createElement('span');`,
-      `content.textContent = 'Item deleted. ';`,
-      `const undoBtn = document.createElement('button');`,
-      `undoBtn.textContent = 'Undo';`,
-      `undoBtn.onclick = () => toasts.showToast('Restored!', ToastColor.SUCCESS);`,
-      `content.appendChild(undoBtn);`,
+      `content.textContent = 'This part is a real DOM node, and ';`,
+      `const em = document.createElement('em');`,
+      `em.textContent = 'this part is nested inside it';`,
+      `content.appendChild(em);`,
+      `content.append('.');`,
       ``,
     );
     msgExpr = "content";
@@ -202,7 +266,29 @@ function updateCodePreview() {
   }
 
   if (style === "builder") {
-    lines.push(`new ToastBuilder(${msgExpr})`, ...pairs.map(builderMethodLine), `  .show();`);
+    const btnLine = btn
+      ? [
+          `  .withButton(${JSON.stringify(btn.label)}, (event, id) => {`,
+          ...btn.body.map((l) => `    ${l}`),
+          `  })`,
+        ].join("\n")
+      : null;
+    lines.push(`new ToastBuilder(${msgExpr})`, ...pairs.map(builderMethodLine), ...(btnLine ? [btnLine] : []), `  .show();`);
+  } else if (btn) {
+    const objLines = [
+      `, {`,
+      ...pairs.map(([key, v]) => `  ${key}: ${v},`),
+      `  buttons: [`,
+      `    {`,
+      `      label: ${JSON.stringify(btn.label)},`,
+      `      onClick: (event, id) => {`,
+      ...btn.body.map((l) => `        ${l}`),
+      `      },`,
+      `    },`,
+      `  ],`,
+      `}`,
+    ].join("\n");
+    lines.push(`toasts.showToast(${msgExpr}${objLines});`);
   } else {
     const objLine = pairs.length ? `, { ${pairs.map(([key, v]) => `${key}: ${v}`).join(", ")} }` : "";
     lines.push(`toasts.showToast(${msgExpr}${objLine});`);
@@ -286,13 +372,15 @@ async function loadVersionList() {
 function showOneToast() {
   const style = apiStyle.value;
   const skipOverrides = useDefaults.checked;
-  const message = contentType.value === "interactive" ? buildUndoContent() : readMessageRaw();
+  const message = contentType.value === "interactive" ? buildInteractiveContent() : readMessageRaw();
 
   const opts = {};
   const title = readTitle();
   if (title) opts.title = title;
   if (contentType.value === "html") opts.allowHtml = true;
   if (removeOthers.checked) opts.removeOtherToasts = true;
+  const buttons = buildButtonsForToast();
+  if (buttons) opts.buttons = buttons;
   if (!skipOverrides) {
     opts.color = colorValueForToast();
     opts.duration = readDuration();
@@ -304,6 +392,7 @@ function showOneToast() {
     if (opts.title) builder.withTitle(opts.title);
     if (opts.allowHtml) builder.withAllowHtml(true);
     if (opts.removeOtherToasts) builder.andRemoveOtherToasts();
+    if (opts.buttons) opts.buttons.forEach((b) => builder.withButton(b.label, b.onClick, b.className));
     if (!skipOverrides) {
       builder.withColor(opts.color).withDuration(opts.duration).withClosable(opts.closable);
     }
@@ -345,11 +434,21 @@ const CONTENT_PRESETS = {
     color: "INFO",
   },
   undo: {
-    contentType: "interactive",
+    contentType: "text",
     title: "Item deleted",
-    text: "",
+    text: "Your item has been removed.",
     color: "WARNING",
     duration: "6000",
+    buttonPreset: "undo",
+  },
+  details: {
+    contentType: "text",
+    title: "Action Failed",
+    text: "Account settings could not be updated.",
+    color: "ERROR",
+    duration: "0",
+    buttonPreset: "details",
+    removeOthers: true,
   },
 };
 
@@ -359,10 +458,13 @@ function applyPreset(name) {
   toastTitle.value = preset.title;
   toastText.value = preset.text;
   presetColor.value = preset.color;
-  if (preset.duration) durationMs.value = preset.duration;
+  durationMs.value = preset.duration ?? "3000";
+  removeOthers.checked = Boolean(preset.removeOthers);
+  buttonPreset.value = preset.buttonPreset ?? "none";
 
   syncColorUIFromPreset();
   updateContentModeUI();
+  updateButtonPresetUI();
   updateCodePreview();
 }
 
@@ -378,6 +480,11 @@ function wirePreviewUpdates() {
 
   contentType.addEventListener("change", () => {
     updateContentModeUI();
+    updateCodePreview();
+  });
+
+  buttonPreset.addEventListener("change", () => {
+    updateButtonPresetUI();
     updateCodePreview();
   });
 
@@ -399,6 +506,7 @@ function wirePreviewUpdates() {
   presetSuccessBtn.addEventListener("click", () => applyPreset("success"));
   presetHtmlBtn.addEventListener("click", () => applyPreset("html"));
   presetUndoBtn.addEventListener("click", () => applyPreset("undo"));
+  presetDetailsBtn.addEventListener("click", () => applyPreset("details"));
 }
 
 function wireConfigUpdates() {
@@ -424,6 +532,7 @@ colorPicker.value = presetToHex6("INFO");
 syncColorUIFromPreset();
 updateOverrideInputsDisabled();
 updateContentModeUI();
+updateButtonPresetUI();
 wirePreviewUpdates();
 wireConfigUpdates();
 applyPageConfig();

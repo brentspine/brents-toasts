@@ -16,6 +16,15 @@ const TOAST_GAP = 8;
 const TOAST_BOTTOM_OFFSET = 22;
 const TOAST_TRANSITION_MS = 300;
 
+export interface ToastButton {
+    /** Always rendered as plain text, like `title`. */
+    label: string;
+    /** Receives the click/keyboard-activation event and this toast's id (e.g. to call `removeToast(id)` yourself, or `document.getElementById(id)` to update the toast's own content in place). */
+    onClick?: (event: MouseEvent, id: string) => void;
+    /** Extra class name(s) appended alongside the built-in `bt-toast-action` class, for consumer styling hooks. */
+    className?: string;
+}
+
 export interface ToastOptions {
     /** Background color of the indicator bar. Defaults to `ToastColor.INFO` or the configured default. */
     color?: string;
@@ -35,6 +44,8 @@ export interface ToastOptions {
     onClose?: () => void;
     /** If true, dismisses every other currently-visible toast before showing this one. */
     removeOtherToasts?: boolean;
+    /** Action buttons rendered to the right of the message, vertically centered regardless of whether `title` is present. Styled as plain clickable text, not native-looking buttons, by default. Clicks never trigger `closable` dismissal. */
+    buttons?: ToastButton[];
 }
 
 export interface ToastsConfig {
@@ -58,6 +69,7 @@ interface ResolvedToastOptions {
     title?: string;
     onClose?: () => void;
     removeOtherToasts: boolean;
+    buttons?: ToastButton[];
 }
 
 const DEFAULT_CONFIG: ToastsConfig = {
@@ -188,8 +200,33 @@ export class Toasts {
         }
         toastContent.appendChild(toastMessage);
 
+        let toastActions: HTMLDivElement | undefined;
+        if (opts.buttons && opts.buttons.length) {
+            toastActions = document.createElement('div');
+            toastActions.className = 'bt-toast-actions';
+            opts.buttons.forEach((btn) => {
+                const buttonEl = document.createElement('button');
+                buttonEl.type = 'button';
+                buttonEl.className = btn.className ? `bt-toast-action ${btn.className}` : 'bt-toast-action';
+                buttonEl.textContent = btn.label;
+                buttonEl.addEventListener('click', (e: MouseEvent) => {
+                    e.stopPropagation();
+                    btn.onClick?.(e, id);
+                });
+                buttonEl.addEventListener('keydown', (e: KeyboardEvent) => {
+                    if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+                    // Stop the wrapper's own Enter/Space-to-dismiss handler from seeing this
+                    // event at all — no preventDefault, so the button's native click activation
+                    // (and therefore its onClick above) still fires normally.
+                    e.stopPropagation();
+                });
+                toastActions!.appendChild(buttonEl);
+            });
+        }
+
         toast.appendChild(toastClose);
         toast.appendChild(toastContent);
+        if (toastActions) toast.appendChild(toastActions);
         toastContainer.appendChild(toast);
         snackbar.appendChild(toastContainer);
 
@@ -261,6 +298,7 @@ export class Toasts {
             title: undefined,
             onClose: undefined,
             removeOtherToasts: false,
+            buttons: undefined,
         };
 
         if (colorOrOptions !== null && typeof colorOrOptions === 'object') {

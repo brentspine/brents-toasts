@@ -91,6 +91,37 @@ toasts.showToast(content, { closable: true });
 
 `title` always renders as plain text regardless of `allowHtml`, by design.
 
+### Buttons
+
+For simple actions (Undo, Dismiss, Expand, ...), use the native `buttons`
+option instead of building a custom `Node` — it renders as plain, underlined
+clickable text (not a native-looking button, by design), vertically centered
+regardless of whether `title` is present:
+
+```ts
+toasts.showToast('Item deleted.', {
+  title: 'Item deleted',
+  buttons: [
+    {
+      label: 'Undo',
+      onClick: (event, id) => {
+        toasts.removeToast(id);
+        toasts.showToast('Restored!', { color: ToastColor.SUCCESS });
+      },
+    },
+  ],
+});
+```
+
+`onClick` receives the click/keyboard-activation event and the toast's own
+`id`, so you can dismiss it yourself, show a follow-up toast, or reach the
+toast's DOM node directly (`document.getElementById(id)`) to update its
+content in place. Button clicks never trigger the toast's own `closable`
+dismiss behavior. `label` always renders as plain text, like `title`. Pass
+`className` for extra styling hooks without losing the default plain-link
+look. Builder equivalent: `.withButton(label, onClick, className)`
+(repeatable — call it once per button).
+
 ### Config: project-wide vs. page/section-local
 
 `toasts.configure({...})` sets defaults on the shared singleton — use this
@@ -117,4 +148,4 @@ new ToastBuilder('Also this page only.', pageToasts).show();
 
 See `ToastOptions`/`ToastsConfig` in `dist/index.d.ts` for the full list of
 per-toast and library-wide settings (position, animation, `onClose`,
-`removeOtherToasts`, `maxToasts`, `evictOldest`, ...).
+`removeOtherToasts`, `buttons`, `maxToasts`, `evictOldest`, ...).
