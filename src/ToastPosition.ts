@@ -1,14 +1,14 @@
 /*
-  Where a toast's snackbar container renders on screen.
-  Only BOTTOM_CENTER is actually implemented (CSS + stacking direction).
-  The rest are reserved so a future implementation only needs to add CSS
-  and register itself in IMPLEMENTED_POSITIONS — Toasts.ts already keys
-  its containers by position. Passing an unimplemented value falls back
-  to BOTTOM_CENTER with a console warning instead of failing silently.
+  Where a toast's snackbar container renders on screen. All six positions
+  are implemented: `_getSnackbar` (Toasts.ts) keys a container by position
+  and writes `data-position`, `.bt-snackbar[data-position$="-left"/"-right"]`
+  (toasts.css) handles horizontal alignment, and `POSITION_EDGE` below
+  drives which edge (top/bottom) the vertical stacking math anchors to.
+  Passing a value outside `ToastPosition` still falls back to
+  BOTTOM_CENTER with a console warning instead of failing silently.
 */
 export const ToastPosition = {
     BOTTOM_CENTER: 'bottom-center',
-    // Reserved for future implementation:
     TOP_CENTER: 'top-center',
     TOP_LEFT: 'top-left',
     TOP_RIGHT: 'top-right',
@@ -18,7 +18,14 @@ export const ToastPosition = {
 
 export type ToastPositionValue = typeof ToastPosition[keyof typeof ToastPosition];
 
-export const IMPLEMENTED_POSITIONS: ReadonlySet<ToastPositionValue> = new Set([ToastPosition.BOTTOM_CENTER]);
+export const IMPLEMENTED_POSITIONS: ReadonlySet<ToastPositionValue> = new Set([
+    ToastPosition.BOTTOM_CENTER,
+    ToastPosition.TOP_CENTER,
+    ToastPosition.TOP_LEFT,
+    ToastPosition.TOP_RIGHT,
+    ToastPosition.BOTTOM_LEFT,
+    ToastPosition.BOTTOM_RIGHT,
+]);
 
 /*
   Which viewport edge a position's snackbar stacks away from. Populated for

@@ -42,7 +42,7 @@ export interface ToastOptions {
     allowHtml?: boolean;
     /** Optional bold title line rendered above the message. Always rendered as plain text. */
     title?: string;
-    /** See `ToastPosition` — only BOTTOM_CENTER is implemented today. */
+    /** See `ToastPosition`. Defaults to `ToastPosition.BOTTOM_CENTER` or the configured default. */
     position?: ToastPositionValue;
     /** See `ToastAnimation` — only SLIDE is implemented today. */
     animation?: ToastAnimationValue;
@@ -951,9 +951,12 @@ export class Toasts {
     }
 
     /**
-     * Only BOTTOM_CENTER has real placement CSS today (see ToastPosition.ts),
-     * so every position currently renders through the same #snackbar element.
-     * Other positions get their own container/id once they're implemented.
+     * Reusing the literal `id="snackbar"` element for BOTTOM_CENTER only is a
+     * back-compat hook for pages that already had a `<div id="snackbar">`
+     * before position support existed — not a statement about which
+     * positions are implemented (see `IMPLEMENTED_POSITIONS` for that). Every
+     * other position always gets its own freshly created container, keyed by
+     * position in `this.snackbars`.
      */
     private _getSnackbar(position: ToastPositionValue, t: ToastTranslations): HTMLElement {
         const cached = this.snackbars.get(position);

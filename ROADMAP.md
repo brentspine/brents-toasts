@@ -7,14 +7,6 @@ per-toast options) without fully implementing every value yet.
 
 ## Scaffolded (config accepted, partially implemented)
 
-- **`ToastPosition`** (`src/ToastPosition.js`) — only `BOTTOM_CENTER` has real
-  placement CSS. Other values are accepted, stored, and keyed correctly in
-  `Toasts.snackbars` (a `Map<position, containerElement>`), but fall back to
-  `BOTTOM_CENTER` at runtime with a console warning. To implement a new
-  position: add CSS rules for `.bt-snackbar[data-position="..."]` (left/right/
-  top instead of the current bottom-only offset math), decide the stacking
-  direction for top-anchored positions (probably needs `_recalculatePositions`
-  to grow downward instead of up), then add it to `IMPLEMENTED_POSITIONS`.
 - **`ToastAnimation`** (`src/ToastAnimation.js`) — only `SLIDE` (the existing
   bottom-offset + opacity transition) is implemented. `FADE` falls back with
   a warning. Needs an opacity-only transition path in `showToast`/`removeToast`
@@ -35,6 +27,18 @@ per-toast options) without fully implementing every value yet.
 
 ## Decided (don't re-litigate)
 
+- **`ToastPosition`** (`src/ToastPosition.ts`) — all six positions
+  (`BOTTOM_CENTER`/`BOTTOM_LEFT`/`BOTTOM_RIGHT`/`TOP_CENTER`/`TOP_LEFT`/
+  `TOP_RIGHT`) are implemented and in `IMPLEMENTED_POSITIONS`. Vertical
+  anchoring (top vs. bottom edge, stacking direction) is driven by
+  `POSITION_EDGE` — `Toasts.ts`'s `_recalculatePositions`/
+  `_stackExistingAway`/`showToast` read it off the snackbar's own
+  `data-position` instead of hardcoding `bottom`. Horizontal alignment is
+  pure CSS: `.bt-snackbar[data-position$="-left"/"-right"]` set
+  `align-items`, relying on the CSS static-position algorithm for the
+  (`position: fixed`) toast containers — no JS needed for that half.
+  `maxToasts`/`evictOldest` already apply per position for free, since
+  `Toasts.snackbars` was already a `Map<position, containerElement>`.
 - **`buttons: ToastButton[]`** — the generic, deliberate replacement for
   porting `Hinweis`/`ToastClick` directly (see "Not ported" below). Supported
   end-to-end (`ToastOptions`, `ToastBuilder.withButton()`, rendered as
@@ -273,7 +277,7 @@ Ranked list (to build into the artifact)
 Tier 1 — right now (cheap, high value, architecture already supports it):
 1. ❓ Multiline messages (white-space: pre-line on .bt-toast-message) — CSS-only.
 2. ✅ Public removeAllToasts() — _removeAllToasts already exists privately, just needs exposing.
-3. Finish TOP_CENTER/TOP_LEFT/TOP_RIGHT/BOTTOM_LEFT/BOTTOM_RIGHT — already scaffolded per ROADMAP.md, "just" needs CSS + stacking-direction flip for top-anchored positions.
+3. ✅ Finish TOP_CENTER/TOP_LEFT/TOP_RIGHT/BOTTOM_LEFT/BOTTOM_RIGHT — done, see "Decided" above.
 4. Finish FADE animation — already scaffolded, opacity-only path.
 
 Tier 2 — near future (valuable, needs a bit of new infrastructure, but fits the grain of the existing design):

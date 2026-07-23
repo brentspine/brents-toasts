@@ -17,6 +17,7 @@ const contentTypeHint = $("contentTypeHint");
 const buttonPreset = $("buttonPreset");
 const buttonPresetHint = $("buttonPresetHint");
 const apiStyle = $("apiStyle");
+const toastPosition = $("toastPosition");
 const useDefaults = $("useDefaults");
 const presetColor = $("presetColor");
 const colorPicker = $("colorPicker");
@@ -69,7 +70,7 @@ const TOAST_OPTION_DOCS = [
   { name: "closable", type: "boolean", default: "true", note: "Whether clicking the toast dismisses it." },
   { name: "allowHtml", type: "boolean", default: "false", note: "Render message via innerHTML — sanitize untrusted input yourself." },
   { name: "title", type: "string", default: "(none)", note: "Bold title line above the message. Always rendered as plain text." },
-  { name: "position", type: "ToastPositionValue", default: "ToastPosition.BOTTOM_CENTER", note: "Only BOTTOM_CENTER has real placement CSS today." },
+  { name: "position", type: "ToastPositionValue", default: "ToastPosition.BOTTOM_CENTER", note: "All six positions (top/bottom × left/center/right) are implemented." },
   { name: "animation", type: "ToastAnimationValue", default: "ToastAnimation.SLIDE", note: "Only SLIDE is implemented today." },
   { name: "onClose", type: "() => void", default: "(none)", note: "Called as soon as the toast starts closing." },
   { name: "removeOtherToasts", type: "boolean", default: "false", note: "Dismisses every other visible toast before showing this one." },
@@ -330,6 +331,7 @@ function optionPairsForPreview(includeStyleOverrides) {
   if (title) pairs.push(["title", JSON.stringify(title)]);
   if (contentType.value === "html") pairs.push(["allowHtml", "true"]);
   if (removeOthers.checked) pairs.push(["removeOtherToasts", "true"]);
+  if (toastPosition.value !== "BOTTOM_CENTER") pairs.push(["position", `ToastPosition.${toastPosition.value}`]);
   if (includeStyleOverrides) {
     pairs.push(["color", colorExprForPreview()]);
     pairs.push(["duration", String(readDuration())]);
@@ -354,6 +356,7 @@ function updateCodePreview() {
 
   const names = new Set(style === "builder" ? ["ToastBuilder"] : ["toasts"]);
   if (pairs.some(([key]) => key === "color")) names.add("ToastColor");
+  if (pairs.some(([key]) => key === "position")) names.add("ToastPosition");
   if (btn) names.add("ToastColor").add("toasts");
   if (details?.some((d) => d.copyable)) names.add("toasts");
 
@@ -652,6 +655,7 @@ function showOneToast() {
   if (title) opts.title = title;
   if (contentType.value === "html") opts.allowHtml = true;
   if (removeOthers.checked) opts.removeOtherToasts = true;
+  if (toastPosition.value !== "BOTTOM_CENTER") opts.position = ToastPosition[toastPosition.value];
   const buttons = buildButtonsForToast();
   if (buttons) opts.buttons = buttons;
   const details = buildDetailsForToast();
@@ -667,6 +671,7 @@ function showOneToast() {
     if (opts.title) builder.withTitle(opts.title);
     if (opts.allowHtml) builder.withAllowHtml(true);
     if (opts.removeOtherToasts) builder.andRemoveOtherToasts();
+    if (opts.position) builder.withPosition(opts.position);
     if (opts.buttons) opts.buttons.forEach((b) => builder.withButton(b.label, b.onClick, b.className));
     if (opts.details) builder.withDetails(opts.details);
     if (!skipOverrides) {
@@ -839,6 +844,7 @@ function wirePreviewUpdates() {
   closable.addEventListener("change", update);
   removeOthers.addEventListener("change", update);
   apiStyle.addEventListener("change", update);
+  toastPosition.addEventListener("change", update);
 
   contentType.addEventListener("change", () => {
     updateContentModeUI();
