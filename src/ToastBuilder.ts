@@ -48,6 +48,14 @@ export class ToastBuilder {
     }
     /** Default `copyable` for every details item that doesn't set its own. See `ToastOptions.detailsCopyable`. */
     withDetailsCopyable(copyable: boolean): this { this._options.detailsCopyable = copyable; return this; }
+    /** Default `copyable` when `details` has exactly one entry. See `ToastOptions.detailsCopyableSingle`. */
+    withDetailsCopyableSingle(copyable: boolean): this { this._options.detailsCopyableSingle = copyable; return this; }
+    /** Adds a ready-made "Close" button that dismisses the toast. See `Toasts.closeButton()`. */
+    withCloseButton(label?: string, className?: string): this {
+        if (!this._options.buttons) this._options.buttons = [];
+        this._options.buttons.push(this._toasts.closeButton(label, className));
+        return this;
+    }
 
     /** @returns the toast's id, same as showToast() */
     show(): string {

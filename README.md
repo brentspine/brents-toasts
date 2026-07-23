@@ -122,6 +122,20 @@ dismiss behavior. `label` always renders as plain text, like `title`. Pass
 look. Builder equivalent: `.withButton(label, onClick, className)`
 (repeatable — call it once per button).
 
+For the common case of a button that just dismisses the toast, use
+`toasts.closeButton(label?, className?)` instead of writing the `onClick`
+yourself:
+
+```ts
+toasts.showToast('Saved.', { buttons: [toasts.closeButton()] });
+```
+
+`label` defaults to `"Close"` but is a normal parameter, not a hardcoded
+string, so it's ready to be swapped for a translated label. If you're using
+a page-scoped `Toasts` instance (see below), call `.closeButton()` on that
+instance, not the singleton, so it dismisses via the right instance.
+Builder equivalent: `.withCloseButton(label?, className?)`.
+
 ### Details (expandable extra info)
 
 For information that shouldn't clutter the main message — a status code, a
@@ -146,13 +160,17 @@ toasts.showToast('Account settings could not be updated.', {
 Strings are shorthand for `{ value: '...' }` with no label. Set
 `copyable: false` on an item to hide its "Copy" button, or `detailsCopyable: false`
 on the toast to hide every item's Copy button at once without repeating it
-(an item's own `copyable` still wins if set). Toggling details open/closed
-(or mutating a toast's own content some other way) automatically repositions
-the whole stack, so an expanded toast never overlaps the ones above it.
-Customize the toggle button text with `detailsLabel`/`detailsHideLabel`
-(default `"Details"`/`"Hide details"`). Builder equivalent:
-`.withDetails(details, detailsLabel?, detailsHideLabel?)` /
-`.withDetailsCopyable(copyable)`.
+(an item's own `copyable` still wins if set). When `details` has exactly one
+entry, its "Copy" button is hidden by default instead — a single visible
+value gets little benefit from a copy button — controlled separately via
+`detailsCopyableSingle` (defaults `false`; set `true` to show it for
+single-item details, same override precedence as `detailsCopyable`). Toggling
+details open/closed (or mutating a toast's own content some other way)
+automatically repositions the whole stack, so an expanded toast never
+overlaps the ones above it. Customize the toggle button text with
+`detailsLabel`/`detailsHideLabel` (default `"Details"`/`"Hide details"`).
+Builder equivalent: `.withDetails(details, detailsLabel?, detailsHideLabel?)` /
+`.withDetailsCopyable(copyable)` / `.withDetailsCopyableSingle(copyable)`.
 
 Each detail item can also have its own action buttons, same shape as the
 top-level `buttons` option:

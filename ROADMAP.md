@@ -58,7 +58,25 @@ per-toast options) without fully implementing every value yet.
   `ResizeObserver` on every toast's root element calls `_recalculatePositions`
   on any height change — covers details being toggled open/closed, and any
   other future in-place content mutation — so an expanded toast never
-  overlaps the ones stacked above it.
+  overlaps the ones stacked above it. `detailsCopyableSingle` (defaults
+  `false`) overrides `detailsCopyable` specifically when `details` has
+  exactly one entry — a lone item's own "Copy" button is hidden by default
+  since copying is redundant when there's only one short value already
+  visible, without changing the default for multi-item details lists (an
+  item's own `copyable` still wins over either default).
+- **`Toasts.closeButton()`** / **`ToastBuilder.withCloseButton()`** — the
+  first of what's meant to become a small set of ready-made `ToastButton`
+  factories ("standard buttons") consumers can append to `buttons` instead
+  of hand-wiring `onClick: (e, id) => toasts.removeToast(id)` themselves.
+  It's a method on `Toasts` (not a free function) so it closes over the
+  right instance's `removeToast` — matters for the page-scoped-instance
+  pattern (see "Config: project-wide vs. page/section-local" in the
+  README), where a button built from the wrong instance would call
+  `removeToast` without that instance's `_onCloseCallbacks`/
+  `_resizeObservers` bookkeeping. `label` is a normal parameter (defaults to
+  `"Close"`) rather than a hardcoded string, same as `detailsLabel`/
+  `detailsHideLabel` — so it's already override-friendly for whenever
+  localization is added, instead of needing a rework then.
 
 - **Exports**: `src/index.ts` exports `toasts` (singleton) both as a named
   export and as `default`, alongside `Toasts`, `ToastColor`,
@@ -122,5 +140,7 @@ per-toast options) without fully implementing every value yet.
  - Preset types (define your own types for errors, info, warning and success for example)
  - ~~Compact version list in demo~~
  - Pause timer for disappearing toasts for certain actions or via function call
- - Changelog generation for minor and major which also get the changelogs for previous versions as context https://docs.npmjs.com/cli/v10/commands/npm-version?v=true
+ - ~~Changelog generation for minor and major which also get the changelogs for previous versions as context https://docs.npmjs.com/cli/v10/commands/npm-version?v=true~~
+ - Improvement for minor and major releases by checking work and potentially changing args, like Model and max in/out tokens
  - Add a "Copy all" button for details with many items (or just a single long string)
+ - Hovering a large toast, that is closable will make the toast grow because of the missing space for the close button. Make it so the close button has enough space to expand without growing the toast. Remember, that we might add other toast designs later on, which would not need the logic.

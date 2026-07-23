@@ -99,7 +99,7 @@ tooling, or CI changes as long they affect consumers of the library or are signi
 Do not include a title or version heading, just the bullet groups. Be terse - this is read by developers deciding
 whether to upgrade.${
   context
-    ? " This is a minor or major release, so you're also given the changelogs of earlier versions in this cycle for context, followed by the diff for this specific release. Use that context to understand the full arc of change and write a cohesive entry."
+    ? " This is a minor or major release, so you're also given the changelogs of earlier versions in this cycle for context, followed by the diff for this specific release. Use that context to understand the full arc of change and write a cohesive entry. Also include all relevant changes summarised from the given changelogs"
     : ""
 }`;
 

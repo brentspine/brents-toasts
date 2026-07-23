@@ -31,25 +31,42 @@
     min-height: 47px;
     align-items: center;
 }
+/* Outer box is always the fully-expanded (hover) width, so growing the
+   colored bar on hover never changes .bt-toast's own auto width (which
+   would otherwise visibly resize/re-center a closable toast on hover,
+   worse the longer its message). Only the inner ::before bar (the actual
+   colored strip) animates its width inside that fixed box; it's scoped to
+   this bar's own markup, not something a future non-bar close design would
+   inherit just by reusing .bt-toast-row/.bt-toast-close. */
 .bt-toast-close {
     border-radius: 2px 0 0 2px;
     align-self: stretch;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--data-background, #555);
-    width: 4.5px;
+    width: 20px;
     overflow: hidden;
-    transition: width 0.2s;
     flex-shrink: 0;
+    position: relative;
 }
-.bt-toast-close span { opacity: 0; }
+.bt-toast-close::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    right: auto;
+    width: 4.5px;
+    background-color: var(--data-background, #555);
+    transition: width 0.2s;
+}
+.bt-toast-close span { position: relative; opacity: 0; }
 /* :not(:has(...)) keeps hovering an action button from suggesting the
    toast is about to dismiss — clicking a button never does that. */
 .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-close span { opacity: 1; }
 .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-close {
     cursor: pointer;
-    width: 20px;
+}
+.bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-close::before {
+    width: 100%;
 }
 .bt-toast-row .bt-toast-content { margin-left: 10px; padding: 6px 0; flex: 1 1 auto; min-width: 0; }
 .bt-toast-row .bt-toast-title { font-weight: 600; }

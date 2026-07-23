@@ -64,6 +64,8 @@ export interface ToastOptions {
     detailsHideLabel?: string;
     /** Default `copyable` for every details item that doesn't set its own. Defaults to `true`. Set `false` to hide every item's "Copy" button without repeating `copyable: false` on each one. */
     detailsCopyable?: boolean;
+    /** Default `copyable` for a details item's "Copy" button when `details` has exactly one entry — takes precedence over `detailsCopyable` in that case (an item's own `copyable` still wins over both). Defaults to `false`: a lone detail item is assumed visible/short enough that copying it adds little, so its "Copy" button is hidden unless opted back in. */
+    detailsCopyableSingle?: boolean;
 }
 
 export interface ToastsConfig {
@@ -92,6 +94,7 @@ interface ResolvedToastOptions {
     detailsLabel?: string;
     detailsHideLabel?: string;
     detailsCopyable?: boolean;
+    detailsCopyableSingle?: boolean;
 }
 
 const DEFAULT_CONFIG: ToastsConfig = {
@@ -272,6 +275,7 @@ export class Toasts {
             detailsEl = document.createElement('div');
             detailsEl.className = 'bt-toast-details';
             detailsEl.id = `${id}-details`;
+            const isSingleDetail = opts.details.length === 1;
 
             opts.details.forEach((raw) => {
                 const item: ToastDetailItem = typeof raw === 'string' ? { value: raw } : raw;
@@ -292,7 +296,10 @@ export class Toasts {
                 text.appendChild(value);
                 row.appendChild(text);
 
-                const copyable = item.copyable ?? opts.detailsCopyable ?? true;
+                const copyableDefault = isSingleDetail
+                    ? (opts.detailsCopyableSingle ?? false)
+                    : (opts.detailsCopyable ?? true);
+                const copyable = item.copyable ?? copyableDefault;
                 if (copyable && navigator.clipboard) {
                     const copyText = item.label ? `${item.label}: ${item.value}` : item.value;
                     let copyBtn: HTMLButtonElement;
@@ -392,6 +399,20 @@ export class Toasts {
         }, TOAST_TRANSITION_MS);
     }
 
+    /**
+     * A ready-made "Close" action button (for the `buttons` option / `ToastBuilder.withCloseButton()`)
+     * that dismisses the toast it's on, wired to this `Toasts` instance's `removeToast`.
+     * `label` is a plain parameter rather than a hardcoded string — like `detailsLabel` — so it can be
+     * translated by the caller (e.g. once localization is added) instead of being baked in.
+     */
+    closeButton(label: string = 'Close', className?: string): ToastButton {
+        return {
+            label,
+            className,
+            onClick: (_event, id) => this.removeToast(id),
+        };
+    }
+
     private _removeAllToasts(): void {
         this.snackbars.forEach(snackbar => {
             Array.from(snackbar.children).forEach(child => this.removeToast(child.id));
@@ -419,6 +440,7 @@ export class Toasts {
             detailsLabel: undefined,
             detailsHideLabel: undefined,
             detailsCopyable: undefined,
+            detailsCopyableSingle: undefined,
         };
 
         if (colorOrOptions !== null && typeof colorOrOptions === 'object') {
