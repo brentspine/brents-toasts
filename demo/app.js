@@ -26,6 +26,7 @@ const removeOthers = $("removeOthers");
 const presetSuccessBtn = $("presetSuccess");
 const presetHtmlBtn = $("presetHtml");
 const presetUndoBtn = $("presetUndo");
+const presetConfirmBtn = $("presetConfirm");
 const presetDetailsBtn = $("presetDetails");
 const makeToast = $("makeToast");
 const makeFive = $("makeFive");
@@ -50,7 +51,8 @@ const CONTENT_TYPE_HINTS = {
 const BUTTON_PRESET_HINTS = {
   none: "",
   undo: "Dismisses this toast, then shows a new one.",
-  details: "Native details toggle — expands a distinct block with structured info, each item copyable.",
+  confirm: "toasts.confirmButton() — click to arm, click again to confirm, then auto-reverts.",
+  details: "Native details toggle — expands a distinct block with structured info; the Error row opts into a Copy button via toasts.detailsCopyButton().",
 };
 
 // Single source of truth for the "Playground" reference table below — add a
@@ -67,16 +69,24 @@ const TOAST_OPTION_DOCS = [
   { name: "animation", type: "ToastAnimationValue", default: "ToastAnimation.SLIDE", note: "Only SLIDE is implemented today." },
   { name: "onClose", type: "() => void", default: "(none)", note: "Called as soon as the toast starts closing." },
   { name: "removeOtherToasts", type: "boolean", default: "false", note: "Dismisses every other visible toast before showing this one." },
-  { name: "buttons", type: "ToastButton[]", default: "(none)", note: "{ label, onClick(event, id), className? } — right-aligned, never triggers dismissal." },
-  { name: "details", type: "(string | ToastDetailItem)[]", default: "(none)", note: "Adds a Details toggle revealing { label?, value, copyable?, buttons? } rows, each with its own Copy button plus optional custom buttons." },
+  { name: "buttons", type: "ToastButton[]", default: "(none)", note: "{ label, onClick(event, id), className? } — right-aligned, never triggers dismissal. toasts.closeButton()/confirmButton()/stepButton() build one of these for you (see the table below)." },
+  { name: "details", type: "(string | ToastDetailItem)[]", default: "(none)", note: "Adds a Details toggle revealing { label?, value, buttons? } rows. Nothing is copyable automatically — opt a row into a Copy button via buttons: [toasts.detailsCopyButton(value)]." },
   { name: "detailsLabel", type: "string", default: '"Details"', note: "Label for the auto-added details toggle button." },
   { name: "detailsHideLabel", type: "string", default: '"Hide details"', note: "Label for the toggle button while details are expanded." },
-  { name: "detailsCopyable", type: "boolean", default: "true", note: "Default copyable for every details item that doesn't set its own — set false to hide every item's Copy button at once." },
 ];
 
 const CONFIG_OPTION_DOCS = [
   { name: "maxToasts", type: "number", default: "5", note: "Toasts visible at once before the oldest is evicted." },
   { name: "evictOldest", type: "boolean", default: "true", note: "Evict the oldest toast once maxToasts is exceeded." },
+];
+
+// Ready-made ToastButton factories on `toasts` (methods, not ToastOptions
+// fields) — appended into `buttons` / a details item's own `buttons`.
+const BUTTON_FACTORY_DOCS = [
+  { name: "closeButton(label?, className?)", type: "ToastButton", default: '"Close"', note: "Dismisses the toast it's added to." },
+  { name: "confirmButton(label, onConfirm, options?)", type: "ToastButton", default: '"Are you sure?" / "Done"', note: "Click to arm, click again to run onConfirm, then flashes doneLabel before reverting. Auto-reverts if the confirm step is ignored." },
+  { name: "detailsCopyButton(text, label?, copiedLabel?, className?)", type: "ToastButton", default: '"Copy" / "Copied!"', note: "For a details item's buttons — copies text to the clipboard and flashes copiedLabel for 2s." },
+  { name: "stepButton(steps, className?)", type: "ToastButton", default: "(none)", note: "General-purpose multi-step primitive behind confirmButton()/detailsCopyButton() — build a custom click-driven flow from ToastButtonStep[]." },
 ];
 
 const PLAYGROUND_DEFAULT_CODE = `// toasts, ToastColor, ToastPosition, ToastAnimation and ToastBuilder are
@@ -192,22 +202,33 @@ function updateButtonPresetUI() {
 // duration can. "Details" uses the native `details` option instead (see
 // buildDetailsForToast()) — it gets its own toggle button for free.
 function buildButtonsForToast() {
-  if (buttonPreset.value !== "undo") return undefined;
-  return [
-    {
-      label: "Undo",
-      onClick: (event, id) => {
-        toasts.removeToast(id);
-        toasts.showToast("Restored!", ToastColor.SUCCESS);
+  const preset = buttonPreset.value;
+  if (preset === "undo") {
+    return [
+      {
+        label: "Undo",
+        onClick: (event, id) => {
+          toasts.removeToast(id);
+          toasts.showToast("Restored!", ToastColor.SUCCESS);
+        },
       },
-    },
-  ];
+    ];
+  }
+  if (preset === "confirm") {
+    return [
+      toasts.confirmButton("Delete", (event, id) => {
+        toasts.removeToast(id);
+        toasts.showToast("Deleted!", ToastColor.SUCCESS);
+      }),
+    ];
+  }
+  return undefined;
 }
 
 function buildDetailsForToast() {
   if (buttonPreset.value !== "details") return undefined;
   return [
-    { label: "Error", value: "500 Internal Server Error" },
+    { label: "Error", value: "500 Internal Server Error", buttons: [toasts.detailsCopyButton("500 Internal Server Error")] },
     { label: "Status", value: "failed" },
   ];
 }
@@ -215,17 +236,28 @@ function buildDetailsForToast() {
 // Mirrors buildButtonsForToast()/buildDetailsForToast() as preview data
 // instead of real callbacks — used by updateCodePreview().
 function buttonsBlockForPreview() {
-  if (buttonPreset.value !== "undo") return null;
-  return {
-    label: "Undo",
-    body: [`toasts.removeToast(id);`, `toasts.showToast("Restored!", ToastColor.SUCCESS);`],
-  };
+  const preset = buttonPreset.value;
+  if (preset === "undo") {
+    return {
+      kind: "undo",
+      label: "Undo",
+      body: [`toasts.removeToast(id);`, `toasts.showToast("Restored!", ToastColor.SUCCESS);`],
+    };
+  }
+  if (preset === "confirm") {
+    return {
+      kind: "confirm",
+      label: "Delete",
+      body: [`toasts.removeToast(id);`, `toasts.showToast("Deleted!", ToastColor.SUCCESS);`],
+    };
+  }
+  return null;
 }
 
 function detailsBlockForPreview() {
   if (buttonPreset.value !== "details") return null;
   return [
-    { label: "Error", value: "500 Internal Server Error" },
+    { label: "Error", value: "500 Internal Server Error", copyable: true },
     { label: "Status", value: "failed" },
   ];
 }
@@ -287,8 +319,8 @@ function updateCodePreview() {
 
   const names = new Set(style === "builder" ? ["ToastBuilder"] : ["toasts"]);
   if (pairs.some(([key]) => key === "color")) names.add("ToastColor");
-  if (btn && btn.label === "Undo") names.add("ToastColor");
-  if (btn) names.add("toasts");
+  if (btn) names.add("ToastColor").add("toasts");
+  if (details?.some((d) => d.copyable)) names.add("toasts");
 
   const lines = [`import { ${Array.from(names).join(", ")} } from "./__TOASTS_LIB__";`, ``];
 
@@ -309,11 +341,20 @@ function updateCodePreview() {
   }
 
   const detailsItemLines = (indent) =>
-    (details ?? []).map((d) => `${indent}{ label: ${JSON.stringify(d.label)}, value: ${JSON.stringify(d.value)} },`);
+    (details ?? []).map((d) => {
+      const buttonsPart = d.copyable ? `, buttons: [toasts.detailsCopyButton(${JSON.stringify(d.value)})]` : "";
+      return `${indent}{ label: ${JSON.stringify(d.label)}, value: ${JSON.stringify(d.value)}${buttonsPart} },`;
+    });
 
   if (style === "builder") {
     const bodyLines = [];
-    if (btn) {
+    if (btn && btn.kind === "confirm") {
+      bodyLines.push(
+        `  .withConfirmButton(${JSON.stringify(btn.label)}, (event, id) => {`,
+        ...btn.body.map((l) => `    ${l}`),
+        `  })`,
+      );
+    } else if (btn) {
       bodyLines.push(
         `  .withButton(${JSON.stringify(btn.label)}, (event, id) => {`,
         ...btn.body.map((l) => `    ${l}`),
@@ -326,7 +367,15 @@ function updateCodePreview() {
     lines.push(`new ToastBuilder(${msgExpr})`, ...pairs.map(builderMethodLine), ...bodyLines, `  .show();`);
   } else if (btn || details) {
     const objLines = [`, {`, ...pairs.map(([key, v]) => `  ${key}: ${v},`)];
-    if (btn) {
+    if (btn && btn.kind === "confirm") {
+      objLines.push(
+        `  buttons: [`,
+        `    toasts.confirmButton(${JSON.stringify(btn.label)}, (event, id) => {`,
+        ...btn.body.map((l) => `      ${l}`),
+        `    }),`,
+        `  ],`,
+      );
+    } else if (btn) {
       objLines.push(
         `  buttons: [`,
         `    {`,
@@ -486,7 +535,7 @@ async function loadVersionList() {
   }
 }
 
-function optionsTable(rows) {
+function optionsTable(rows, firstColumnLabel = "Option") {
   const body = rows
     .map(
       (o) => `<tr>
@@ -498,7 +547,7 @@ function optionsTable(rows) {
     )
     .join("");
   return `<table class="options-table">
-    <thead><tr><th>Option</th><th>Type</th><th>Default</th><th>Notes</th></tr></thead>
+    <thead><tr><th>${escapeHtml(firstColumnLabel)}</th><th>Type</th><th>Default</th><th>Notes</th></tr></thead>
     <tbody>${body}</tbody>
   </table>`;
 }
@@ -510,6 +559,8 @@ function renderOptionsReference() {
     optionsTable(TOAST_OPTION_DOCS),
     `<p class="muted">Library-wide — <span class="mono">toasts.configure({ ...these })</span>:</p>`,
     optionsTable(CONFIG_OPTION_DOCS),
+    `<p class="muted">Ready-made action buttons — <span class="mono">toasts.xyz(...)</span>, appended to <span class="mono">buttons</span> (or a details item's own):</p>`,
+    optionsTable(BUTTON_FACTORY_DOCS, "Method"),
   ].join("\n");
 }
 
@@ -627,6 +678,14 @@ const CONTENT_PRESETS = {
     duration: "6000",
     buttonPreset: "undo",
   },
+  confirm: {
+    contentType: "text",
+    title: "3 items selected",
+    text: "Ready to remove them?",
+    color: "WARNING",
+    duration: "0",
+    buttonPreset: "confirm",
+  },
   details: {
     contentType: "text",
     title: "Action Failed",
@@ -692,6 +751,7 @@ function wirePreviewUpdates() {
   presetSuccessBtn.addEventListener("click", () => applyPreset("success"));
   presetHtmlBtn.addEventListener("click", () => applyPreset("html"));
   presetUndoBtn.addEventListener("click", () => applyPreset("undo"));
+  presetConfirmBtn.addEventListener("click", () => applyPreset("confirm"));
   presetDetailsBtn.addEventListener("click", () => applyPreset("details"));
 }
 

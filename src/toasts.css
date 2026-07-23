@@ -31,44 +31,36 @@
     min-height: 47px;
     align-items: center;
 }
-/* Outer box is always the fully-expanded (hover) width, so growing the
-   colored bar on hover never changes .bt-toast's own auto width (which
-   would otherwise visibly resize/re-center a closable toast on hover,
-   worse the longer its message). Only the inner ::before bar (the actual
-   colored strip) animates its width inside that fixed box; it's scoped to
-   this bar's own markup, not something a future non-bar close design would
-   inherit just by reusing .bt-toast-row/.bt-toast-close. */
 .bt-toast-close {
     border-radius: 2px 0 0 2px;
     align-self: stretch;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    overflow: hidden;
-    flex-shrink: 0;
-    position: relative;
-}
-.bt-toast-close::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    right: auto;
-    width: 4.5px;
     background-color: var(--data-background, #555);
+    width: 4.5px;
+    overflow: hidden;
     transition: width 0.2s;
+    flex-shrink: 0;
 }
-.bt-toast-close span { position: relative; opacity: 0; }
+.bt-toast-close span { opacity: 0; }
 /* :not(:has(...)) keeps hovering an action button from suggesting the
    toast is about to dismiss — clicking a button never does that. */
 .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-close span { opacity: 1; }
 .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-close {
     cursor: pointer;
-}
-.bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-close::before {
-    width: 100%;
+    width: 20px;
 }
 .bt-toast-row .bt-toast-content { margin-left: 10px; padding: 6px 0; flex: 1 1 auto; min-width: 0; }
+/* Reserves the same 15.5px the close bar gains on hover (4.5px -> 20px) as
+   trailing space after the message instead — so a closable toast's overall
+   width never changes on hover, without leaving a dead gap between the
+   accent bar and the text (where they're meant to sit flush). Sits between
+   .bt-toast-content and .bt-toast-actions when there are buttons, or after
+   the message otherwise; collapses to 0 exactly as the close bar grows, so
+   the two motions cancel out instead of one of them ever widening the row. */
+.bt-toast-row.bt-closable .bt-toast-content { margin-right: 15.5px; transition: margin-right 0.2s; }
+.bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-content { margin-right: 0; }
 .bt-toast-row .bt-toast-title { font-weight: 600; }
 /* align-self: stretch makes this column span the row's full height, and
    padding (not margin) folds the former side gaps into the hoverable box
@@ -93,6 +85,10 @@
 }
 .bt-toast-action:hover,
 .bt-toast-action:focus-visible { opacity: 1; }
+/* A step button (e.g. confirmButton()'s confirm step, or a pending async
+   onClick) disables itself while a click's outcome is still pending, so it
+   reads as inert instead of still inviting another click. */
+.bt-toast-action:disabled { opacity: 0.6; cursor: default; pointer-events: none; }
 
 .bt-toast-details {
     display: none;
@@ -118,5 +114,4 @@
     word-break: break-word;
 }
 .bt-toast-detail-label { font-weight: 600; opacity: 0.8; margin-right: 6px; }
-.bt-toast-detail-copy,
 .bt-toast-detail-action { flex-shrink: 0; font-size: 0.95em; }

@@ -136,6 +136,61 @@ a page-scoped `Toasts` instance (see below), call `.closeButton()` on that
 instance, not the singleton, so it dismisses via the right instance.
 Builder equivalent: `.withCloseButton(label?, className?)`.
 
+#### Multi-step buttons (confirm, temporary feedback, ...)
+
+For an action that shouldn't fire on a single accidental click, use
+`toasts.confirmButton(label, onConfirm, options?)` instead of hand-rolling
+a "click once to arm, click again to confirm" button:
+
+```ts
+toasts.showToast('3 items selected.', {
+  buttons: [
+    toasts.confirmButton('Delete', async (event, id) => {
+      await deleteSelectedItems();
+    }),
+  ],
+});
+```
+
+Clicking it once swaps the label to `confirmLabel` (default
+`"Are you sure?"`) without running anything yet — a second click runs
+`onConfirm`, then shows `doneLabel` (default `"Done"`) for `doneTimeoutMs`
+(default `2000`) before reverting back to `label`. If the confirm step is
+left untouched for `confirmTimeoutMs` (default `4000`), it reverts back to
+`label` on its own without ever running `onConfirm` — an ignored
+confirmation doesn't stay armed forever. If `onConfirm` returns a
+`Promise` (as above), the button disables itself until it settles, so a
+slow action can't be double-fired by an impatient second click. Builder
+equivalent: `.withConfirmButton(label, onConfirm, options?)`.
+
+`confirmButton()` is built on the same general-purpose primitive as
+`detailsCopyButton()` below: `toasts.stepButton(steps, className?)`, for
+flows `confirmButton()` doesn't cover directly. Each `ToastButtonStep` has
+its own `label` and optional `onClick`; a step's `onClick` can return (or
+resolve to) `false` to stay on that step instead of advancing to the next
+one — e.g. a guard that isn't met, or an action that failed:
+
+```ts
+toasts.showToast('Draft ready.', {
+  buttons: [
+    toasts.stepButton([
+      { label: 'Publish', onClick: () => (isValid() ? undefined : false) },
+      { label: 'Are you sure?', onClick: (event, id) => publish(), revertAfterMs: 4000 },
+      { label: 'Published!', revertAfterMs: 2000 },
+    ]),
+  ],
+});
+```
+
+Add `revertAfterMs` (and, if not step `0`, `revertToStep`, default `0`) to
+a step to auto-advance after it's been active that long — cancelled if the
+button is clicked again first. `revertAfterMs` has no effect on `steps[0]`:
+the first step is applied when the button renders, not via a click, so no
+timer ever starts for it. The returned `ToastButton` is safe to build once
+and reuse across multiple simultaneously-visible toasts (e.g. hoisted out
+of a loop) — each rendered button tracks its own current step
+independently. Builder equivalent: `.withStepButton(steps, className?)`.
+
 ### Details (expandable extra info)
 
 For information that shouldn't clutter the main message — a status code, a
@@ -143,8 +198,7 @@ backend error, anything only needed on request — pass `details` instead of
 building your own button. A "Details" toggle button is added automatically;
 clicking it reveals a block below the message that's visually distinct
 (bordered, monospace) and structurally separate from the clickable/
-dismissable part of the toast, so it never accidentally triggers dismissal.
-Each item gets its own "Copy" button:
+dismissable part of the toast, so it never accidentally triggers dismissal:
 
 ```ts
 toasts.showToast('Account settings could not be updated.', {
@@ -157,23 +211,36 @@ toasts.showToast('Account settings could not be updated.', {
 });
 ```
 
-Strings are shorthand for `{ value: '...' }` with no label. Set
-`copyable: false` on an item to hide its "Copy" button, or `detailsCopyable: false`
-on the toast to hide every item's Copy button at once without repeating it
-(an item's own `copyable` still wins if set). When `details` has exactly one
-entry, its "Copy" button is hidden by default instead — a single visible
-value gets little benefit from a copy button — controlled separately via
-`detailsCopyableSingle` (defaults `false`; set `true` to show it for
-single-item details, same override precedence as `detailsCopyable`). Toggling
-details open/closed (or mutating a toast's own content some other way)
-automatically repositions the whole stack, so an expanded toast never
-overlaps the ones above it. Customize the toggle button text with
-`detailsLabel`/`detailsHideLabel` (default `"Details"`/`"Hide details"`).
-Builder equivalent: `.withDetails(details, detailsLabel?, detailsHideLabel?)` /
-`.withDetailsCopyable(copyable)` / `.withDetailsCopyableSingle(copyable)`.
+Strings are shorthand for `{ value: '...' }` with no label. Nothing is
+copyable by default — like `closeButton()`, a "Copy" button is opt-in via
+`toasts.detailsCopyButton(text, label?, copiedLabel?, className?)`, appended
+to a specific item's `buttons` (or every item's, via `.map()`) rather than
+happening automatically:
 
-Each detail item can also have its own action buttons, same shape as the
-top-level `buttons` option:
+```ts
+toasts.showToast('Account settings could not be updated.', {
+  title: 'Action Failed',
+  color: ToastColor.ERROR,
+  details: [
+    { label: 'Error', value: '500', buttons: [toasts.detailsCopyButton('500')] },
+    { label: 'Status', value: 'failed' }, // no copy button for this one
+  ],
+});
+```
+
+It copies `text` via the Clipboard API (no-op if unavailable) and flashes its
+own label to `copiedLabel` (default `"Copied!"`) for 2s — built on the same
+`stepButton()` primitive as `confirmButton()` (see "Multi-step buttons"
+above). Toggling details
+open/closed (or mutating a toast's own content some other way) automatically
+repositions the whole stack, so an expanded toast never overlaps the ones
+above it. Customize the toggle button text with `detailsLabel`/
+`detailsHideLabel` (default `"Details"`/`"Hide details"`). Builder
+equivalent: `.withDetails(details, detailsLabel?, detailsHideLabel?)`.
+
+Each detail item's `buttons` works like the top-level `buttons` option —
+`detailsCopyButton()` is just the first ready-made entry for it, mix in your
+own alongside it:
 
 ```ts
 toasts.showToast('Payment failed.', {
@@ -183,7 +250,10 @@ toasts.showToast('Payment failed.', {
     {
       label: 'Transaction',
       value: 'tx_8f2a1c',
-      buttons: [{ label: 'Retry', onClick: (event, id) => retryPayment('tx_8f2a1c') }],
+      buttons: [
+        toasts.detailsCopyButton('tx_8f2a1c'),
+        { label: 'Retry', onClick: (event, id) => retryPayment('tx_8f2a1c') },
+      ],
     },
   ],
 });

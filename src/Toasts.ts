@@ -8,30 +8,22 @@
 import { ToastColor } from './ToastColor';
 import { ToastPosition, IMPLEMENTED_POSITIONS, type ToastPositionValue } from './ToastPosition';
 import { ToastAnimation, IMPLEMENTED_ANIMATIONS, type ToastAnimationValue } from './ToastAnimation';
+import { createActionButton, renderToastButton, createStepButton, type ToastButton, type ToastButtonStep } from './ToastButton';
 import toastsCss from './toasts.css';
 import VERSION from 'virtual:version';
+
+export type { ToastButton, ToastButtonStep } from './ToastButton';
 
 const MAX_TOASTS = 5;
 const TOAST_GAP = 8;
 const TOAST_BOTTOM_OFFSET = 22;
 const TOAST_TRANSITION_MS = 300;
 
-export interface ToastButton {
-    /** Always rendered as plain text, like `title`. */
-    label: string;
-    /** Receives the click/keyboard-activation event and this toast's id (e.g. to call `removeToast(id)` yourself, or `document.getElementById(id)` to update the toast's own content in place). */
-    onClick?: (event: MouseEvent, id: string) => void;
-    /** Extra class name(s) appended alongside the built-in `bt-toast-action` class, for consumer styling hooks. */
-    className?: string;
-}
-
 export interface ToastDetailItem {
     /** Optional label shown before the value, e.g. "Status". */
     label?: string;
     value: string;
-    /** Show a "Copy" button for this item. Defaults to `detailsCopyable` (which itself defaults to true, when the Clipboard API is available). */
-    copyable?: boolean;
-    /** Extra action buttons rendered after this item's Copy button. Same shape and click/keyboard behavior as the top-level `buttons` option. */
+    /** Extra action buttons rendered after this item's value — e.g. `toasts.detailsCopyButton(item.value)` to opt this item into a "Copy" button. Same shape and click/keyboard behavior as the top-level `buttons` option. */
     buttons?: ToastButton[];
 }
 
@@ -62,10 +54,6 @@ export interface ToastOptions {
     detailsLabel?: string;
     /** Label for the toggle button while details are expanded. Defaults to `"Hide details"`. */
     detailsHideLabel?: string;
-    /** Default `copyable` for every details item that doesn't set its own. Defaults to `true`. Set `false` to hide every item's "Copy" button without repeating `copyable: false` on each one. */
-    detailsCopyable?: boolean;
-    /** Default `copyable` for a details item's "Copy" button when `details` has exactly one entry — takes precedence over `detailsCopyable` in that case (an item's own `copyable` still wins over both). Defaults to `false`: a lone detail item is assumed visible/short enough that copying it adds little, so its "Copy" button is hidden unless opted back in. */
-    detailsCopyableSingle?: boolean;
 }
 
 export interface ToastsConfig {
@@ -93,8 +81,6 @@ interface ResolvedToastOptions {
     details?: (string | ToastDetailItem)[];
     detailsLabel?: string;
     detailsHideLabel?: string;
-    detailsCopyable?: boolean;
-    detailsCopyableSingle?: boolean;
 }
 
 const DEFAULT_CONFIG: ToastsConfig = {
@@ -234,27 +220,6 @@ export class Toasts {
         }
         toastContent.appendChild(toastMessage);
 
-        // Builds a `<button class="bt-toast-action">` wired so mouse and
-        // keyboard activation both stop the event from ever reaching the
-        // row's own Enter/Space/click-to-dismiss listeners (see below) — no
-        // preventDefault, so the button's native click activation still
-        // fires normally.
-        const makeActionButton = (label: string, onClick: (e: MouseEvent) => void, className?: string): HTMLButtonElement => {
-            const el = document.createElement('button');
-            el.type = 'button';
-            el.className = className ? `bt-toast-action ${className}` : 'bt-toast-action';
-            el.textContent = label;
-            el.addEventListener('click', (e: MouseEvent) => {
-                e.stopPropagation();
-                onClick(e);
-            });
-            el.addEventListener('keydown', (e: KeyboardEvent) => {
-                if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
-                e.stopPropagation();
-            });
-            return el;
-        };
-
         let toastActions: HTMLDivElement | undefined;
         const ensureActions = (): HTMLDivElement => {
             if (!toastActions) {
@@ -266,7 +231,7 @@ export class Toasts {
 
         if (opts.buttons && opts.buttons.length) {
             opts.buttons.forEach((btn) => {
-                ensureActions().appendChild(makeActionButton(btn.label, (e) => btn.onClick?.(e, id), btn.className));
+                ensureActions().appendChild(renderToastButton(btn, id));
             });
         }
 
@@ -275,7 +240,6 @@ export class Toasts {
             detailsEl = document.createElement('div');
             detailsEl.className = 'bt-toast-details';
             detailsEl.id = `${id}-details`;
-            const isSingleDetail = opts.details.length === 1;
 
             opts.details.forEach((raw) => {
                 const item: ToastDetailItem = typeof raw === 'string' ? { value: raw } : raw;
@@ -296,27 +260,9 @@ export class Toasts {
                 text.appendChild(value);
                 row.appendChild(text);
 
-                const copyableDefault = isSingleDetail
-                    ? (opts.detailsCopyableSingle ?? false)
-                    : (opts.detailsCopyable ?? true);
-                const copyable = item.copyable ?? copyableDefault;
-                if (copyable && navigator.clipboard) {
-                    const copyText = item.label ? `${item.label}: ${item.value}` : item.value;
-                    let copyBtn: HTMLButtonElement;
-                    copyBtn = makeActionButton('Copy', () => {
-                        navigator.clipboard.writeText(copyText).then(() => {
-                            const original = copyBtn.textContent;
-                            copyBtn.textContent = 'Copied!';
-                            setTimeout(() => { copyBtn.textContent = original; }, 2000);
-                        });
-                    }, 'bt-toast-detail-copy');
-                    row.appendChild(copyBtn);
-                }
-
                 if (item.buttons && item.buttons.length) {
                     item.buttons.forEach((btn) => {
-                        const className = btn.className ? `bt-toast-detail-action ${btn.className}` : 'bt-toast-detail-action';
-                        row.appendChild(makeActionButton(btn.label, (e) => btn.onClick?.(e, id), className));
+                        row.appendChild(renderToastButton(btn, id, 'bt-toast-detail-action'));
                     });
                 }
 
@@ -326,7 +272,7 @@ export class Toasts {
             const detailsLabel = opts.detailsLabel ?? 'Details';
             const detailsHideLabel = opts.detailsHideLabel ?? 'Hide details';
             let toggleBtn: HTMLButtonElement;
-            toggleBtn = makeActionButton(detailsLabel, () => {
+            toggleBtn = createActionButton(detailsLabel, () => {
                 const isOpen = detailsEl!.classList.toggle('bt-open');
                 toggleBtn.textContent = isOpen ? detailsHideLabel : detailsLabel;
                 toggleBtn.setAttribute('aria-expanded', String(isOpen));
@@ -413,6 +359,68 @@ export class Toasts {
         };
     }
 
+    /**
+     * A ready-made "Copy" action button for a `ToastDetailItem.buttons` entry — copies `text` to the
+     * clipboard and flashes the button's own label to `copiedLabel` for 2s. Nothing copyable is added
+     * automatically; push this into a specific item's `buttons` (or every item's, via `.map()`) to opt
+     * that item in, same opt-in pattern as `closeButton()`. No-ops if the Clipboard API is unavailable
+     * (e.g. insecure context). `label`/`copiedLabel` are plain parameters, not hardcoded, for the same
+     * future-localization reason as `closeButton()`'s `label`. Built on `stepButton()` — see that for
+     * the underlying multi-step mechanics.
+     */
+    detailsCopyButton(text: string, label: string = 'Copy', copiedLabel: string = 'Copied!', className?: string): ToastButton {
+        return this.stepButton([
+            { label, onClick: () => (!navigator.clipboard ? false : navigator.clipboard.writeText(text)) },
+            { label: copiedLabel, revertAfterMs: 2000 },
+        ], className);
+    }
+
+    /**
+     * A ready-made confirm-before-action button: shows `label`, then on click advances to `confirmLabel`
+     * ("Are you sure?" by default) without running anything yet. A second click runs `onConfirm` (the
+     * button is disabled while an async `onConfirm` is pending, so it can't be double-fired), then shows
+     * `doneLabel` for `doneTimeoutMs` before reverting back to `label`. If the confirm step is left
+     * untouched for `confirmTimeoutMs`, it reverts to `label` on its own without ever running `onConfirm`.
+     * Built on `stepButton()` — use that directly for flows with more/different steps.
+     */
+    confirmButton(
+        label: string,
+        onConfirm: (event: MouseEvent, id: string) => void | Promise<void>,
+        options?: {
+            confirmLabel?: string;
+            doneLabel?: string;
+            className?: string;
+            confirmTimeoutMs?: number;
+            doneTimeoutMs?: number;
+        }
+    ): ToastButton {
+        const {
+            confirmLabel = 'Are you sure?',
+            doneLabel = 'Done',
+            className,
+            confirmTimeoutMs = 4000,
+            doneTimeoutMs = 2000,
+        } = options ?? {};
+
+        return this.stepButton([
+            { label },
+            { label: confirmLabel, onClick: onConfirm, revertAfterMs: confirmTimeoutMs, revertToStep: 0 },
+            { label: doneLabel, revertAfterMs: doneTimeoutMs, revertToStep: 0 },
+        ], className);
+    }
+
+    /**
+     * The general-purpose primitive behind `confirmButton()`/`detailsCopyButton()` — builds a button
+     * whose `onClick` walks through `steps` in order (each with its own label, optional `onClick`, and
+     * optional auto-revert), for custom multi-step flows (temporary feedback, confirm-before-action,
+     * or anything else with more than one click-driven state). See `ToastButtonStep` for the per-step
+     * options. Lives on `Toasts` (not a free function) for discoverability/symmetry with `closeButton()`,
+     * even though — unlike `closeButton()` — it doesn't need this instance.
+     */
+    stepButton(steps: ToastButtonStep[], className?: string): ToastButton {
+        return createStepButton(steps, className);
+    }
+
     private _removeAllToasts(): void {
         this.snackbars.forEach(snackbar => {
             Array.from(snackbar.children).forEach(child => this.removeToast(child.id));
@@ -439,8 +447,6 @@ export class Toasts {
             details: undefined,
             detailsLabel: undefined,
             detailsHideLabel: undefined,
-            detailsCopyable: undefined,
-            detailsCopyableSingle: undefined,
         };
 
         if (colorOrOptions !== null && typeof colorOrOptions === 'object') {

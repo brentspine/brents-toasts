@@ -1,4 +1,4 @@
-import { toasts as defaultToasts, Toasts, type ToastOptions, type ToastDetailItem } from './Toasts';
+import { toasts as defaultToasts, Toasts, type ToastOptions, type ToastDetailItem, type ToastButtonStep } from './Toasts';
 import { ToastColor } from './ToastColor';
 import type { ToastPositionValue } from './ToastPosition';
 import type { ToastAnimationValue } from './ToastAnimation';
@@ -46,14 +46,32 @@ export class ToastBuilder {
         if (detailsHideLabel !== undefined) this._options.detailsHideLabel = detailsHideLabel;
         return this;
     }
-    /** Default `copyable` for every details item that doesn't set its own. See `ToastOptions.detailsCopyable`. */
-    withDetailsCopyable(copyable: boolean): this { this._options.detailsCopyable = copyable; return this; }
-    /** Default `copyable` when `details` has exactly one entry. See `ToastOptions.detailsCopyableSingle`. */
-    withDetailsCopyableSingle(copyable: boolean): this { this._options.detailsCopyableSingle = copyable; return this; }
     /** Adds a ready-made "Close" button that dismisses the toast. See `Toasts.closeButton()`. */
     withCloseButton(label?: string, className?: string): this {
         if (!this._options.buttons) this._options.buttons = [];
         this._options.buttons.push(this._toasts.closeButton(label, className));
+        return this;
+    }
+    /** Adds a ready-made confirm-before-action button ("Delete" -> "Are you sure?" -> runs `onConfirm` -> "Done" -> reverts). See `Toasts.confirmButton()`. */
+    withConfirmButton(
+        label: string,
+        onConfirm: (event: MouseEvent, id: string) => void | Promise<void>,
+        options?: {
+            confirmLabel?: string;
+            doneLabel?: string;
+            className?: string;
+            confirmTimeoutMs?: number;
+            doneTimeoutMs?: number;
+        }
+    ): this {
+        if (!this._options.buttons) this._options.buttons = [];
+        this._options.buttons.push(this._toasts.confirmButton(label, onConfirm, options));
+        return this;
+    }
+    /** Adds a button whose `onClick` walks through `steps` in order — the general-purpose primitive behind `withConfirmButton()`. See `Toasts.stepButton()`/`ToastButtonStep`. */
+    withStepButton(steps: ToastButtonStep[], className?: string): this {
+        if (!this._options.buttons) this._options.buttons = [];
+        this._options.buttons.push(this._toasts.stepButton(steps, className));
         return this;
     }
 

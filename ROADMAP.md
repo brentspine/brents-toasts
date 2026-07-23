@@ -53,30 +53,76 @@ per-toast options) without fully implementing every value yet.
   actually has the click/keydown-to-dismiss listeners), not a descendant of
   it — so it's structurally impossible for anything inside it (including a
   hover near it) to trigger dismissal, not just accidentally-prevented via
-  `stopPropagation()`. Each item gets its own "Copy" button
-  (`navigator.clipboard`, `copyable: false` to opt out per item). A
-  `ResizeObserver` on every toast's root element calls `_recalculatePositions`
-  on any height change — covers details being toggled open/closed, and any
-  other future in-place content mutation — so an expanded toast never
-  overlaps the ones stacked above it. `detailsCopyableSingle` (defaults
-  `false`) overrides `detailsCopyable` specifically when `details` has
-  exactly one entry — a lone item's own "Copy" button is hidden by default
-  since copying is redundant when there's only one short value already
-  visible, without changing the default for multi-item details lists (an
-  item's own `copyable` still wins over either default).
-- **`Toasts.closeButton()`** / **`ToastBuilder.withCloseButton()`** — the
-  first of what's meant to become a small set of ready-made `ToastButton`
-  factories ("standard buttons") consumers can append to `buttons` instead
-  of hand-wiring `onClick: (e, id) => toasts.removeToast(id)` themselves.
-  It's a method on `Toasts` (not a free function) so it closes over the
-  right instance's `removeToast` — matters for the page-scoped-instance
-  pattern (see "Config: project-wide vs. page/section-local" in the
+  `stopPropagation()`. A `ResizeObserver` on every toast's root element calls
+  `_recalculatePositions` on any height change — covers details being
+  toggled open/closed, and any other future in-place content mutation — so
+  an expanded toast never overlaps the ones stacked above it. Nothing is
+  copyable automatically: an earlier pass auto-added a per-item "Copy"
+  button (opt-out via `copyable`/`detailsCopyable`), but that baked-in
+  default was reverted — see `Toasts.detailsCopyButton()` below for the
+  opt-in replacement. Don't re-add an auto-shown copy button.
+- **`Toasts.closeButton()`** / **`ToastBuilder.withCloseButton()`** and
+  **`Toasts.detailsCopyButton()`** — a small set of ready-made `ToastButton`
+  factories ("standard buttons") consumers append to `buttons` (or a details
+  item's own `buttons`) instead of hand-wiring the `onClick` themselves —
+  `closeButton()` replaces `onClick: (e, id) => toasts.removeToast(id)`,
+  `detailsCopyButton(text)` replaces the clipboard-write-and-flash-the-label
+  dance. Both are opt-in per call site (nothing is added unless a consumer
+  explicitly pushes it into `buttons`), deliberately unlike the reverted
+  auto-copy-button behavior above — mirrors how `buttons` itself already
+  works, so there's one mental model for "extra actions on a toast," not two.
+  `closeButton()` is a method on `Toasts` (not a free function) so it closes
+  over the right instance's `removeToast` — matters for the page-scoped-
+  instance pattern (see "Config: project-wide vs. page/section-local" in the
   README), where a button built from the wrong instance would call
   `removeToast` without that instance's `_onCloseCallbacks`/
-  `_resizeObservers` bookkeeping. `label` is a normal parameter (defaults to
-  `"Close"`) rather than a hardcoded string, same as `detailsLabel`/
-  `detailsHideLabel` — so it's already override-friendly for whenever
-  localization is added, instead of needing a rework then.
+  `_resizeObservers` bookkeeping. `detailsCopyButton()`'s clipboard-write
+  doesn't need an instance, but lives there too for discoverability/symmetry
+  with `closeButton()`. Both take their button label(s) as plain parameters
+  (`closeButton`'s `label` defaults `"Close"`; `detailsCopyButton`'s `label`/
+  `copiedLabel` default `"Copy"`/`"Copied!"`) rather than hardcoded strings,
+  same as `detailsLabel`/`detailsHideLabel` — so they're already
+  override-friendly for whenever localization is added, instead of needing a
+  rework then.
+- **`ToastButtonStep`** / **`Toasts.stepButton()`** / **`Toasts.confirmButton()`**
+  (`src/ToastButton.ts`) — the general-purpose multi-step engine behind
+  advanced action-bar buttons (temporary feedback, confirm-before-action).
+  `ToastButton` itself is deliberately left untouched (no union arm, no new
+  optional fields) — `stepButton(steps, className?)` instead *produces* a
+  plain `ToastButton` whose `onClick` walks through `steps` in order,
+  exactly like `closeButton()`/`detailsCopyButton()` already produce plain
+  `ToastButton`s. This is a direct lesson from the `detailsCopyable`/
+  `detailsCopyableSingle` revert above: that design bolted config knobs
+  onto `ToastOptions`/`ToastDetailItem` and got reverted back to a small
+  opt-in factory; the steps engine follows that same factory precedent
+  instead of repeating the bolted-on-config mistake one level up as a
+  `ToastButton` union. Per-step state (current index, pending revert
+  timer) lives in a `WeakMap<HTMLButtonElement, ...>` keyed off the
+  rendered `<button>` itself — not in the `stepButton()`/`confirmButton()`
+  call's closure — so the exact same returned `ToastButton` descriptor is
+  safe to reuse across multiple simultaneously-visible toasts without
+  their state machines colliding, and so state is released automatically
+  once a toast's button is removed; this mirrors `Toasts`'s own
+  `_onCloseCallbacks`/`_resizeObservers: WeakMap<HTMLElement, ...>` fields.
+  Advancing is always `min(currentIndex + 1, steps.length - 1)` — there's
+  deliberately no jump-to-arbitrary-step field, since every real flow so
+  far (2-step copy feedback, 3-step confirm) is strictly sequential. A
+  step's `onClick` can return (or resolve to) `false` to stay on that step
+  instead of advancing — a guard that isn't met, or a failed action — and
+  a `Promise` return disables the button until it settles so a slow/real
+  action can't be double-fired by a second click. `detailsCopyButton()`
+  is now implemented on top of `stepButton()` (2 steps: the copy itself,
+  then a `revertAfterMs`-timed "Copied!"); this is not perfectly identical
+  to the old hand-rolled implementation — one **deliberate, accepted
+  divergence**: clicking again while "Copied!" is showing no longer
+  re-copies/re-arms via a fresh clipboard write (that step has no
+  `onClick` of its own), it just resets the reveal timer. `closeButton()`
+  needed no changes at all — a single fire-and-forget dismiss has no
+  feedback/revert cycle, so it never touches the steps engine.
+  `stepButton()`/`confirmButton()` are `Toasts` methods (not free
+  functions), same discoverability/symmetry rationale as
+  `detailsCopyButton()` above, even though the engine itself needs no
+  `Toasts` instance.
 
 - **Exports**: `src/index.ts` exports `toasts` (singleton) both as a named
   export and as `default`, alongside `Toasts`, `ToastColor`,
@@ -144,3 +190,5 @@ per-toast options) without fully implementing every value yet.
  - Improvement for minor and major releases by checking work and potentially changing args, like Model and max in/out tokens
  - Add a "Copy all" button for details with many items (or just a single long string)
  - Hovering a large toast, that is closable will make the toast grow because of the missing space for the close button. Make it so the close button has enough space to expand without growing the toast. Remember, that we might add other toast designs later on, which would not need the logic.
+
+
