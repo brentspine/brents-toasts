@@ -19,3 +19,19 @@ export const ToastPosition = {
 export type ToastPositionValue = typeof ToastPosition[keyof typeof ToastPosition];
 
 export const IMPLEMENTED_POSITIONS: ReadonlySet<ToastPositionValue> = new Set([ToastPosition.BOTTOM_CENTER]);
+
+/*
+  Which viewport edge a position's snackbar stacks away from. Populated for
+  all six positions (not just the implemented one) so the stacking math in
+  Toasts.ts is edge-agnostic ahead of time — implementing a new position
+  later is then "add CSS + register it in IMPLEMENTED_POSITIONS," not also a
+  rewrite of the positioning engine.
+*/
+export const POSITION_EDGE: Record<ToastPositionValue, 'top' | 'bottom'> = {
+    [ToastPosition.BOTTOM_CENTER]: 'bottom',
+    [ToastPosition.BOTTOM_LEFT]: 'bottom',
+    [ToastPosition.BOTTOM_RIGHT]: 'bottom',
+    [ToastPosition.TOP_CENTER]: 'top',
+    [ToastPosition.TOP_LEFT]: 'top',
+    [ToastPosition.TOP_RIGHT]: 'top',
+};

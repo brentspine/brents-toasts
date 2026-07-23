@@ -6,7 +6,7 @@
 */
 
 import { ToastColor } from './ToastColor';
-import { ToastPosition, IMPLEMENTED_POSITIONS, type ToastPositionValue } from './ToastPosition';
+import { ToastPosition, IMPLEMENTED_POSITIONS, POSITION_EDGE, type ToastPositionValue } from './ToastPosition';
 import { ToastAnimation, IMPLEMENTED_ANIMATIONS, type ToastAnimationValue } from './ToastAnimation';
 import { createActionButton, renderToastButton, createStepButton, type ToastButton, type ToastButtonStep } from './ToastButton';
 import { ToastLocales, matchToastLocale, detectBrowserLocales, type ToastTranslations } from './ToastLocale';
@@ -18,7 +18,9 @@ export type { ToastTranslations } from './ToastLocale';
 
 const MAX_TOASTS = 5;
 const TOAST_GAP = 8;
-const TOAST_BOTTOM_OFFSET = 22;
+// Distance from the anchor edge (top or bottom, per POSITION_EDGE) a toast
+// rests at once its entrance animation finishes.
+const TOAST_EDGE_OFFSET = 22;
 const TOAST_TRANSITION_MS = 300;
 
 export interface ToastDetailItem {
@@ -225,6 +227,7 @@ export class Toasts {
         const position = this._resolvePosition(opts.position);
         this._resolveAnimation(opts.animation);
         const snackbar = this._getSnackbar(position, t);
+        const edge = POSITION_EDGE[position];
 
         const activeToasts = Array.from(snackbar.children).filter(
             t => !t.classList.contains('bt-hiding')
@@ -238,7 +241,7 @@ export class Toasts {
 
         const toastContainer = document.createElement('div');
         toastContainer.className = 'bt-toast-container';
-        toastContainer.style.bottom = '0px';
+        toastContainer.style[edge] = '0px';
         toastContainer.style.opacity = '0';
         toastContainer.id = id;
         if (opts.onClose) this._onCloseCallbacks.set(toastContainer, opts.onClose);
@@ -273,7 +276,7 @@ export class Toasts {
         toastContainer.appendChild(toast);
         snackbar.appendChild(toastContainer);
 
-        this._stackExistingAbove(snackbar, toastContainer);
+        this._stackExistingAway(snackbar, toastContainer);
 
         // Any later height change (details toggled open/closed, or a
         // consumer mutating the toast's own content in place) reflows the
@@ -284,7 +287,7 @@ export class Toasts {
 
         // Minimaler Delay damit CSS-Transition greift
         requestAnimationFrame(() => {
-            toastContainer.style.bottom = `${TOAST_BOTTOM_OFFSET}px`;
+            toastContainer.style[edge] = `${TOAST_EDGE_OFFSET}px`;
             toastContainer.style.opacity = '1';
         });
 
@@ -896,32 +899,44 @@ export class Toasts {
         console.warn(`[brents-toasts] ${kind} "${value}" is not implemented yet, falling back to "${fallback}".`);
     }
 
+    // The snackbar element's own `data-position` (set by _getSnackbar) is the
+    // single source of truth for which CSS property ('top' or 'bottom') its
+    // toasts stack away from — read it back here instead of threading an
+    // `edge` parameter through every stacking call site.
+    private _edgeFor(snackbar: HTMLElement): 'top' | 'bottom' {
+        return POSITION_EDGE[snackbar.dataset.position as ToastPositionValue] ?? 'bottom';
+    }
+
     // Repositions all remaining toasts, newest-first (matching the stacking
     // order established when a toast is added), using each toast's actual
     // rendered height so variable-height toasts (e.g. with a title) don't
-    // overlap their neighbors.
+    // overlap their neighbors. Stacks away from the snackbar's anchor edge
+    // (top or bottom) — see _edgeFor.
     private _recalculatePositions(snackbar: HTMLElement): void {
-        let offset = TOAST_BOTTOM_OFFSET;
+        const edge = this._edgeFor(snackbar);
+        let offset = TOAST_EDGE_OFFSET;
         Array.from(snackbar.children)
             .filter(el => !el.classList.contains('bt-hiding'))
             .reverse()
             .forEach((el) => {
                 const toastEl = el as HTMLElement;
-                toastEl.style.bottom = `${offset}px`;
+                toastEl.style[edge] = `${offset}px`;
                 offset += toastEl.getBoundingClientRect().height + TOAST_GAP;
             });
     }
 
-    // Pushes every toast other than `newToast` up to make room for it,
-    // stacking newest-to-oldest by each toast's actual rendered height.
-    private _stackExistingAbove(snackbar: HTMLElement, newToast: HTMLElement): void {
-        let offset = TOAST_BOTTOM_OFFSET + newToast.getBoundingClientRect().height + TOAST_GAP;
+    // Pushes every toast other than `newToast` away from the snackbar's
+    // anchor edge to make room for it, stacking newest-to-oldest by each
+    // toast's actual rendered height.
+    private _stackExistingAway(snackbar: HTMLElement, newToast: HTMLElement): void {
+        const edge = this._edgeFor(snackbar);
+        let offset = TOAST_EDGE_OFFSET + newToast.getBoundingClientRect().height + TOAST_GAP;
         Array.from(snackbar.children)
             .filter(el => el !== newToast)
             .reverse()
             .forEach((el) => {
                 const toastEl = el as HTMLElement;
-                toastEl.style.bottom = `${offset}px`;
+                toastEl.style[edge] = `${offset}px`;
                 offset += toastEl.getBoundingClientRect().height + TOAST_GAP;
             });
     }
