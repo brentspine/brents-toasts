@@ -29,6 +29,9 @@ const presetHtmlBtn = $("presetHtml");
 const presetUndoBtn = $("presetUndo");
 const presetConfirmBtn = $("presetConfirm");
 const presetDetailsBtn = $("presetDetails");
+const presetSharedUndoBtn = $("presetSharedUndo");
+const advancedPresetHint = $("advancedPresetHint");
+const advancedPresetCode = $("advancedPresetCode");
 const makeToast = $("makeToast");
 const makeFive = $("makeFive");
 const codePreview = $("codePreview");
@@ -75,6 +78,7 @@ const TOAST_OPTION_DOCS = [
   { name: "detailsLabel", type: "string", default: '"Details"', note: "Label for the auto-added details toggle button." },
   { name: "detailsHideLabel", type: "string", default: '"Hide details"', note: "Label for the toggle button while details are expanded." },
   { name: "pauseOnHover", type: "boolean", default: "true", note: "Hovering pauses the auto-dismiss timer, resuming on mouseleave. No effect on sticky (duration: 0) toasts." },
+  { name: "data", type: "unknown", default: "(none)", note: "Arbitrary data readable later via getToastData(id) — e.g. an Undo button's payload, so one shared onClick can look up what a specific toast represents." },
 ];
 
 // Instance methods for controlling an already-shown toast's auto-dismiss
@@ -86,6 +90,14 @@ const TIMER_METHOD_DOCS = [
   { name: "resetToastTimer(id, newDuration?)", type: "void", default: "—", note: "Restarts the countdown at full duration (or newDuration, if given)." },
   { name: "extendToastTimer(id, ms)", type: "void", default: "—", note: "Adds ms to the remaining time (negative to shrink it)." },
   { name: "removeToastTimer(id)", type: "void", default: "—", note: "Cancels the timer entirely — the toast becomes sticky." },
+  { name: "getToastTimer(id)", type: "ToastTimerInfo | null", default: "—", note: "Snapshot: { duration, remaining, paused }. null if id doesn't exist or is sticky." },
+];
+
+// Instance methods for stashing/reading arbitrary per-toast data by id — the
+// generic primitive behind the "Shared undo handler" example below.
+const DATA_METHOD_DOCS = [
+  { name: "getToastData(id)", type: "T | undefined", default: "—", note: "Reads back data set via the data option or setToastData()." },
+  { name: "setToastData(id, data)", type: "void", default: "—", note: "Attaches or replaces data on an already-shown toast." },
 ];
 
 const CONFIG_OPTION_DOCS = [
@@ -586,6 +598,8 @@ function renderOptionsReference() {
     optionsTable(BUTTON_FACTORY_DOCS, "Method"),
     `<p class="muted">Timer control — <span class="mono">toasts.xyz(id)</span>, called any time after the toast is shown:</p>`,
     optionsTable(TIMER_METHOD_DOCS, "Method"),
+    `<p class="muted">Per-toast data — read back by id, so one shared handler can act on many toasts (see "More examples" above):</p>`,
+    optionsTable(DATA_METHOD_DOCS, "Method"),
   ].join("\n");
 }
 
@@ -671,6 +685,72 @@ function showFiveToasts() {
     i += 1;
   }
 }
+
+// "More examples" — Shared undo handler. Defined ONCE, reused as-is by every
+// toast's Undo/Time left button below, instead of a fresh closure per toast.
+// Each click reads getToastData(id)/getToastTimer(id) to find out what that
+// specific toast represents purely from the id its own onClick already gets.
+const SHARED_UNDO_ITEMS = ["Invoice #482", "Draft: Q3 report", "Photo.png"];
+
+function handleSharedUndoClick(event, id) {
+  const item = toasts.getToastData(id);
+  toasts.removeToast(id);
+  toasts.showToast(`Restored "${item?.name ?? "item"}"!`, ToastColor.SUCCESS);
+}
+
+function handleSharedTimeLeftClick(event, id) {
+  const item = toasts.getToastData(id);
+  const timer = toasts.getToastTimer(id);
+  const name = item?.name ?? "This toast";
+  const msg = timer ? `${name} closes in ${(timer.remaining / 1000).toFixed(1)}s` : `${name} is sticky — no timer.`;
+  toasts.showToast(msg, { color: ToastColor.INFO, duration: 2500 });
+}
+
+function runSharedUndoDemo() {
+  SHARED_UNDO_ITEMS.forEach((name, i) => {
+    setTimeout(() => {
+      toasts.showToast(`${name} deleted.`, {
+        title: "Deleted",
+        color: ToastColor.WARNING,
+        duration: 6000,
+        data: { name },
+        buttons: [
+          { label: "Undo", onClick: handleSharedUndoClick },
+          { label: "Time left", onClick: handleSharedTimeLeftClick },
+        ],
+      });
+    }, i * 150);
+  });
+}
+
+const ADVANCED_PRESET_HINTS = {
+  sharedUndo: 'One "Undo"/"Time left" handler pair, reused across all 3 toasts below — each click looks up its own toast via getToastData(id)/getToastTimer(id) instead of a closure baked in per toast.',
+};
+
+const ADVANCED_PRESET_CODE = {
+  sharedUndo: `// Defined once — reused by every toast's buttons, not recreated per toast.
+function handleUndo(event, id) {
+  const item = toasts.getToastData(id);
+  toasts.removeToast(id);
+  toasts.showToast(\`Restored "\${item.name}"!\`, ToastColor.SUCCESS);
+}
+
+function handleTimeLeft(event, id) {
+  const item = toasts.getToastData(id);
+  const timer = toasts.getToastTimer(id); // { duration, remaining, paused } | null
+  toasts.showToast(\`\${item.name} closes in \${(timer.remaining / 1000).toFixed(1)}s\`);
+}
+
+deletedItems.forEach((item) => {
+  toasts.showToast(\`\${item.name} deleted.\`, {
+    data: item, // <- stash per-toast data, read back by id later
+    buttons: [
+      { label: "Undo", onClick: handleUndo },
+      { label: "Time left", onClick: handleTimeLeft },
+    ],
+  });
+});`,
+};
 
 function updateOverrideInputsDisabled() {
   const disabled = useDefaults.checked;
@@ -780,6 +860,12 @@ function wirePreviewUpdates() {
   presetDetailsBtn.addEventListener("click", () => applyPreset("details"));
 }
 
+function wireAdvancedPresets() {
+  advancedPresetHint.textContent = ADVANCED_PRESET_HINTS.sharedUndo;
+  advancedPresetCode.textContent = ADVANCED_PRESET_CODE.sharedUndo;
+  presetSharedUndoBtn.addEventListener("click", runSharedUndoDemo);
+}
+
 function wireConfigUpdates() {
   const update = () => updateConfigCodePreview();
 
@@ -806,6 +892,7 @@ updateOverrideInputsDisabled();
 updateContentModeUI();
 updateButtonPresetUI();
 wirePreviewUpdates();
+wireAdvancedPresets();
 wireConfigUpdates();
 applyPageConfig();
 updateCodePreview();

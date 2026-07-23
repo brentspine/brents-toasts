@@ -58,6 +58,8 @@ export interface ToastOptions {
     detailsHideLabel?: string;
     /** Whether hovering the toast pauses its auto-dismiss timer, resuming from where it left off on mouseleave. Has no effect on sticky toasts (`duration: 0`) — they have no timer to pause. Defaults to `true` or the configured default. */
     pauseOnHover?: boolean;
+    /** Arbitrary data to associate with this toast, readable later via `getToastData(id)` — e.g. the item an "Undo" button should restore, so one shared `onClick` can look up what a specific toast represents instead of a new closure per toast. Never rendered or read internally. */
+    data?: unknown;
 }
 
 export interface ToastsConfig {
@@ -92,6 +94,7 @@ interface ResolvedToastOptions {
     detailsLabel?: string;
     detailsHideLabel?: string;
     pauseOnHover: boolean;
+    data?: unknown;
 }
 
 const DEFAULT_CONFIG: ToastsConfig = {
@@ -122,6 +125,16 @@ interface ToastTimerState {
     timeoutId: ReturnType<typeof setTimeout> | null;
 }
 
+/** Snapshot returned by `getToastTimer()` — computed fresh on every call, not live-updating. */
+export interface ToastTimerInfo {
+    /** The full duration `resetToastTimer(id)` (called without `newDuration`) reverts to. */
+    duration: number;
+    /** Time left until auto-dismiss, in ms, as of this call. */
+    remaining: number;
+    /** Whether the countdown is currently paused (e.g. via `pauseToastTimer`/hover). */
+    paused: boolean;
+}
+
 export class Toasts {
     public config: ToastsConfig;
     public snackbars: Map<ToastPositionValue, HTMLElement>;
@@ -130,6 +143,7 @@ export class Toasts {
     private _onCloseCallbacks: WeakMap<HTMLElement, () => void>;
     private _resizeObservers: WeakMap<HTMLElement, ResizeObserver>;
     private _timers: WeakMap<HTMLElement, ToastTimerState>;
+    private _data: WeakMap<HTMLElement, unknown>;
 
     constructor() {
         this._initialized = false;
@@ -139,6 +153,7 @@ export class Toasts {
         this._onCloseCallbacks = new WeakMap();
         this._resizeObservers = new WeakMap();
         this._timers = new WeakMap();
+        this._data = new WeakMap();
     }
 
     /**
@@ -211,6 +226,7 @@ export class Toasts {
         toastContainer.style.opacity = '0';
         toastContainer.id = id;
         if (opts.onClose) this._onCloseCallbacks.set(toastContainer, opts.onClose);
+        if (opts.data !== undefined) this._data.set(toastContainer, opts.data);
 
         const isAlert = opts.color === ToastColor.ERROR || opts.color === ToastColor.WARNING;
         const toast = document.createElement('div');
@@ -307,6 +323,10 @@ export class Toasts {
                 const isOpen = detailsEl!.classList.toggle('bt-open');
                 toggleBtn.textContent = isOpen ? detailsHideLabel : detailsLabel;
                 toggleBtn.setAttribute('aria-expanded', String(isOpen));
+                // Opening details re-arms the toast's timer, same reasoning as
+                // confirmButton()/detailsCopyButton() below — a user who just
+                // asked to read more shouldn't have it disappear mid-read.
+                if (isOpen) this.resetToastTimer(id);
             });
             toggleBtn.setAttribute('aria-expanded', 'false');
             toggleBtn.setAttribute('aria-controls', detailsEl.id);
@@ -475,6 +495,48 @@ export class Toasts {
     }
 
     /**
+     * Reads `id`'s current auto-dismiss countdown as a snapshot — `{ duration, remaining, paused }` —
+     * computed fresh from this call, not a live-updating value. Returns `null` if `id` doesn't exist
+     * or is sticky (`duration: 0`); there's no countdown to report for either. Useful for surfacing
+     * "closes in Ns" to the user, or deciding whether an action still has time to run before the toast
+     * disappears on its own.
+     */
+    getToastTimer(id: string): ToastTimerInfo | null {
+        const el = document.getElementById(id);
+        if (!el) return null;
+        const state = this._timers.get(el);
+        if (!state) return null;
+        const { startedAt } = state;
+        const remaining = startedAt === null ? state.remaining : Math.max(0, state.remaining - (Date.now() - startedAt));
+        return { duration: state.duration, remaining, paused: startedAt === null };
+    }
+
+    /**
+     * Reads back arbitrary data attached to `id` — via `data` at `showToast()`/`ToastBuilder.withData()`
+     * time, or a later `setToastData` call. Meant for a single shared `onClick` (e.g. on every "Undo"
+     * button, reused across toasts instead of a bespoke closure per toast) to look up what the specific
+     * toast it was called on actually represents, using nothing but the `id` that `onClick` already
+     * receives. Returns `undefined` if `id` doesn't exist or has no data attached. Purely a bookkeeping
+     * convenience for the consumer — never rendered or read internally.
+     */
+    getToastData<T = unknown>(id: string): T | undefined {
+        const el = document.getElementById(id);
+        if (!el) return undefined;
+        return this._data.get(el) as T | undefined;
+    }
+
+    /**
+     * Attaches (or replaces) arbitrary data on an already-shown toast — the same slot `data` at
+     * `showToast()` time fills, for setting or updating it after creation (e.g. once an async step
+     * resolves the real payload a button's shared handler should act on).
+     */
+    setToastData<T>(id: string, data: T): void {
+        const el = document.getElementById(id);
+        if (!el) return;
+        this._data.set(el, data);
+    }
+
+    /**
      * A ready-made "Close" action button (for the `buttons` option / `ToastBuilder.withCloseButton()`)
      * that dismisses the toast it's on, wired to this `Toasts` instance's `removeToast`.
      * `label` is a plain parameter rather than a hardcoded string — like `detailsLabel` — so it can be
@@ -495,13 +557,21 @@ export class Toasts {
      * automatically; push this into a specific item's `buttons` (or every item's, via `.map()`) to opt
      * that item in, same opt-in pattern as `closeButton()`. No-ops if the Clipboard API is unavailable
      * (e.g. insecure context). `label`/`copiedLabel` are plain parameters, not hardcoded — same
-     * locale-defaulting as `closeButton()`'s `label`. Built on `stepButton()` — see that for
-     * the underlying multi-step mechanics.
+     * locale-defaulting as `closeButton()`'s `label`. Also calls `resetToastTimer(id)` on click, same
+     * reasoning as `confirmButton()` — the "Copied!" flash shouldn't get cut short by the toast
+     * auto-dismissing underneath it. Built on `stepButton()` — see that for the underlying multi-step
+     * mechanics.
      */
     detailsCopyButton(text: string, label?: string, copiedLabel?: string, className?: string): ToastButton {
         const t = this._getTranslations();
         return this.stepButton([
-            { label: label ?? t.copy, onClick: () => (!navigator.clipboard ? false : navigator.clipboard.writeText(text)) },
+            {
+                label: label ?? t.copy,
+                onClick: (_event, id) => {
+                    this.resetToastTimer(id);
+                    return !navigator.clipboard ? false : navigator.clipboard.writeText(text);
+                },
+            },
             { label: copiedLabel ?? t.copied, revertAfterMs: 2000 },
         ], className);
     }
@@ -607,6 +677,7 @@ export class Toasts {
             detailsLabel: undefined,
             detailsHideLabel: undefined,
             pauseOnHover: this.config.pauseOnHover,
+            data: undefined,
         };
 
         if (colorOrOptions !== null && typeof colorOrOptions === 'object') {

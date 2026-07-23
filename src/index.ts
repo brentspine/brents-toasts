@@ -1,5 +1,5 @@
 export { Toasts, toasts, toasts as default } from './Toasts';
-export type { ToastOptions, ToastsConfig, ToastButton, ToastButtonStep, ToastDetailItem } from './Toasts';
+export type { ToastOptions, ToastsConfig, ToastButton, ToastButtonStep, ToastDetailItem, ToastTimerInfo } from './Toasts';
 export { ToastLocales } from './ToastLocale';
 export type { ToastTranslations } from './ToastLocale';
 export { ToastColor } from './ToastColor';

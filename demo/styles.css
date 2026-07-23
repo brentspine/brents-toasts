@@ -291,13 +291,15 @@ button.ghost:hover{ border-color: #555; }
 
 .repo-stat-sep{ color: var(--muted); }
 
-.playground summary{
+/* Shared by every collapsible <details> block (Playground, More examples, ...)
+   so a new one gets the same discoverable arrow-summary treatment for free. */
+.disclosure summary{
   cursor: pointer;
   list-style: none;
   font-size: 13px;
 }
-.playground summary::-webkit-details-marker{ display: none; }
-.playground summary::before{
+.disclosure summary::-webkit-details-marker{ display: none; }
+.disclosure summary::before{
   content: "\25B8";
   display: inline-block;
   width: 1em;
@@ -305,9 +307,30 @@ button.ghost:hover{ border-color: #555; }
   color: var(--muted);
   transition: transform 0.15s;
 }
-.playground[open] summary::before{ transform: rotate(90deg); }
+.disclosure[open] summary::before{ transform: rotate(90deg); }
 
 .playground-intro{ margin: 14px 0; }
+
+.advanced-presets{
+  grid-column: 1 / -1;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+.advanced-presets-intro{ margin: 10px 0; }
+
+/* Presets that don't fit the single-toast options form (multi-toast flows,
+   shared handlers, ...) live here instead of growing .preset-row above —
+   scrolls horizontally instead of wrapping, so adding more later never
+   pushes the rest of the page down. */
+.preset-row-scroll{
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.preset-row-scroll button{ flex: 0 0 auto; }
 
 .options-reference{ margin-bottom: 18px; overflow-x: auto; }
 

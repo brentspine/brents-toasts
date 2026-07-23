@@ -34,6 +34,8 @@ export class ToastBuilder {
     withOnClose(onClose: () => void): this { this._options.onClose = onClose; return this; }
     /** Whether hovering this toast pauses its auto-dismiss timer. See `ToastOptions.pauseOnHover`. */
     withPauseOnHover(pauseOnHover: boolean): this { this._options.pauseOnHover = pauseOnHover; return this; }
+    /** Arbitrary data readable later via `getToastData(id)`. See `ToastOptions.data`. */
+    withData(data: unknown): this { this._options.data = data; return this; }
     andRemoveOtherToasts(): this { this._options.removeOtherToasts = true; return this; }
     /** Adds one action button (repeatable — call multiple times for multiple buttons). */
     withButton(label: string, onClick?: (event: MouseEvent, id: string) => void, className?: string): this {

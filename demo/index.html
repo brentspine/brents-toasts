@@ -79,6 +79,19 @@
         <button id="presetDetails" type="button" class="ghost">Action failed</button>
       </div>
 
+      <details class="advanced-presets disclosure">
+        <summary><span class="muted">More examples — flows that span multiple toasts</span></summary>
+        <p class="muted advanced-presets-intro">
+          These don't fit the form below (they're not "one toast's options") — each button
+          runs a small self-contained demo directly instead of filling the fields.
+        </p>
+        <div class="preset-row-scroll">
+          <button id="presetSharedUndo" type="button" class="ghost">Shared undo handler (data + timer)</button>
+        </div>
+        <p id="advancedPresetHint" class="hint"></p>
+        <pre id="advancedPresetCode" class="code-box mono"></pre>
+      </details>
+
       <label for="toastText">Text</label>
       <textarea id="toastText" rows="3" spellcheck="false">Hello from Brents-Toasts 👋</textarea>
 
@@ -178,7 +191,7 @@
       <ul id="versionList" class="version-list mono"></ul>
     </section>
 
-    <details class="code playground" aria-label="Playground">
+    <details class="code playground disclosure" aria-label="Playground">
       <summary><span class="muted">Playground — every option, discover &amp; run real code</span></summary>
 
       <p class="muted playground-intro">

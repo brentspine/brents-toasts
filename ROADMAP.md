@@ -180,6 +180,47 @@ per-toast options) without fully implementing every value yet.
     "reset the timer on button click" example this was built for: without
     it, a toast could time out and disappear while showing "Are you sure?",
     losing the in-progress confirmation out from under the user.
+  - Every other built-in that shows a temporary, click-driven state gets the
+    same treatment, not just `confirmButton()`: **`detailsCopyButton()`**
+    resets on click too (so the "Copied!" flash can't get cut short), and
+    opening the auto-added **Details toggle** button resets on open (so a
+    toast whose details someone just asked to read doesn't vanish mid-read).
+    Closing details, and clicking any *plain* `buttons`/detail-item button a
+    consumer supplied themselves, deliberately don't auto-reset anything —
+    only the library's own built-ins reach for `resetToastTimer()`; a
+    consumer's own `onClick` opts in explicitly, same "up to the developer"
+    stance as the timer API itself.
+  - **`getToastTimer(id)`** — the read-only counterpart to the control
+    methods above: `{ duration, remaining, paused } | null`, computed fresh
+    per call (not a live-updating subscription — polled from a click/interval
+    if a consumer wants a live countdown). `null` for the same two cases
+    every control method already no-ops on: `id` doesn't exist, or it's
+    sticky.
+  - **`data` (`ToastOptions`/`ToastBuilder.withData()`) + `getToastData(id)`/
+    `setToastData(id, data)`** — arbitrary per-toast data, stored in a
+    `WeakMap<HTMLElement, unknown>` (`_data`) exactly like `_timers`/
+    `_onCloseCallbacks` above, so it's released automatically once a toast
+    is gone. The motivating case: an "Undo" button whose target differs per
+    toast (which item to restore) doesn't need a bespoke `onClick` closure
+    per toast just to capture that — attach the item as `data` at
+    `showToast()` time, then one handler function, reused as-is across every
+    toast's `buttons`, reads it back via `getToastData(id)` using the `id`
+    its `onClick(event, id)` already receives. Demoed in `demo/app.js`'s
+    "More examples" disclosure (`runSharedUndoDemo()`) alongside
+    `getToastTimer()` — one "Undo"/"Time left" handler pair shared across 3
+    simultaneously-shown toasts, not 3 separate closures.
+  - **Demo: "More examples" disclosure** (`demo/index.html`'s
+    `.advanced-presets`) — a second, collapsed-by-default `<details>` below
+    the always-visible `.preset-row`, for demos that don't reduce to "fill
+    in this toast's options" (multi-toast flows, shared handlers) and so
+    can't reuse the existing quick-fill-the-form preset mechanism. Keeps the
+    always-visible preset row from growing indefinitely as more of these
+    ship — new entries go in `.preset-row-scroll` inside the disclosure
+    (horizontal-scrolling, not wrapping, so it never pushes the page down
+    either) instead of a 6th/7th/... top-level preset button. The disclosure
+    arrow styling (`.disclosure` class) was factored out of what was
+    `.playground`-only CSS so both `<details>` blocks share it, instead of
+    duplicating the summary-arrow rules for the second one.
 
 ## Not ported (from the old codebase, intentionally)
 
@@ -222,5 +263,5 @@ per-toast options) without fully implementing every value yet.
  - not planned, does not make any sense meta description tag write, if not present
  - Refactor /* 300ms must match TOAST_TRANSITION_MS in Toasts.ts */. Erstmal nicht ig, das ist nen Ding für den Zeitpunkt wenn wir andere Positionen und Styles einfügen
  - Remove Toast Instantly functionality -> No animation or fade, instant removal. Optional: Also instantly move toasts up/down
-
+ - https://not-a-toast.vercel.app/
 

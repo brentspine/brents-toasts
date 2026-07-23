@@ -219,9 +219,54 @@ toasts.removeToastTimer(id);  // cancel it entirely — the toast becomes sticky
 All five are no-ops on a sticky toast — there's nothing to pause, resume,
 reset, extend, or remove — and `resetToastTimer`/`extendToastTimer` won't
 turn a sticky toast into a timed one; pass `duration` at `showToast()` time
-for that instead. `confirmButton()` (see above) calls `resetToastTimer()` on
-every click for exactly this reason: so the toast can't time out from under
-the user mid-confirmation.
+for that instead. Every built-in that shows a temporary, click-driven state
+calls `resetToastTimer()` for exactly this reason: `confirmButton()` on every
+click (so it can't time out from under the user mid-confirmation),
+`detailsCopyButton()` on click (so the "Copied!" flash can't get cut short),
+and opening the auto-added "Details" toggle (so a toast doesn't vanish
+mid-read). Plain buttons you supply yourself — the top-level `buttons` option,
+or a details item's own — never do this automatically; call
+`resetToastTimer(id)` from your own `onClick` if you want the same behavior.
+
+Reading the countdown back (instead of just controlling it) works the same
+way — `toasts.getToastTimer(id)` returns `{ duration, remaining, paused }`,
+or `null` if `id` doesn't exist or is sticky:
+
+```ts
+const info = toasts.getToastTimer(id);
+if (info) console.log(`closes in ${(info.remaining / 1000).toFixed(1)}s`);
+```
+
+### Per-toast data (a shared handler instead of one closure per toast)
+
+For a button that means something different on every toast — "Undo" needs to
+know *which* item to restore — you don't have to give each toast its own
+`onClick` closure just to capture that. Attach the payload as `data` at
+`showToast()` time, then read it back by `id` inside a single handler
+reused across every toast:
+
+```ts
+// Defined once — reused by every toast's Undo button, not recreated per toast.
+function handleUndo(event, id) {
+  const item = toasts.getToastData(id);
+  toasts.removeToast(id);
+  toasts.showToast(`Restored "${item.name}"!`, ToastColor.SUCCESS);
+}
+
+deletedItems.forEach((item) => {
+  toasts.showToast(`${item.name} deleted.`, {
+    data: item,
+    buttons: [{ label: 'Undo', onClick: handleUndo }],
+  });
+});
+```
+
+`getToastData(id)` returns `undefined` if `id` doesn't exist or has no data
+attached; `setToastData(id, data)` attaches or replaces it after the toast's
+already showing (e.g. once an async step resolves the real payload).
+Builder equivalent: `.withData(data)`. See the "More examples" section of the
+demo for this combined with `getToastTimer()` (an "Undo"/"Time left" button
+pair, both built from the same shared-handler pattern).
 
 ### Details (expandable extra info)
 
@@ -317,8 +362,8 @@ new ToastBuilder('Also this page only.', pageToasts).show();
 
 See `ToastOptions`/`ToastsConfig` in `dist/index.d.ts` for the full list of
 per-toast and library-wide settings (position, animation, `onClose`,
-`removeOtherToasts`, `buttons`, `details`, `pauseOnHover`, `maxToasts`,
-`evictOldest`, `locale`, `translations`, ...).
+`removeOtherToasts`, `buttons`, `details`, `pauseOnHover`, `data`,
+`maxToasts`, `evictOldest`, `locale`, `translations`, ...).
 
 ### Localization
 
