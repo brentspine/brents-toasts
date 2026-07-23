@@ -101,3 +101,4 @@ per-toast options) without fully implementing every value yet.
  - Other color options for:
    - close button
    - text color
+ - Auto wrap for larger bodies

@@ -53,7 +53,10 @@
 }
 .bt-toast-row .bt-toast-content { margin-left: 10px; padding: 6px 0; flex: 1 1 auto; min-width: 0; }
 .bt-toast-row .bt-toast-title { font-weight: 600; }
-.bt-toast-actions { display: flex; align-items: center; gap: 4px; margin: 0 10px 0 6px; flex-shrink: 0; }
+/* align-self: stretch makes this column span the row's full height, so
+   :has(.bt-toast-actions:hover) above also covers the gap above/below the
+   button itself — not just the button's own tight content box. */
+.bt-toast-actions { display: flex; align-items: center; gap: 4px; margin: 0 10px 0 6px; flex-shrink: 0; align-self: stretch; }
 .bt-toast-action {
     -webkit-appearance: none;
     appearance: none;

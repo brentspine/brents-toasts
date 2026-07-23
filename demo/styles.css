@@ -206,3 +206,53 @@ button.ghost:hover{ border-color: #555; }
   border-top: 1px solid var(--line);
   color: var(--muted);
 }
+
+.playground summary{
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+}
+.playground summary::-webkit-details-marker{ display: none; }
+.playground summary::before{
+  content: "\25B8";
+  display: inline-block;
+  width: 1em;
+  margin-right: 6px;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+.playground[open] summary::before{ transform: rotate(90deg); }
+
+.playground-intro{ margin: 14px 0; }
+
+.options-reference{ margin-bottom: 18px; overflow-x: auto; }
+
+.options-table{
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 14px;
+}
+.options-table th,
+.options-table td{
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.options-table th{ color: var(--muted); font-weight: 600; }
+.opt-name{ color: var(--info); white-space: nowrap; }
+.opt-type,
+.opt-default{ color: var(--muted); white-space: nowrap; }
+
+.playground-label{ display: block; margin: 4px 0 8px; }
+
+.playground-code{
+  min-height: 220px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.playground-output{ margin-top: 12px; min-height: 20px; }
+.playground-output.error{ color: var(--error); border-color: var(--error); }

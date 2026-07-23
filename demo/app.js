@@ -1,4 +1,4 @@
-import { toasts, ToastColor, ToastBuilder } from "./__TOASTS_LIB__";
+import { toasts, ToastColor, ToastPosition, ToastAnimation, ToastBuilder } from "./__TOASTS_LIB__";
 
 const $ = (id) => document.getElementById(id);
 
@@ -34,6 +34,12 @@ const codePreview = $("codePreview");
 const changelogBox = $("changelog");
 const versionList = $("versionList");
 
+const optionsReference = $("optionsReference");
+const playgroundCode = $("playgroundCode");
+const playgroundRunBtn = $("playgroundRun");
+const playgroundResetBtn = $("playgroundReset");
+const playgroundOutput = $("playgroundOutput");
+
 const CONTENT_TYPE_HINTS = {
   text: "Rendered as plain text — safe with untrusted input.",
   html: "Rendered via innerHTML — sanitize untrusted input yourself.",
@@ -45,6 +51,46 @@ const BUTTON_PRESET_HINTS = {
   undo: "Dismisses this toast, then shows a new one.",
   details: "Native details toggle — expands a distinct block with structured info, each item copyable.",
 };
+
+// Single source of truth for the "Playground" reference table below — add a
+// row here when a new ToastOptions/ToastsConfig field ships, instead of
+// hand-building a new form control for it above. Mirrors the JSDoc on
+// ToastOptions/ToastsConfig in src/Toasts.ts.
+const TOAST_OPTION_DOCS = [
+  { name: "color", type: "string", default: "ToastColor.INFO", note: "Background color of the indicator bar." },
+  { name: "duration", type: "number", default: "3000", note: "Auto-dismiss after ms. 0 disables it." },
+  { name: "closable", type: "boolean", default: "true", note: "Whether clicking the toast dismisses it." },
+  { name: "allowHtml", type: "boolean", default: "false", note: "Render message via innerHTML — sanitize untrusted input yourself." },
+  { name: "title", type: "string", default: "(none)", note: "Bold title line above the message. Always rendered as plain text." },
+  { name: "position", type: "ToastPositionValue", default: "ToastPosition.BOTTOM_CENTER", note: "Only BOTTOM_CENTER has real placement CSS today." },
+  { name: "animation", type: "ToastAnimationValue", default: "ToastAnimation.SLIDE", note: "Only SLIDE is implemented today." },
+  { name: "onClose", type: "() => void", default: "(none)", note: "Called as soon as the toast starts closing." },
+  { name: "removeOtherToasts", type: "boolean", default: "false", note: "Dismisses every other visible toast before showing this one." },
+  { name: "buttons", type: "ToastButton[]", default: "(none)", note: "{ label, onClick(event, id), className? } — right-aligned, never triggers dismissal." },
+  { name: "details", type: "(string | ToastDetailItem)[]", default: "(none)", note: "Adds a Details toggle revealing { label?, value, copyable? } rows, each with its own Copy button." },
+  { name: "detailsLabel", type: "string", default: '"Details"', note: "Label for the auto-added details toggle button." },
+  { name: "detailsHideLabel", type: "string", default: '"Hide details"', note: "Label for the toggle button while details are expanded." },
+];
+
+const CONFIG_OPTION_DOCS = [
+  { name: "maxToasts", type: "number", default: "5", note: "Toasts visible at once before the oldest is evicted." },
+  { name: "evictOldest", type: "boolean", default: "true", note: "Evict the oldest toast once maxToasts is exceeded." },
+];
+
+const PLAYGROUND_DEFAULT_CODE = `// toasts, ToastColor, ToastPosition, ToastAnimation and ToastBuilder are
+// all in scope here — anything from the reference above is fair game.
+toasts.showToast("Change anything in here, then hit Run.", {
+  title: "Playground",
+  color: ToastColor.INFO,
+  duration: 0,
+  buttons: [
+    { label: "Undo", onClick: (event, id) => toasts.removeToast(id) },
+  ],
+  details: [
+    { label: "Tip", value: "Every ToastOptions field above works here too." },
+  ],
+});
+`;
 
 function presetToHex6(key) {
   const c = ToastColor[key];
@@ -376,6 +422,72 @@ async function loadVersionList() {
   }
 }
 
+function optionsTable(rows) {
+  const body = rows
+    .map(
+      (o) => `<tr>
+        <td class="mono opt-name">${escapeHtml(o.name)}</td>
+        <td class="mono opt-type">${escapeHtml(o.type)}</td>
+        <td class="mono opt-default">${escapeHtml(o.default)}</td>
+        <td>${escapeHtml(o.note)}</td>
+      </tr>`
+    )
+    .join("");
+  return `<table class="options-table">
+    <thead><tr><th>Option</th><th>Type</th><th>Default</th><th>Notes</th></tr></thead>
+    <tbody>${body}</tbody>
+  </table>`;
+}
+
+function renderOptionsReference() {
+  if (!optionsReference) return;
+  optionsReference.innerHTML = [
+    `<p class="muted">Per-call — <span class="mono">toasts.showToast(message, { ...these })</span> or <span class="mono">new ToastBuilder(message).with...().show()</span>:</p>`,
+    optionsTable(TOAST_OPTION_DOCS),
+    `<p class="muted">Library-wide — <span class="mono">toasts.configure({ ...these })</span>:</p>`,
+    optionsTable(CONFIG_OPTION_DOCS),
+  ].join("\n");
+}
+
+function resetPlaygroundCode() {
+  if (!playgroundCode) return;
+  playgroundCode.value = PLAYGROUND_DEFAULT_CODE;
+}
+
+function clearPlaygroundOutput() {
+  if (!playgroundOutput) return;
+  playgroundOutput.textContent = "";
+  playgroundOutput.classList.remove("error");
+}
+
+function runPlaygroundCode() {
+  if (!playgroundCode || !playgroundOutput) return;
+  try {
+    const fn = new Function("toasts", "ToastColor", "ToastPosition", "ToastAnimation", "ToastBuilder", playgroundCode.value);
+    fn(toasts, ToastColor, ToastPosition, ToastAnimation, ToastBuilder);
+    playgroundOutput.textContent = "Ran without errors.";
+    playgroundOutput.classList.remove("error");
+  } catch (err) {
+    playgroundOutput.textContent = `Error: ${err instanceof Error ? err.message : String(err)}`;
+    playgroundOutput.classList.add("error");
+  }
+}
+
+function wirePlayground() {
+  if (!playgroundCode || !playgroundRunBtn || !playgroundResetBtn) return;
+  resetPlaygroundCode();
+  playgroundRunBtn.addEventListener("click", runPlaygroundCode);
+  playgroundResetBtn.addEventListener("click", () => {
+    resetPlaygroundCode();
+    clearPlaygroundOutput();
+  });
+  playgroundCode.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.key !== "Enter") return;
+    e.preventDefault();
+    runPlaygroundCode();
+  });
+}
+
 function showOneToast() {
   const style = apiStyle.value;
   const skipOverrides = useDefaults.checked;
@@ -550,3 +662,5 @@ updateCodePreview();
 updateConfigCodePreview();
 loadChangelog();
 loadVersionList();
+renderOptionsReference();
+wirePlayground();

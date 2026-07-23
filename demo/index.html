@@ -158,6 +158,28 @@
       <ul id="versionList" class="version-list mono"></ul>
     </section>
 
+    <details class="code playground" aria-label="Playground">
+      <summary><span class="muted">Playground — every option, discover &amp; run real code</span></summary>
+
+      <p class="muted playground-intro">
+        The reference below is generated from one list in <span class="mono">app.js</span>
+        (<span class="mono">TOAST_OPTION_DOCS</span>) — adding a new toast option there is enough
+        to make it discoverable here, instead of wiring a dedicated control for it above.
+      </p>
+
+      <div id="optionsReference" class="options-reference"></div>
+
+      <label for="playgroundCode" class="playground-label">Edit and run real code against the live page</label>
+      <textarea id="playgroundCode" class="mono playground-code" rows="12" spellcheck="false"></textarea>
+
+      <div class="actions">
+        <button id="playgroundRun" type="button">Run (Ctrl+Enter)</button>
+        <button id="playgroundReset" type="button" class="ghost">Reset snippet</button>
+      </div>
+
+      <pre id="playgroundOutput" class="code-box playground-output"></pre>
+    </details>
+
     <footer class="foot">
       <span class="mono">Page config: maxToasts = <span id="maxToastsFooter">5</span></span>
     </footer>
