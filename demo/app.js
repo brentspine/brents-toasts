@@ -34,6 +34,7 @@ const codePreview = $("codePreview");
 const changelogBox = $("changelog");
 const versionList = $("versionList");
 const githubStarCount = $("githubStarCount");
+const repoStats = $("repoStats");
 
 const optionsReference = $("optionsReference");
 const playgroundCode = $("playgroundCode");
@@ -419,15 +420,51 @@ function formatCompactCount(n) {
   return `${Math.round((n / 1_000_000) * 10) / 10}M`;
 }
 
-async function loadGithubStars() {
-  if (!githubStarCount) return;
+// e.g. "3 hours ago", "2 days ago". Falls back to "just now" under a minute.
+function formatRelativeTime(dateStr) {
+  const diffSec = Math.max(0, Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000));
+  const units = [
+    ["year", 31536000],
+    ["month", 2592000],
+    ["day", 86400],
+    ["hour", 3600],
+    ["minute", 60],
+  ];
+  for (const [name, secs] of units) {
+    const val = Math.floor(diffSec / secs);
+    if (val >= 1) return `${val} ${name}${val > 1 ? "s" : ""} ago`;
+  }
+  return "just now";
+}
+
+function renderRepoStats(data) {
+  if (!repoStats) return;
+  const owner = data.owner;
+  repoStats.innerHTML = `
+    <a class="repo-owner" href="${owner.html_url}" target="_blank" rel="noopener noreferrer">
+      <img class="repo-avatar" src="${owner.avatar_url}&s=40" width="20" height="20" alt="" />
+      Built by @${escapeHtml(owner.login)}
+    </a>
+    <span class="repo-stat-sep">&middot;</span>
+    <a class="repo-stat" href="${data.html_url}/issues" target="_blank" rel="noopener noreferrer">${data.open_issues_count} issues</a>
+    <span class="repo-stat-sep">&middot;</span>
+    <a class="repo-stat" href="${data.html_url}/network/members" target="_blank" rel="noopener noreferrer">${data.forks_count} forks</a>
+    <span class="repo-stat-sep">&middot;</span>
+    <a class="repo-stat" href="${data.html_url}/watchers" target="_blank" rel="noopener noreferrer">${data.watchers_count} watchers</a>
+    <span class="repo-stat-sep">&middot;</span>
+    <span class="repo-stat" title="${escapeHtml(new Date(data.pushed_at).toLocaleString())}">Last commit ${formatRelativeTime(data.pushed_at)}</span>
+  `;
+}
+
+async function loadGithubRepoInfo() {
   try {
     const res = await fetch("https://api.github.com/repos/Brentspine/brents-toasts");
     if (!res.ok) throw new Error(`status ${res.status}`);
     const data = await res.json();
-    githubStarCount.textContent = formatCompactCount(data.stargazers_count);
+    if (githubStarCount) githubStarCount.textContent = formatCompactCount(data.stargazers_count);
+    renderRepoStats(data);
   } catch {
-    githubStarCount.textContent = "";
+    if (githubStarCount) githubStarCount.textContent = "";
   }
 }
 
@@ -691,6 +728,6 @@ updateCodePreview();
 updateConfigCodePreview();
 loadChangelog();
 loadVersionList();
-loadGithubStars();
+loadGithubRepoInfo();
 renderOptionsReference();
 wirePlayground();

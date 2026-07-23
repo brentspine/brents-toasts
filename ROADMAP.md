@@ -79,6 +79,14 @@ per-toast options) without fully implementing every value yet.
   rather than wrapping to a second line. The "All releases & changelogs" link
   next to "Other versions" points straight at the GitHub Releases page instead
   of duplicating changelog content in the demo.
+- **Demo footer repo stats**: `loadGithubRepoInfo()` makes a single fetch to
+  `api.github.com/repos/Brentspine/brents-toasts` and feeds both the header
+  star badge and the footer stats row, instead of fetching twice. Footer shows
+  owner avatar + "Built by @login" (links to the profile), open issue count,
+  fork count, and watcher count (each linking to the matching GitHub page),
+  plus a relative "Last commit" time computed from `pushed_at` (hand-rolled
+  formatting, hover title shows the absolute local timestamp) — same
+  unauthenticated-fetch-with-silent-fallback pattern as the star badge.
 
 ## Not ported (from the old codebase, intentionally)
 

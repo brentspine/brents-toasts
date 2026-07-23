@@ -68,7 +68,7 @@ body{
 
 .github-badge-icon{ flex: 0 0 auto; fill: currentColor; }
 .github-badge-star{ flex: 0 0 auto; }
-.github-badge-count{ font-weight: 600; min-width: 1.5em; }
+.github-badge-count{ font-weight: 600; }
 
 @media (max-width: 420px){
   .github-badge-text{ display: none; }
@@ -262,6 +262,34 @@ button.ghost:hover{ border-color: #555; }
   border-top: 1px solid var(--line);
   color: var(--muted);
 }
+
+.repo-stats{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.repo-owner{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg);
+  text-decoration: none;
+}
+.repo-owner:hover{ text-decoration: underline; }
+
+.repo-avatar{
+  border-radius: 50%;
+  display: block;
+}
+
+.repo-stat{ color: var(--info); text-decoration: none; }
+.repo-stat:hover{ text-decoration: underline; }
+
+.repo-stat-sep{ color: var(--muted); }
 
 .playground summary{
   cursor: pointer;
