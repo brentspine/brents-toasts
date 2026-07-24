@@ -1,6 +1,6 @@
 {
     "name": "brents-toasts",
-    "version": "2.1.10",
+    "version": "2.2.0",
     "description": "Lightweight, plug-and-play toast/snackbar system",
     "type": "module",
     "main": "dist/index.cjs",
