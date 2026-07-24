@@ -281,7 +281,7 @@ per-toast options) without fully implementing every value yet.
  - Remove Toast Instantly functionality -> No animation or fade, instant removal. Optional: Also instantly move toasts up/down
  - https://not-a-toast.vercel.app/
  - ~~Update toast easily by id~~
- - Reverse Toast Order (newest on top, oldest on bottom)
+ - ~~Reverse Toast Order (newest on top, oldest on bottom)~~
  - ~~Additional container for all toast positions in the DOM~~
 
 ## Not a toast Ideas

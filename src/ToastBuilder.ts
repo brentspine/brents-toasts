@@ -1,4 +1,4 @@
-import { toasts as defaultToasts, Toasts, type ToastOptions, type ToastDetailItem, type ToastButtonStep } from './Toasts';
+import { toasts as defaultToasts, Toasts, type ToastOptions, type ToastDetailItem, type ToastButtonStep, type ToastProgressOptions } from './Toasts';
 import { ToastColor } from './ToastColor';
 import type { ToastPositionValue } from './ToastPosition';
 import type { ToastAnimationValue } from './ToastAnimation';
@@ -34,6 +34,9 @@ export class ToastBuilder {
     withOnClose(onClose: () => void): this { this._options.onClose = onClose; return this; }
     /** Whether hovering this toast pauses its auto-dismiss timer. See `ToastOptions.pauseOnHover`. */
     withPauseOnHover(pauseOnHover: boolean): this { this._options.pauseOnHover = pauseOnHover; return this; }
+    /** Adds a thin progress bar synced to the toast's auto-dismiss countdown.
+     *  See `ToastOptions.progress`/`ToastProgressOptions`. */
+    withProgress(progress: boolean | ToastProgressOptions = true): this { this._options.progress = progress; return this; }
     /** Arbitrary data readable later via `getToastData(id)`. See `ToastOptions.data`. */
     withData(data: unknown): this { this._options.data = data; return this; }
     andRemoveOtherToasts(): this { this._options.removeOtherToasts = true; return this; }

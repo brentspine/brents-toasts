@@ -85,6 +85,7 @@ const TOAST_OPTION_DOCS = [
   { name: "detailsLabel", type: "string", default: '"Details"', note: "Label for the auto-added details toggle button." },
   { name: "detailsHideLabel", type: "string", default: '"Hide details"', note: "Label for the toggle button while details are expanded." },
   { name: "pauseOnHover", type: "boolean", default: "true", note: "Hovering pauses the auto-dismiss timer, resuming on mouseleave. No effect on sticky (duration: 0) toasts." },
+  { name: "progress", type: "boolean | ToastProgressOptions", default: "false", note: "Thin progress bar synced to the auto-dismiss countdown. true = defaults (bottom edge, left origin, fill mode, reuses the toast's own color, transparent track). No bar for sticky toasts (duration: 0)." },
   { name: "data", type: "unknown", default: "(none)", note: "Arbitrary data readable later via getToastData(id) — e.g. an Undo button's payload, so one shared onClick can look up what a specific toast represents." },
 ];
 

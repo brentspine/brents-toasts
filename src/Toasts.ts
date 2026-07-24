@@ -31,6 +31,29 @@ export interface ToastDetailItem {
     buttons?: ToastButton[];
 }
 
+export interface ToastProgressOptions {
+    /** Which edge of the toast card the bar sits on. Default 'bottom'. */
+    position?: 'top' | 'bottom';
+    /** Anchor point the bar grows from/shrinks toward. Physical, not
+     *  RTL-aware — `left`/`right` always mean the physical edge regardless
+     *  of `dir`. Default 'left'. */
+    origin?: 'left' | 'right' | 'center';
+    /** 'fill': starts empty, grows to full over the toast's remaining
+     *  lifetime. 'drain': starts full, shrinks to empty. For `origin:
+     *  'center'`, fill grows outward from a zero-width center sliver;
+     *  drain shrinks inward from both edges toward the center. Default 'fill'. */
+    mode?: 'fill' | 'drain';
+    /** Fill color. Defaults to this toast's own resolved `color`, and stays
+     *  linked to it — changing the toast's `color` later (via
+     *  `updateToast`) re-syncs an unset `progress.color` too. */
+    color?: string;
+    /** Color of the unfilled track. Default `'transparent'` (no visible track). */
+    trackColor?: string;
+    /** Bar thickness in px. Overlaps toast content if set too large —
+     *  keeping it small is the consumer's responsibility, not enforced here. Default 3. */
+    height?: number;
+}
+
 export interface ToastOptions {
     /** Background color of the indicator bar. Defaults to `ToastColor.INFO` or the configured default. */
     color?: string;
@@ -62,6 +85,13 @@ export interface ToastOptions {
     detailsHideLabel?: string;
     /** Whether hovering the toast pauses its auto-dismiss timer, resuming from where it left off on mouseleave. Has no effect on sticky toasts (`duration: 0`) — they have no timer to pause. Defaults to `true` or the configured default. */
     pauseOnHover?: boolean;
+    /** Adds a thin progress bar synced to the toast's auto-dismiss countdown via
+     *  the same timer state `getToastTimer`/`pauseToastTimer`/etc. use. `true` is
+     *  shorthand for all defaults. Falsy/omitted renders no bar at all — opt-in,
+     *  doesn't change appearance for existing consumers. No-op for sticky toasts
+     *  (`duration: 0`) — same "no timer state = no-op" rule the rest of the
+     *  timer system follows. */
+    progress?: boolean | ToastProgressOptions;
     /** Arbitrary data to associate with this toast, readable later via `getToastData(id)` — e.g. the item an "Undo" button should restore, so one shared `onClick` can look up what a specific toast represents instead of a new closure per toast. Never rendered or read internally. */
     data?: unknown;
 }
@@ -77,6 +107,8 @@ export interface ToastsConfig {
     evictOldest: boolean;
     /** Whether hovering a toast pauses its auto-dismiss timer by default. See `ToastOptions.pauseOnHover`. */
     pauseOnHover: boolean;
+    /** Library-wide default for `ToastOptions.progress`. See there. */
+    progress: boolean | ToastProgressOptions;
     /** Force a specific bundled locale (e.g. `"de"`). Omit to auto-detect from `navigator.language`(s), falling back to `"en"` if nothing bundled matches. See `ToastLocales` for the bundled packs. */
     locale?: string;
     /** Partial string overrides layered on top of the resolved locale pack — for unbundled languages, or tweaking individual defaults. */
@@ -99,6 +131,7 @@ interface ResolvedToastOptions {
     detailsLabel?: string;
     detailsHideLabel?: string;
     pauseOnHover: boolean;
+    progress: boolean | ToastProgressOptions;
     data?: unknown;
 }
 
@@ -126,6 +159,7 @@ const DEFAULT_CONFIG: ToastsConfig = {
     maxToasts: MAX_TOASTS,
     evictOldest: true,
     pauseOnHover: true,
+    progress: false,
 };
 
 // Per-toast auto-dismiss timer bookkeeping, keyed off the toast's own root
@@ -142,6 +176,19 @@ interface ToastTimerState {
     /** `Date.now()` when the current countdown segment started, or `null` while paused. */
     startedAt: number | null;
     timeoutId: ReturnType<typeof setTimeout> | null;
+}
+
+// Fully-defaulted internal shape for a toast's progress bar config — not
+// exported, mirrors ResolvedToastOptions's role but scoped to just this
+// sub-feature. Stored in `_progressConfig`, keyed off the toast's own root
+// element like `_data`/`_timers`.
+interface ResolvedProgress {
+    position: 'top' | 'bottom';
+    origin: 'left' | 'right' | 'center';
+    mode: 'fill' | 'drain';
+    color: string;
+    trackColor: string;
+    height: number;
 }
 
 /** Snapshot returned by `getToastTimer()` — computed fresh on every call, not live-updating. */
@@ -168,6 +215,7 @@ export class Toasts {
     private _onCloseCallbacks: WeakMap<HTMLElement, () => void>;
     private _resizeObservers: WeakMap<HTMLElement, ResizeObserver>;
     private _timers: WeakMap<HTMLElement, ToastTimerState>;
+    private _progressConfig: WeakMap<HTMLElement, ResolvedProgress>;
     private _data: WeakMap<HTMLElement, unknown>;
     private _toastState: WeakMap<HTMLElement, ToastState>;
     // Creation order, independent of DOM position — needed because
@@ -186,6 +234,7 @@ export class Toasts {
         this._onCloseCallbacks = new WeakMap();
         this._resizeObservers = new WeakMap();
         this._timers = new WeakMap();
+        this._progressConfig = new WeakMap();
         this._data = new WeakMap();
         this._toastState = new WeakMap();
         this._toastSeq = new WeakMap();
@@ -318,6 +367,8 @@ export class Toasts {
         toastRow.appendChild(toastContent);
         toast.appendChild(toastRow);
         this._renderActions(toastRow, toast, opts, id, t);
+        this._applyProgress(toast, toastContainer, opts.progress, opts.color);
+        this._syncProgressBar(toastContainer); // no _timers entry yet → starts hidden
         toastContainer.appendChild(toast);
 
         // `reverseOrder` toasts are prepended instead of appended — DOM order
@@ -392,6 +443,7 @@ export class Toasts {
         const timer = this._timers.get(toastContainer);
         if (timer?.timeoutId) clearTimeout(timer.timeoutId);
         this._timers.delete(toastContainer);
+        this._syncProgressBar(toastContainer);
         this._toastState.delete(toastContainer);
 
         toastContainer.classList.add('bt-hiding');
@@ -440,6 +492,13 @@ export class Toasts {
             this._applyContent(toastContent, state.message, state);
         }
         if ('color' in update) this._applyColor(toastClose, toast, state.color);
+        if ('progress' in update || 'color' in update) {
+            // Reacts to `color` too, not just `progress` — progress.color
+            // defaults to "reuse the toast's own color", so changing `color`
+            // alone must re-sync a bar that's using that default.
+            this._applyProgress(toast, toastContainer, state.progress, state.color);
+            this._syncProgressBar(toastContainer);
+        }
         if ('buttons' in update || 'details' in update || 'detailsLabel' in update || 'detailsHideLabel' in update) {
             this._renderActions(toastRow, toast, state, id, this._getTranslations());
         }
@@ -521,6 +580,7 @@ export class Toasts {
         state.remaining = Math.max(0, state.remaining - (Date.now() - state.startedAt));
         state.startedAt = null;
         state.timeoutId = null;
+        this._syncProgressBar(el);
     }
 
     /**
@@ -536,6 +596,7 @@ export class Toasts {
         if (!state || state.startedAt !== null) return;
         state.startedAt = Date.now();
         state.timeoutId = setTimeout(() => this.removeToast(id), state.remaining);
+        this._syncProgressBar(el);
     }
 
     /**
@@ -558,6 +619,7 @@ export class Toasts {
             state.startedAt = Date.now();
             state.timeoutId = setTimeout(() => this.removeToast(id), state.remaining);
         }
+        this._syncProgressBar(el);
     }
 
     /**
@@ -576,6 +638,7 @@ export class Toasts {
             state.startedAt = Date.now();
             state.timeoutId = setTimeout(() => this.removeToast(id), state.remaining);
         }
+        this._syncProgressBar(el);
     }
 
     /**
@@ -590,6 +653,7 @@ export class Toasts {
         if (!state) return;
         if (state.timeoutId) clearTimeout(state.timeoutId);
         this._timers.delete(el);
+        this._syncProgressBar(el);
     }
 
     /**
@@ -796,6 +860,50 @@ export class Toasts {
         }
     }
 
+    // Shared by showToast and updateToast — fully rebuilds `.bt-toast-progress`
+    // from scratch (same full-rebuild-not-diff approach as _renderActions),
+    // storing its resolved config in `_progressConfig`. Purely structural —
+    // never touches transform/transition; _syncProgressBar (called immediately
+    // after, at every call site) owns what value/animation is currently showing.
+    private _applyProgress(
+        toast: HTMLElement,
+        toastContainer: HTMLElement,
+        progress: boolean | ToastProgressOptions | undefined,
+        toastColor: string
+    ): void {
+        toast.querySelector('.bt-toast-progress')?.remove();
+        this._progressConfig.delete(toastContainer);
+        if (!progress) return;
+
+        const p = progress === true ? {} : progress;
+        const cfg: ResolvedProgress = {
+            position: p.position ?? 'bottom',
+            origin: p.origin ?? 'left',
+            mode: p.mode ?? 'fill',
+            color: p.color ?? toastColor,
+            trackColor: p.trackColor ?? 'transparent',
+            height: p.height ?? 3,
+        };
+        this._progressConfig.set(toastContainer, cfg);
+
+        const wrap = document.createElement('div');
+        wrap.className = 'bt-toast-progress';
+        wrap.dataset.position = cfg.position;
+        wrap.style.height = `${cfg.height}px`;
+        wrap.style.background = cfg.trackColor;
+        wrap.style.display = 'none'; // defensive default; _syncProgressBar (called right after) sets the real value
+
+        const fill = document.createElement('div');
+        fill.className = 'bt-toast-progress-fill';
+        fill.dataset.origin = cfg.origin;
+        fill.style.background = cfg.color;
+        fill.style.transition = 'none';
+        fill.style.transform = `scaleX(${cfg.mode === 'fill' ? 0 : 1})`;
+
+        wrap.appendChild(fill);
+        toast.appendChild(wrap);
+    }
+
     // Shared by showToast and updateToast — fully rebuilds the `.bt-toast-actions`
     // (buttons + details-toggle) and `.bt-toast-details` subtrees from `opts`,
     // rather than diffing against whatever's currently rendered. Toasts are
@@ -875,6 +983,47 @@ export class Toasts {
         if (detailsEl) toast.appendChild(detailsEl);
     }
 
+    // The single place that reconciles the progress bar's visual state with
+    // `_timers`'s current duration/remaining/startedAt. Called after every
+    // mutation of that state (start/pause/resume/reset/extend/remove) and
+    // right after _applyProgress rebuilds the bar. No-op if the toast never
+    // opted into `progress`; hides the bar (without discarding its config)
+    // whenever there's no live timer — same "no timer = safe no-op" rule
+    // sticky toasts already rely on elsewhere, so it also transparently covers
+    // updateToast turning a sticky toast into a timed one later.
+    private _syncProgressBar(toastContainer: HTMLElement): void {
+        const cfg = this._progressConfig.get(toastContainer);
+        if (!cfg) return; // opt-in feature — zero cost for toasts without it
+
+        const wrap = toastContainer.querySelector<HTMLElement>('.bt-toast-progress');
+        const fill = wrap?.querySelector<HTMLElement>('.bt-toast-progress-fill');
+        if (!wrap || !fill) return;
+
+        const timer = this._timers.get(toastContainer);
+        if (!timer) {
+            wrap.style.display = 'none';
+            return;
+        }
+        wrap.style.display = '';
+
+        const { duration, remaining, startedAt } = timer;
+        // duration<=0 guard: resetToastTimer(id, 0) can leave a transient
+        // _timers entry with duration 0 (about to fire via setTimeout(...,0)) —
+        // treat as "fully elapsed" instead of dividing by zero.
+        const elapsedFraction = duration > 0 ? 1 - Math.max(0, Math.min(1, remaining / duration)) : 1;
+        const currentScale = cfg.mode === 'fill' ? elapsedFraction : 1 - elapsedFraction;
+
+        fill.style.transition = 'none';
+        fill.style.transform = `scaleX(${currentScale})`;
+
+        if (startedAt === null) return; // paused — stays frozen at currentScale
+
+        void fill.offsetWidth; // force a reflow so the frozen frame above actually paints before re-enabling the transition
+        const target = cfg.mode === 'fill' ? 1 : 0;
+        fill.style.transition = `transform ${Math.max(0, remaining)}ms linear`;
+        fill.style.transform = `scaleX(${target})`;
+    }
+
     // Only called for `duration > 0` — a sticky toast never gets a `_timers`
     // entry at all, which is what every public pause/resume/reset/extend
     // method above relies on to no-op for it.
@@ -882,6 +1031,7 @@ export class Toasts {
         const state: ToastTimerState = { duration, remaining: duration, startedAt: Date.now(), timeoutId: null };
         state.timeoutId = setTimeout(() => this.removeToast(el.id), duration);
         this._timers.set(el, state);
+        this._syncProgressBar(el);
     }
 
     private _resolveOptions(
@@ -906,6 +1056,7 @@ export class Toasts {
             detailsLabel: undefined,
             detailsHideLabel: undefined,
             pauseOnHover: this.config.pauseOnHover,
+            progress: this.config.progress,
             data: undefined,
         };
 
