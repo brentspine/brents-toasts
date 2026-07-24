@@ -67,6 +67,15 @@ options object as form 4, so behavior is identical across all three.
 
 ### Custom content
 
+As plain text (`allowHtml: false`, the default), `message` still honors line
+breaks: a literal `\n` or `<br>`/`<br/>` in the string renders as a real line
+break — everything else in the string stays inert text, no other markup is
+parsed. `title` and every button label (`buttons`, `closeButton()`,
+`detailsCopyButton()`, `confirmButton()`, `stepButton()`, the auto-added
+details toggle, ...) follow the same rule, regardless of `allowHtml` — none
+of them otherwise render HTML, but all of them still honor `\n`/`<br>` line
+breaks.
+
 For a simple HTML string, opt in with `allowHtml` (sanitize the input
 yourself — this renders via `innerHTML`):
 
@@ -89,7 +98,9 @@ content.appendChild(undoBtn);
 toasts.showToast(content, { closable: true });
 ```
 
-`title` always renders as plain text regardless of `allowHtml`, by design.
+`title` always renders as plain text regardless of `allowHtml`, by design
+(see "Custom content" above for the `\n`/`<br>` line-break exception it
+shares with `message`).
 
 ### Buttons
 

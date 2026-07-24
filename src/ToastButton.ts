@@ -1,5 +1,7 @@
+import { renderTextWithBreaks } from './ToastText';
+
 export interface ToastButton {
-    /** Always rendered as plain text, like `title`. */
+    /** Rendered as plain text, like `title`, except "\n" and literal "<br>"/"<br/>" are still honored as line breaks — same rule as `message`/`title`. */
     label: string;
     /** Receives the click/keyboard-activation event and this toast's id (e.g. to call `removeToast(id)` yourself, or `document.getElementById(id)` to update the toast's own content in place). */
     onClick?: (event: MouseEvent, id: string) => void;
@@ -44,7 +46,9 @@ export function createActionButton(label: string, onClick: (e: MouseEvent) => vo
     const el = document.createElement('button');
     el.type = 'button';
     el.className = className ? `bt-toast-action ${className}` : 'bt-toast-action';
-    el.textContent = label;
+    // Plain text, like the toast's own title/message when allowHtml is
+    // false — "\n" and literal "<br>"/"<br/>" still render as line breaks.
+    renderTextWithBreaks(el, label);
     el.addEventListener('click', (e: MouseEvent) => {
         e.stopPropagation();
         onClick(e);
@@ -80,7 +84,8 @@ function applyStep(el: HTMLButtonElement, steps: ToastButtonStep[], fromIndex: n
     }
     const step = steps[toIndex]!;
     if (step.className) el.classList.add(...step.className.split(' ').filter(Boolean));
-    el.textContent = step.label;
+    el.replaceChildren();
+    renderTextWithBreaks(el, step.label);
 
     const state: StepButtonState = { index: toIndex };
     if (step.revertAfterMs !== undefined) {

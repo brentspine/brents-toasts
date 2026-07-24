@@ -11,6 +11,7 @@ import { ToastAnimation, IMPLEMENTED_ANIMATIONS, type ToastAnimationValue } from
 import { createActionButton, renderToastButton, createStepButton, type ToastButton, type ToastButtonStep } from './ToastButton';
 import { ToastLocales, matchToastLocale, detectBrowserLocales, type ToastTranslations } from './ToastLocale';
 import { applyThemeVars, autoCloseIconColor, type ToastTheme } from './ToastTheme';
+import { renderTextWithBreaks } from './ToastText';
 import toastsCss from './toasts.css';
 import VERSION from 'virtual:version';
 
@@ -65,7 +66,7 @@ export interface ToastOptions {
     closable?: boolean;
     /** If true, `message` is rendered as HTML. XSS: sanitize input yourself if it may contain user-controlled content. */
     allowHtml?: boolean;
-    /** Optional bold title line rendered above the message. Always rendered as plain text. */
+    /** Optional bold title line rendered above the message. Rendered as plain text (never affected by `allowHtml`), except "\n" and literal "<br>"/"<br/>" are still honored as line breaks — same rule as `message`. */
     title?: string;
     /** See `ToastPosition`. Defaults to `ToastPosition.BOTTOM_CENTER` or the configured default. */
     position?: ToastPositionValue;
@@ -859,7 +860,11 @@ export class Toasts {
                 toastTitle.className = 'bt-toast-title';
                 toastContent.insertBefore(toastTitle, toastContent.firstChild);
             }
-            toastTitle.textContent = opts.title;
+            toastTitle.replaceChildren();
+            // Plain text, like message when allowHtml is false — "\n" and
+            // literal "<br>"/"<br/>" still render as line breaks regardless
+            // of allowHtml, since title never opts into full HTML.
+            renderTextWithBreaks(toastTitle, opts.title);
         } else if (toastTitle) {
             toastTitle.remove();
         }
@@ -876,20 +881,8 @@ export class Toasts {
         } else if (opts.allowHtml) {
             toastMessage.innerHTML = message;
         } else {
-            this._renderTextWithBreaks(toastMessage, message);
+            renderTextWithBreaks(toastMessage, message);
         }
-    }
-
-    // Plain-text (allowHtml: false) rendering still honors "\n" and literal
-    // "<br>"/"<br/>" as line breaks — split on those markers and rejoin with
-    // real <br> elements between text nodes, so nothing else in `text` is
-    // ever parsed as markup.
-    private _renderTextWithBreaks(container: HTMLElement, text: string): void {
-        const parts = text.split(/\r\n|\r|\n|<br\s*\/?>/gi);
-        parts.forEach((part, i) => {
-            if (i > 0) container.appendChild(document.createElement('br'));
-            if (part) container.appendChild(document.createTextNode(part));
-        });
     }
 
     // Shared by showToast and updateToast — fully rebuilds `.bt-toast-progress`
@@ -999,7 +992,8 @@ export class Toasts {
             let toggleBtn: HTMLButtonElement;
             toggleBtn = createActionButton(detailsLabel, () => {
                 const isOpen = detailsEl!.classList.toggle('bt-open');
-                toggleBtn.textContent = isOpen ? detailsHideLabel : detailsLabel;
+                toggleBtn.replaceChildren();
+                renderTextWithBreaks(toggleBtn, isOpen ? detailsHideLabel : detailsLabel);
                 toggleBtn.setAttribute('aria-expanded', String(isOpen));
                 // Opening details re-arms the toast's timer, same reasoning as
                 // confirmButton()/detailsCopyButton() below — a user who just
