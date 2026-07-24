@@ -37,6 +37,8 @@ export class ToastBuilder {
     /** Arbitrary data readable later via `getToastData(id)`. See `ToastOptions.data`. */
     withData(data: unknown): this { this._options.data = data; return this; }
     andRemoveOtherToasts(): this { this._options.removeOtherToasts = true; return this; }
+    /** Inserts this toast at the far end of its position's stack instead of nearest the anchor edge. See `ToastOptions.reverseOrder`. */
+    andReverseOrder(): this { this._options.reverseOrder = true; return this; }
     /** Adds one action button (repeatable — call multiple times for multiple buttons). */
     withButton(label: string, onClick?: (event: MouseEvent, id: string) => void, className?: string): this {
         if (!this._options.buttons) this._options.buttons = [];

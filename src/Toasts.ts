@@ -50,6 +50,8 @@ export interface ToastOptions {
     onClose?: () => void;
     /** If true, dismisses every other currently-visible toast before showing this one. */
     removeOtherToasts?: boolean;
+    /** If true, inserts this toast at the far end of its position's stack (away from the anchor edge) instead of nearest it. No-op if passed to `updateToast` — only meaningful at creation time. */
+    reverseOrder?: boolean;
     /** Action buttons rendered to the right of the message, vertically centered regardless of whether `title` is present. Styled as plain clickable text, not native-looking buttons, by default. Clicks never trigger `closable` dismissal. */
     buttons?: ToastButton[];
     /** Extra detail lines revealed by an auto-added "Details" toggle button, rendered in a visually distinct block below the message — structurally outside the clickable/dismissable part of the toast. Strings are shorthand for `{ value }`. */
@@ -91,6 +93,7 @@ interface ResolvedToastOptions {
     title?: string;
     onClose?: () => void;
     removeOtherToasts: boolean;
+    reverseOrder: boolean;
     buttons?: ToastButton[];
     details?: (string | ToastDetailItem)[];
     detailsLabel?: string;
@@ -167,6 +170,11 @@ export class Toasts {
     private _timers: WeakMap<HTMLElement, ToastTimerState>;
     private _data: WeakMap<HTMLElement, unknown>;
     private _toastState: WeakMap<HTMLElement, ToastState>;
+    // Creation order, independent of DOM position — needed because
+    // `reverseOrder` toasts are prepended rather than appended, so DOM
+    // position 0 is no longer reliably "the oldest toast" for eviction.
+    private _toastSeq: WeakMap<HTMLElement, number>;
+    private _seqCounter: number;
 
     constructor() {
         this._initialized = false;
@@ -180,6 +188,8 @@ export class Toasts {
         this._timers = new WeakMap();
         this._data = new WeakMap();
         this._toastState = new WeakMap();
+        this._toastSeq = new WeakMap();
+        this._seqCounter = 0;
     }
 
     /**
@@ -256,7 +266,18 @@ export class Toasts {
             t => !t.classList.contains('bt-hiding')
         );
         if (activeToasts.length >= maxToasts && evictOldest) {
-            const oldest = activeToasts[0];
+            // Oldest by creation order, not DOM position 0 — a `reverseOrder`
+            // toast can be prepended, so DOM position alone no longer
+            // reliably identifies the oldest toast.
+            let oldest: Element | undefined;
+            let oldestSeq = Infinity;
+            for (const el of activeToasts) {
+                const seq = this._toastSeq.get(el as HTMLElement) ?? -1;
+                if (seq < oldestSeq) {
+                    oldestSeq = seq;
+                    oldest = el;
+                }
+            }
             if (oldest) this.removeToast(oldest.id);
         }
 
@@ -267,6 +288,7 @@ export class Toasts {
         toastContainer.style[edge] = '0px';
         toastContainer.style.opacity = '0';
         toastContainer.id = id;
+        this._toastSeq.set(toastContainer, this._seqCounter++);
         if (opts.onClose) this._onCloseCallbacks.set(toastContainer, opts.onClose);
         if (opts.data !== undefined) this._data.set(toastContainer, opts.data);
         this._toastState.set(toastContainer, { ...opts, message });
@@ -297,9 +319,22 @@ export class Toasts {
         toast.appendChild(toastRow);
         this._renderActions(toastRow, toast, opts, id, t);
         toastContainer.appendChild(toast);
-        snackbar.appendChild(toastContainer);
 
-        this._stackExistingAway(snackbar, toastContainer);
+        // `reverseOrder` toasts are prepended instead of appended — DOM order
+        // is what `_recalculatePositions`/`_stackExistingAway` stack away from
+        // the anchor edge, so this alone is what makes a reversed toast land
+        // at the far end of the stack instead of nearest the edge.
+        let targetOffset: number;
+        if (opts.reverseOrder) {
+            snackbar.insertBefore(toastContainer, snackbar.firstChild);
+            // Existing toasts don't need to move — this one is landing
+            // beyond all of them, not displacing them from the edge.
+            targetOffset = TOAST_EDGE_OFFSET + this._totalStackedExtent(snackbar, toastContainer);
+        } else {
+            snackbar.appendChild(toastContainer);
+            this._stackExistingAway(snackbar, toastContainer);
+            targetOffset = TOAST_EDGE_OFFSET;
+        }
 
         // Any later height change (details toggled open/closed, or a
         // consumer mutating the toast's own content in place) reflows the
@@ -310,7 +345,7 @@ export class Toasts {
 
         // Minimaler Delay damit CSS-Transition greift
         requestAnimationFrame(() => {
-            toastContainer.style[edge] = `${TOAST_EDGE_OFFSET}px`;
+            toastContainer.style[edge] = `${targetOffset}px`;
             toastContainer.style.opacity = '1';
         });
 
@@ -382,9 +417,9 @@ export class Toasts {
      * `buttons`/`details` are whole-array replacements — see `addToastButton`/
      * `removeToastButton`/`addToastDetail`/`removeToastDetail` for appending or
      * index-based insertion/removal without reconstructing the array yourself.
-     * `position`/`animation`/`removeOtherToasts` are accepted for shape-compatibility
-     * with `ToastOptions` but don't describe a meaningful post-creation change, so
-     * they're no-ops here.
+     * `position`/`animation`/`removeOtherToasts`/`reverseOrder` are accepted for
+     * shape-compatibility with `ToastOptions` but don't describe a meaningful
+     * post-creation change, so they're no-ops here.
      */
     updateToast(id: string, update: ToastUpdateOptions): void {
         const toastContainer = document.getElementById(id);
@@ -865,6 +900,7 @@ export class Toasts {
             title: undefined,
             onClose: undefined,
             removeOtherToasts: false,
+            reverseOrder: false,
             buttons: undefined,
             details: undefined,
             detailsLabel: undefined,
@@ -930,11 +966,12 @@ export class Toasts {
         return POSITION_EDGE[snackbar.dataset.position as ToastPositionValue] ?? 'bottom';
     }
 
-    // Repositions all remaining toasts, newest-first (matching the stacking
-    // order established when a toast is added), using each toast's actual
-    // rendered height so variable-height toasts (e.g. with a title) don't
-    // overlap their neighbors. Stacks away from the snackbar's anchor edge
-    // (top or bottom) — see _edgeFor.
+    // Repositions all remaining toasts nearest-DOM-position-last-first
+    // (matching the insertion order established when each toast was added —
+    // see the `reverseOrder` branch in `showToast`), using each toast's
+    // actual rendered height so variable-height toasts (e.g. with a title)
+    // don't overlap their neighbors. Stacks away from the snackbar's anchor
+    // edge (top or bottom) — see _edgeFor.
     private _recalculatePositions(snackbar: HTMLElement): void {
         const edge = this._edgeFor(snackbar);
         let offset = TOAST_EDGE_OFFSET;
@@ -949,8 +986,8 @@ export class Toasts {
     }
 
     // Pushes every toast other than `newToast` away from the snackbar's
-    // anchor edge to make room for it, stacking newest-to-oldest by each
-    // toast's actual rendered height.
+    // anchor edge to make room for it, walking DOM order back-to-front by
+    // each toast's actual rendered height.
     private _stackExistingAway(snackbar: HTMLElement, newToast: HTMLElement): void {
         const edge = this._edgeFor(snackbar);
         let offset = TOAST_EDGE_OFFSET + newToast.getBoundingClientRect().height + TOAST_GAP;
@@ -962,6 +999,22 @@ export class Toasts {
                 toastEl.style[edge] = `${offset}px`;
                 offset += toastEl.getBoundingClientRect().height + TOAST_GAP;
             });
+    }
+
+    // Total distance from the anchor edge occupied by every toast other than
+    // `excludeEl` — used to land a `reverseOrder` toast beyond all of them,
+    // instead of nearest the edge. Mirrors `_stackExistingAway`'s loop (same
+    // `.bt-hiding` treatment — a fading-out toast still reserves its space)
+    // but sums instead of assigning a per-element offset, since none of the
+    // other toasts need to move for this case.
+    private _totalStackedExtent(snackbar: HTMLElement, excludeEl: HTMLElement): number {
+        let offset = TOAST_EDGE_OFFSET;
+        Array.from(snackbar.children)
+            .filter(el => el !== excludeEl)
+            .forEach((el) => {
+                offset += (el as HTMLElement).getBoundingClientRect().height + TOAST_GAP;
+            });
+        return offset;
     }
 
     private _appendStyle(): void {

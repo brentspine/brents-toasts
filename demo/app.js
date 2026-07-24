@@ -79,6 +79,7 @@ const TOAST_OPTION_DOCS = [
   { name: "animation", type: "ToastAnimationValue", default: "ToastAnimation.SLIDE", note: "Only SLIDE is implemented today." },
   { name: "onClose", type: "() => void", default: "(none)", note: "Called as soon as the toast starts closing." },
   { name: "removeOtherToasts", type: "boolean", default: "false", note: "Dismisses every other visible toast before showing this one." },
+  { name: "reverseOrder", type: "boolean", default: "false", note: "Inserts this toast at the far end of its position's stack instead of nearest the anchor edge." },
   { name: "buttons", type: "ToastButton[]", default: "(none)", note: "{ label, onClick(event, id), className? } — right-aligned, never triggers dismissal. toasts.closeButton()/confirmButton()/stepButton() build one of these for you (see the table below)." },
   { name: "details", type: "(string | ToastDetailItem)[]", default: "(none)", note: "Adds a Details toggle revealing { label?, value, buttons? } rows. Nothing is copyable automatically — opt a row into a Copy button via buttons: [toasts.detailsCopyButton(value)]." },
   { name: "detailsLabel", type: "string", default: '"Details"', note: "Label for the auto-added details toggle button." },

@@ -267,6 +267,7 @@ per-toast options) without fully implementing every value yet.
  - Other color options for:
    - close button
    - text color
+ - Automatic close button color
  - Auto wrap for larger bodies
  - Preset types (define your own types for errors, info, warning and success for example)
  - ~~Compact version list in demo~~
@@ -281,7 +282,7 @@ per-toast options) without fully implementing every value yet.
  - https://not-a-toast.vercel.app/
  - ~~Update toast easily by id~~
  - Reverse Toast Order (newest on top, oldest on bottom)
- - Additional container for all toast positions in the DOM
+ - ~~Additional container for all toast positions in the DOM~~
 
 ## Not a toast Ideas
 
