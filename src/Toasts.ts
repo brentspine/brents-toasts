@@ -41,7 +41,7 @@ export interface ToastProgressOptions {
     /** 'fill': starts empty, grows to full over the toast's remaining
      *  lifetime. 'drain': starts full, shrinks to empty. For `origin:
      *  'center'`, fill grows outward from a zero-width center sliver;
-     *  drain shrinks inward from both edges toward the center. Default 'fill'. */
+     *  drain shrinks inward from both edges toward the center. Default 'drain'. */
     mode?: 'fill' | 'drain';
     /** Fill color. Defaults to this toast's own resolved `color`, and stays
      *  linked to it — changing the toast's `color` later (via
@@ -268,7 +268,10 @@ export class Toasts {
     }
 
     /**
-     * @param message The text to display. HTML only if `allowHtml` is true.
+     * @param message The text to display. HTML only if `allowHtml` is true;
+     *   otherwise rendered as plain text, except "\n" and literal
+     *   "<br>"/"<br/>" are still honored as line breaks (everything else in
+     *   the string stays inert text — no other markup is parsed).
      *   Pass a `Node` (e.g. an `HTMLElement`/`DocumentFragment`) instead for
      *   fully custom, interactive content — it's appended directly, so
      *   `allowHtml`/XSS sanitization concerns don't apply to it.
@@ -278,7 +281,8 @@ export class Toasts {
     showToast(message: string | Node, options?: ToastOptions): string;
     /**
      * Legacy positional signature — equivalent to showToast(message, { color, duration, closable, allowHtml }).
-     * @param message  The text to display. HTML only if `allowHtml` is true.
+     * @param message  The text to display. HTML only if `allowHtml` is true;
+     *   otherwise "\n" and literal "<br>"/"<br/>" still render as line breaks.
      *   Pass a `Node` for fully custom content — `allowHtml` is ignored in that case.
      * @param color    Background color of the indicator bar. Defaults to `ToastColor.INFO`.
      * @param duration Auto-dismiss after ms. Use `0` to disable. Defaults to `3000`.
@@ -856,8 +860,20 @@ export class Toasts {
         } else if (opts.allowHtml) {
             toastMessage.innerHTML = message;
         } else {
-            toastMessage.textContent = message;
+            this._renderTextWithBreaks(toastMessage, message);
         }
+    }
+
+    // Plain-text (allowHtml: false) rendering still honors "\n" and literal
+    // "<br>"/"<br/>" as line breaks — split on those markers and rejoin with
+    // real <br> elements between text nodes, so nothing else in `text` is
+    // ever parsed as markup.
+    private _renderTextWithBreaks(container: HTMLElement, text: string): void {
+        const parts = text.split(/\r\n|\r|\n|<br\s*\/?>/gi);
+        parts.forEach((part, i) => {
+            if (i > 0) container.appendChild(document.createElement('br'));
+            if (part) container.appendChild(document.createTextNode(part));
+        });
     }
 
     // Shared by showToast and updateToast — fully rebuilds `.bt-toast-progress`
@@ -879,7 +895,7 @@ export class Toasts {
         const cfg: ResolvedProgress = {
             position: p.position ?? 'bottom',
             origin: p.origin ?? 'left',
-            mode: p.mode ?? 'fill',
+            mode: p.mode ?? 'drain',
             color: p.color ?? toastColor,
             trackColor: p.trackColor ?? 'transparent',
             height: p.height ?? 3,

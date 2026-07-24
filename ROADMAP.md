@@ -298,13 +298,13 @@ Tier 2 — near future (valuable, needs a bit of new infrastructure, but fits th
 5. ✅ updateToast(id, options) — done, along with addToastButton/removeToastButton/addToastDetail/removeToastDetail for incremental changes. Prerequisite for #6.
 6. Promise-based toasts (toasts.promise(promise, { loading, success, error })) — built on #5.
 7. Icon system (success/error/info/warn/loader + custom emoji/SVG) — natural pairing with the existing ToastColor semantic colors.
-8. Progress bar — genuinely the best architectural fit of anything on this list: getToastTimer()/the _timers WeakMap already track exactly the state (duration/remaining/paused) a progress bar needs to nder.
+8. ✅ Progress bar — genuinely the best architectural fit of anything on this list: getToastTimer()/the _timers WeakMap already track exactly the state (duration/remaining/paused) a progress bar needs to nder.
    CSS custom-property theming layer (--bt-bg, --bt-fg, --bt-radius, ...) via a data-theme attribute (mirrors the existing data-position pattern) — not 40 themes, but the hook for a handful of curated ones.
 
 Tier 3 — distant future (real value, but large scope or needs an architectural rework first):
 . A real animation library beyond fade/slide (zoom, bounce, flip, directional slides) — requires switching from JS-computed bottom/opacity to transform+class-toggle CSS keyframes; not a small change.
 11. A curated set of built-in themes (5-10, not 40+) once #9's token layer exists.
-12. orderReversed stacking — folds naturally into the top-position work (#3) once that stacking-direction logic exists.
+12. ✅ orderReversed stacking — folds naturally into the top-position work (#3) once that stacking-direction logic exists.
 
 Tier 4 — maybe never (conflicts with brents-toasts' already-decided design philosophy, or low value for the added surface area):
 . Heavily-styleable/native-looking action buttons and close buttons — ROADMAP.md already documents these as deliberately plain/minimal (see "Decided" section); chasing not-a-toast's button styling knobs reverses a stance the project already took on purpose.
