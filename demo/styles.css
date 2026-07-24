@@ -319,6 +319,25 @@ button.ghost:hover{ border-color: #555; }
 }
 .advanced-presets-intro{ margin: 10px 0; }
 
+/* A form subsection nested inside a .controls grid (e.g. per-position
+   overrides within "Global config") — same label/control column layout as
+   the parent, visually separated by a dashed divider. */
+.controls-subsection{
+  grid-column: 1 / -1;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 12px 14px;
+  align-items: center;
+}
+.controls-subsection-title{
+  grid-column: 1 / -1;
+  margin: 0 0 2px;
+}
+.controls-subsection-full{ grid-column: 1 / -1; }
+
 /* Presets that don't fit the single-toast options form (multi-toast flows,
    shared handlers, ...) live here instead of growing .preset-row above —
    scrolls horizontally instead of wrapping, so adding more later never
@@ -365,7 +384,8 @@ button.ghost:hover{ border-color: #555; }
 .playground-output.error{ color: var(--error); border-color: var(--error); }
 
 @media (max-width: 560px){
-  .controls{
+  .controls,
+  .controls-subsection{
     grid-template-columns: 1fr;
     row-gap: 6px;
   }

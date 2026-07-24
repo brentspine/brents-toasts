@@ -9,6 +9,11 @@ const configDuration = $("configDuration");
 const configClosable = $("configClosable");
 const applyConfigBtn = $("applyConfig");
 const configCodePreview = $("configCodePreview");
+const posOverridePosition = $("posOverridePosition");
+const posOverrideMax = $("posOverrideMax");
+const applyPosOverrideBtn = $("applyPosOverride");
+const clearPosOverrideBtn = $("clearPosOverride");
+const posOverrideList = $("posOverrideList");
 
 const toastText = $("toastText");
 const toastTitle = $("toastTitle");
@@ -102,10 +107,16 @@ const DATA_METHOD_DOCS = [
 ];
 
 const CONFIG_OPTION_DOCS = [
-  { name: "maxToasts", type: "number", default: "5", note: "Toasts visible at once before the oldest is evicted." },
-  { name: "evictOldest", type: "boolean", default: "true", note: "Evict the oldest toast once maxToasts is exceeded." },
+  { name: "maxToasts", type: "number", default: "5", note: "Toasts visible at once before the oldest is evicted. Overridable per position via configurePosition()." },
+  { name: "evictOldest", type: "boolean", default: "true", note: "Evict the oldest toast once maxToasts is exceeded. Overridable per position via configurePosition()." },
   { name: "locale", type: "string", default: "(auto-detected)", note: "Overrides auto-detection — forces a bundled locale (en/de/es/fr) for built-in button/label text." },
   { name: "translations", type: "Partial<ToastTranslations>", default: "(none)", note: "Overrides individual translated strings on top of the resolved locale." },
+];
+
+// configurePosition() — layers a maxToasts/evictOldest override for one
+// position on top of the library-wide config above.
+const POSITION_CONFIG_METHOD_DOCS = [
+  { name: "configurePosition(position, { maxToasts?, evictOldest? })", type: "void", default: "(inherits config)", note: "Overrides maxToasts/evictOldest for one position only. Pass a key as undefined to drop it back to the global config value." },
 ];
 
 // Ready-made ToastButton factories on `toasts` (methods, not ToastOptions
@@ -181,6 +192,13 @@ function applyPageConfig() {
   });
 }
 
+// Reverse lookup for ToastPosition — e.g. "bottom-left" -> "BOTTOM_LEFT" — so
+// code previews can render `ToastPosition.KEY` from a stored `positionConfig`
+// value instead of the raw string.
+function positionKeyFromValue(value) {
+  return Object.keys(ToastPosition).find((key) => ToastPosition[key] === value);
+}
+
 function updateConfigCodePreview() {
   const locale = readConfigLocale();
   const lines = [
@@ -192,7 +210,41 @@ function updateConfigCodePreview() {
   ];
   if (locale) lines.push(`  locale: ${JSON.stringify(locale)},`);
   lines.push(`});`);
+
+  for (const [position, override] of toasts.positionConfig) {
+    const parts = [];
+    if (override.maxToasts !== undefined) parts.push(`maxToasts: ${override.maxToasts}`);
+    if (override.evictOldest !== undefined) parts.push(`evictOldest: ${override.evictOldest}`);
+    if (!parts.length) continue;
+    lines.push(``, `toasts.configurePosition(ToastPosition.${positionKeyFromValue(position)}, { ${parts.join(", ")} });`);
+  }
+
   configCodePreview.textContent = lines.join("\n");
+}
+
+function renderPosOverrideList() {
+  const entries = Array.from(toasts.positionConfig).filter(([, o]) => o.maxToasts !== undefined);
+  posOverrideList.textContent = entries.length
+    ? `Active overrides: ${entries.map(([pos, o]) => `${positionKeyFromValue(pos)}=${o.maxToasts}`).join(", ")}`
+    : "No per-position overrides set — every position uses the global max toasts.";
+}
+
+function applyPosOverride() {
+  const position = ToastPosition[posOverridePosition.value];
+  const raw = posOverrideMax.value.trim();
+  const n = Number.parseInt(raw, 10);
+  const maxToasts = raw.length && Number.isFinite(n) && n > 0 ? n : undefined;
+  toasts.configurePosition(position, { maxToasts });
+  renderPosOverrideList();
+  updateConfigCodePreview();
+}
+
+function clearPosOverride() {
+  const position = ToastPosition[posOverridePosition.value];
+  toasts.configurePosition(position, { maxToasts: undefined, evictOldest: undefined });
+  posOverrideMax.value = "";
+  renderPosOverrideList();
+  updateConfigCodePreview();
 }
 
 function readMessageRaw() {
@@ -597,6 +649,8 @@ function renderOptionsReference() {
     optionsTable(TOAST_OPTION_DOCS),
     `<p class="muted">Library-wide — <span class="mono">toasts.configure({ ...these })</span>:</p>`,
     optionsTable(CONFIG_OPTION_DOCS),
+    `<p class="muted">Per-position config — <span class="mono">toasts.configurePosition(ToastPosition.X, { ...these })</span>:</p>`,
+    optionsTable(POSITION_CONFIG_METHOD_DOCS, "Method"),
     `<p class="muted">Ready-made action buttons — <span class="mono">toasts.xyz(...)</span>, appended to <span class="mono">buttons</span> (or a details item's own):</p>`,
     optionsTable(BUTTON_FACTORY_DOCS, "Method"),
     `<p class="muted">Timer control — <span class="mono">toasts.xyz(id)</span>, called any time after the toast is shown:</p>`,
@@ -897,6 +951,9 @@ function wireConfigUpdates() {
     applyPageConfig();
     updateConfigCodePreview();
   });
+
+  applyPosOverrideBtn.addEventListener("click", applyPosOverride);
+  clearPosOverrideBtn.addEventListener("click", clearPosOverride);
 }
 
 makeToast.addEventListener("click", showOneToast);
@@ -915,6 +972,7 @@ wireConfigUpdates();
 applyPageConfig();
 updateCodePreview();
 updateConfigCodePreview();
+renderPosOverrideList();
 loadChangelog();
 loadVersionList();
 loadGithubRepoInfo();

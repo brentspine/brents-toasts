@@ -39,6 +39,21 @@ per-toast options) without fully implementing every value yet.
   (`position: fixed`) toast containers — no JS needed for that half.
   `maxToasts`/`evictOldest` already apply per position for free, since
   `Toasts.snackbars` was already a `Map<position, containerElement>`.
+- **`Toasts.configurePosition(position, { maxToasts?, evictOldest? })`** —
+  explicit per-position override on top of the "free" per-container behavior
+  above, for when positions actually need *different* limits (e.g. a small
+  `TOP_RIGHT` alert stack alongside a larger default `BOTTOM_CENTER` one),
+  not just independent counts of the same global number. Stored in a public
+  `positionConfig: Map<ToastPositionValue, PositionConfig>` field (same
+  public-mutable-field pattern as `config`/`snackbars`), merged the same way
+  `configure()` merges into `config`. `showToast` resolves
+  `positionConfig.get(position)?.maxToasts ?? config.maxToasts` (same for
+  `evictOldest`) — an explicit `undefined` for a key drops it back to the
+  global `config` value rather than needing a separate "clear" method.
+  Deliberately scoped to just these two keys, not every `ToastsConfig`
+  field — `color`/`duration`/etc. are per-toast options already, so a
+  position-wide override for those would duplicate `ToastOptions` rather
+  than fill a gap the way capacity/eviction does.
 - **`buttons: ToastButton[]`** — the generic, deliberate replacement for
   porting `Hinweis`/`ToastClick` directly (see "Not ported" below). Supported
   end-to-end (`ToastOptions`, `ToastBuilder.withButton()`, rendered as
@@ -244,10 +259,6 @@ per-toast options) without fully implementing every value yet.
 
 ## Open questions for later
 
-- Per-position `maxToasts`/eviction (old code filtered by position before
-  applying the cap) — right now `maxToasts`/`evictOldest` apply per
-  snackbar container, which already gives this for free once more positions
-  exist, but hasn't been tested with >1 real container.
 - Whether `TOAST_HEIGHT`/`TOAST_BOTTOM_OFFSET`/`TOAST_TRANSITION_MS` should
   move from module constants into `configure()` (relevant once toasts can
   wrap to multiple lines or use the FADE animation).
@@ -270,6 +281,7 @@ per-toast options) without fully implementing every value yet.
  - https://not-a-toast.vercel.app/
  - ~~Update toast easily by id~~
  - Reverse Toast Order (newest on top, oldest on bottom)
+ - Additional container for all toast positions in the DOM
 
 ## Not a toast Ideas
 

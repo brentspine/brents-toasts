@@ -151,9 +151,14 @@ export interface ToastTimerInfo {
     paused: boolean;
 }
 
+/** Per-position `maxToasts`/`evictOldest` override — see `Toasts.configurePosition()`. */
+export type PositionConfig = Partial<Pick<ToastsConfig, 'maxToasts' | 'evictOldest'>>;
+
 export class Toasts {
     public config: ToastsConfig;
     public snackbars: Map<ToastPositionValue, HTMLElement>;
+    /** Per-position `maxToasts`/`evictOldest` overrides set via `configurePosition()`. A position absent here (or a key left `undefined` within its entry) falls back to `config`. */
+    public positionConfig: Map<ToastPositionValue, PositionConfig>;
     private _initialized: boolean;
     private _warned: Set<string>;
     private _onCloseCallbacks: WeakMap<HTMLElement, () => void>;
@@ -165,6 +170,7 @@ export class Toasts {
     constructor() {
         this._initialized = false;
         this.snackbars = new Map();
+        this.positionConfig = new Map();
         this.config = { ...DEFAULT_CONFIG };
         this._warned = new Set();
         this._onCloseCallbacks = new WeakMap();
@@ -180,6 +186,17 @@ export class Toasts {
      */
     configure(config: Partial<ToastsConfig> = {}): void {
         this.config = { ...this.config, ...config };
+    }
+
+    /**
+     * Overrides `maxToasts`/`evictOldest` for one position only, layered on top of the
+     * library-wide defaults from `configure()` — e.g. a small `TOP_RIGHT` notification
+     * stack alongside a larger default `BOTTOM_CENTER` one. Merges into any existing
+     * override for `position` (same merge behavior as `configure()`); pass a key as
+     * `undefined` to drop that key back to the global `config` value.
+     */
+    configurePosition(position: ToastPositionValue, config: PositionConfig): void {
+        this.positionConfig.set(position, { ...this.positionConfig.get(position), ...config });
     }
 
     // Lazy init — sicher für SSR / Node-Umgebungen
@@ -229,10 +246,14 @@ export class Toasts {
         const snackbar = this._getSnackbar(position, t);
         const edge = POSITION_EDGE[position];
 
+        const positionOverride = this.positionConfig.get(position);
+        const maxToasts = positionOverride?.maxToasts ?? this.config.maxToasts;
+        const evictOldest = positionOverride?.evictOldest ?? this.config.evictOldest;
+
         const activeToasts = Array.from(snackbar.children).filter(
             t => !t.classList.contains('bt-hiding')
         );
-        if (activeToasts.length >= this.config.maxToasts && this.config.evictOldest) {
+        if (activeToasts.length >= maxToasts && evictOldest) {
             const oldest = activeToasts[0];
             if (oldest) this.removeToast(oldest.id);
         }

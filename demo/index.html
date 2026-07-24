@@ -60,6 +60,35 @@
       <div class="actions">
         <button id="applyConfig" type="button">Apply page config</button>
       </div>
+
+      <div class="controls-subsection">
+        <div class="controls-subsection-title muted">
+          Per-position override — layered on top of "Max toasts" above via <span class="mono">toasts.configurePosition()</span>
+        </div>
+
+        <label for="posOverridePosition">Position</label>
+        <select id="posOverridePosition" aria-label="Position to override">
+          <option value="BOTTOM_CENTER">BOTTOM_CENTER</option>
+          <option value="BOTTOM_LEFT">BOTTOM_LEFT</option>
+          <option value="BOTTOM_RIGHT">BOTTOM_RIGHT</option>
+          <option value="TOP_CENTER">TOP_CENTER</option>
+          <option value="TOP_LEFT">TOP_LEFT</option>
+          <option value="TOP_RIGHT">TOP_RIGHT</option>
+        </select>
+
+        <label for="posOverrideMax">Max toasts</label>
+        <div class="duration-row">
+          <input id="posOverrideMax" type="number" min="1" step="1" placeholder="(inherit global)" />
+          <span class="hint">Blank inherits "Max toasts" above</span>
+        </div>
+
+        <div class="actions">
+          <button id="applyPosOverride" type="button" class="ghost">Set override</button>
+          <button id="clearPosOverride" type="button" class="ghost">Clear override</button>
+        </div>
+
+        <div id="posOverrideList" class="hint controls-subsection-full"></div>
+      </div>
     </section>
 
     <section class="code" aria-label="Global config code preview">
