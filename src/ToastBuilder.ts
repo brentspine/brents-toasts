@@ -1,5 +1,6 @@
 import { toasts as defaultToasts, Toasts, type ToastOptions, type ToastDetailItem, type ToastButtonStep, type ToastProgressOptions } from './Toasts';
 import { ToastColor } from './ToastColor';
+import type { ToastTheme } from './ToastTheme';
 import type { ToastPositionValue } from './ToastPosition';
 import type { ToastAnimationValue } from './ToastAnimation';
 
@@ -39,6 +40,8 @@ export class ToastBuilder {
     withProgress(progress: boolean | ToastProgressOptions = true): this { this._options.progress = progress; return this; }
     /** Arbitrary data readable later via `getToastData(id)`. See `ToastOptions.data`. */
     withData(data: unknown): this { this._options.data = data; return this; }
+    /** Extra color knobs beyond `withColor()` — merges key-by-key over `configure()`'s `theme` at `.show()` time. See `ToastOptions.theme`/`ToastTheme`. */
+    withTheme(theme: ToastTheme): this { this._options.theme = theme; return this; }
     andRemoveOtherToasts(): this { this._options.removeOtherToasts = true; return this; }
     /** Inserts this toast at the far end of its position's stack instead of nearest the anchor edge. See `ToastOptions.reverseOrder`. */
     andReverseOrder(): this { this._options.reverseOrder = true; return this; }

@@ -10,11 +10,13 @@ import { ToastPosition, IMPLEMENTED_POSITIONS, POSITION_EDGE, type ToastPosition
 import { ToastAnimation, IMPLEMENTED_ANIMATIONS, type ToastAnimationValue } from './ToastAnimation';
 import { createActionButton, renderToastButton, createStepButton, type ToastButton, type ToastButtonStep } from './ToastButton';
 import { ToastLocales, matchToastLocale, detectBrowserLocales, type ToastTranslations } from './ToastLocale';
+import { applyThemeVars, autoCloseIconColor, type ToastTheme } from './ToastTheme';
 import toastsCss from './toasts.css';
 import VERSION from 'virtual:version';
 
 export type { ToastButton, ToastButtonStep } from './ToastButton';
 export type { ToastTranslations } from './ToastLocale';
+export type { ToastTheme } from './ToastTheme';
 
 const MAX_TOASTS = 5;
 const TOAST_GAP = 8;
@@ -94,6 +96,8 @@ export interface ToastOptions {
     progress?: boolean | ToastProgressOptions;
     /** Arbitrary data to associate with this toast, readable later via `getToastData(id)` — e.g. the item an "Undo" button should restore, so one shared `onClick` can look up what a specific toast represents instead of a new closure per toast. Never rendered or read internally. */
     data?: unknown;
+    /** Extra color knobs (background, text, close icon, ...) beyond `color`. Merges key-by-key over `configure()`'s `theme` — only the fields you set here change, the rest still come from the configured default (or the built-in look, if neither sets them). See `ToastTheme`. */
+    theme?: ToastTheme;
 }
 
 export interface ToastsConfig {
@@ -113,6 +117,8 @@ export interface ToastsConfig {
     locale?: string;
     /** Partial string overrides layered on top of the resolved locale pack — for unbundled languages, or tweaking individual defaults. */
     translations?: Partial<ToastTranslations>;
+    /** Library-wide default for `ToastOptions.theme` — see there and `ToastTheme`. */
+    theme?: ToastTheme;
 }
 
 interface ResolvedToastOptions {
@@ -133,6 +139,7 @@ interface ResolvedToastOptions {
     pauseOnHover: boolean;
     progress: boolean | ToastProgressOptions;
     data?: unknown;
+    theme?: ToastTheme;
 }
 
 /**
@@ -361,7 +368,7 @@ export class Toasts {
         const closeSpan = document.createElement('span');
         closeSpan.innerHTML = '&times;';
         toastClose.appendChild(closeSpan);
-        this._applyColor(toastClose, toast, opts.color);
+        this._applyColor(toastClose, toast, opts.color, opts.theme);
 
         const toastContent = document.createElement('div');
         toastContent.className = 'bt-toast-content';
@@ -470,9 +477,11 @@ export class Toasts {
      * applied as a patch: only the keys present in `update` change, everything else
      * about the toast is left exactly as it was. No-op if `id` doesn't exist.
      *
-     * `buttons`/`details` are whole-array replacements — see `addToastButton`/
-     * `removeToastButton`/`addToastDetail`/`removeToastDetail` for appending or
-     * index-based insertion/removal without reconstructing the array yourself.
+     * `buttons`/`details`/`theme` are whole-object replacements (unlike the
+     * `theme` key-by-key merge `showToast`'s initial resolve does against
+     * `configure()`'s default) — see `addToastButton`/`removeToastButton`/
+     * `addToastDetail`/`removeToastDetail` for appending or index-based
+     * insertion/removal without reconstructing the array yourself.
      * `position`/`animation`/`removeOtherToasts`/`reverseOrder` are accepted for
      * shape-compatibility with `ToastOptions` but don't describe a meaningful
      * post-creation change, so they're no-ops here.
@@ -495,7 +504,7 @@ export class Toasts {
         if ('message' in update || 'title' in update || 'allowHtml' in update) {
             this._applyContent(toastContent, state.message, state);
         }
-        if ('color' in update) this._applyColor(toastClose, toast, state.color);
+        if ('color' in update || 'theme' in update) this._applyColor(toastClose, toast, state.color, state.theme);
         if ('progress' in update || 'color' in update) {
             // Reacts to `color` too, not just `progress` — progress.color
             // defaults to "reuse the toast's own color", so changing `color`
@@ -823,13 +832,20 @@ export class Toasts {
     }
 
     // Shared by showToast (creation) and updateToast — sets the indicator bar
-    // color and the role/aria-live pair it drives, so both paths can never
-    // fall out of sync with each other.
-    private _applyColor(toastClose: HTMLElement, toast: HTMLElement, color: string): void {
+    // color, the role/aria-live pair it drives, and the rest of the theme
+    // (card background/text/details background/action color as CSS vars, plus
+    // the close icon color) so all of it can never fall out of sync between
+    // the two call sites.
+    private _applyColor(toastClose: HTMLElement, toast: HTMLElement, color: string, theme?: ToastTheme): void {
         toastClose.style.setProperty('--data-background', color);
         const isAlert = color === ToastColor.ERROR || color === ToastColor.WARNING;
         toast.setAttribute('role', isAlert ? 'alert' : 'status');
         toast.setAttribute('aria-live', isAlert ? 'assertive' : 'polite');
+        applyThemeVars(toast, theme);
+        // Always set explicitly (never left to plain CSS) — this is the one
+        // theme field whose whole point is computing something CSS can't:
+        // contrast against the toast's own (possibly per-toast) `color`.
+        toastClose.style.setProperty('--bt-close-icon', theme?.closeIcon ?? autoCloseIconColor(color));
     }
 
     // Shared by showToast and updateToast — (re)builds the title/message
@@ -1074,10 +1090,19 @@ export class Toasts {
             pauseOnHover: this.config.pauseOnHover,
             progress: this.config.progress,
             data: undefined,
+            theme: this.config.theme,
         };
 
         if (colorOrOptions !== null && typeof colorOrOptions === 'object') {
-            return { ...base, ...colorOrOptions };
+            const resolved: ResolvedToastOptions = { ...base, ...colorOrOptions };
+            // Merged key-by-key (unlike every other object-shaped option,
+            // e.g. `progress`, which is a whole-value replacement) so a
+            // per-toast theme only needs to give the fields it wants to
+            // change on top of the configured default.
+            if (base.theme || colorOrOptions.theme) {
+                resolved.theme = { ...base.theme, ...colorOrOptions.theme };
+            }
+            return resolved;
         }
 
         if (colorOrOptions !== undefined) base.color = colorOrOptions;

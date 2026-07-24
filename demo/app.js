@@ -87,6 +87,7 @@ const TOAST_OPTION_DOCS = [
   { name: "pauseOnHover", type: "boolean", default: "true", note: "Hovering pauses the auto-dismiss timer, resuming on mouseleave. No effect on sticky (duration: 0) toasts." },
   { name: "progress", type: "boolean | ToastProgressOptions", default: "false", note: "Thin progress bar synced to the auto-dismiss countdown. true = defaults (bottom edge, left origin, drain mode, reuses the toast's own color, transparent track). No bar for sticky toasts (duration: 0)." },
   { name: "data", type: "unknown", default: "(none)", note: "Arbitrary data readable later via getToastData(id) — e.g. an Undo button's payload, so one shared onClick can look up what a specific toast represents." },
+  { name: "theme", type: "ToastTheme", default: "(none)", note: "{ background?, text?, detailsBackground?, actionColor?, closeIcon? } — merges key-by-key over configure()'s theme. Every field also works as a --bt-* CSS custom property with no JS at all. closeIcon auto-picks light/dark for contrast against color unless set explicitly." },
 ];
 
 // Instance methods for controlling an already-shown toast's auto-dismiss
@@ -113,6 +114,7 @@ const CONFIG_OPTION_DOCS = [
   { name: "evictOldest", type: "boolean", default: "true", note: "Evict the oldest toast once maxToasts is exceeded. Overridable per position via configurePosition()." },
   { name: "locale", type: "string", default: "(auto-detected)", note: "Overrides auto-detection — forces a bundled locale (en/de/es/fr) for built-in button/label text." },
   { name: "translations", type: "Partial<ToastTranslations>", default: "(none)", note: "Overrides individual translated strings on top of the resolved locale." },
+  { name: "theme", type: "ToastTheme", default: "(none)", note: "Library-wide default for the theme option — see the per-call table above." },
 ];
 
 // configurePosition() — layers a maxToasts/evictOldest override for one

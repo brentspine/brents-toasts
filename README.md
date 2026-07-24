@@ -433,6 +433,45 @@ per-toast and library-wide settings (position, animation, `onClose`,
 `removeOtherToasts`, `buttons`, `details`, `pauseOnHover`, `data`,
 `maxToasts`, `evictOldest`, `locale`, `translations`, ...).
 
+### Theming
+
+`color` sets the accent bar/indicator, same as always. For the rest of a
+toast's look — card background, text, the details block, action button
+text — there's `theme`, settable library-wide (`configure({ theme })`),
+per-toast (`showToast(msg, { theme })`), or entirely in plain CSS with no
+API involvement at all:
+
+```ts
+// Library-wide default
+toasts.configure({
+  theme: { background: '#1e1e2e', text: '#cdd6f4', actionColor: '#89b4fa' },
+});
+
+// Per-toast — merges key-by-key over the configured default, so you only
+// need to give the field(s) you want to change
+toasts.showToast('Heads up.', {
+  theme: { background: '#2a2a3d' },
+});
+```
+
+Every `theme` field mirrors a `--bt-*` custom property on `.bt-toast`
+(`--bt-background`, `--bt-text`, `--bt-details-background`,
+`--bt-action-color`), so a plain stylesheet rule works just as well if you'd
+rather not touch the JS API at all:
+
+```css
+.bt-toast {
+  --bt-background: #1e1e2e;
+  --bt-text: #cdd6f4;
+}
+```
+
+The close ("×") icon is the one exception: its color is always picked for
+you — dark or light — based on contrast against the toast's own `color`, so
+a light accent (e.g. `#fff`) never renders an invisible white-on-white close
+icon. Set `theme.closeIcon` to override the automatic pick with a specific
+color instead. Builder equivalent: `.withTheme(theme)`.
+
 ### Localization
 
 The library's own text — `closeButton()`'s `"Close"`, `detailsLabel`
