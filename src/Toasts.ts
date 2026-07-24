@@ -160,6 +160,7 @@ export class Toasts {
     /** Per-position `maxToasts`/`evictOldest` overrides set via `configurePosition()`. A position absent here (or a key left `undefined` within its entry) falls back to `config`. */
     public positionConfig: Map<ToastPositionValue, PositionConfig>;
     private _initialized: boolean;
+    private _root: HTMLElement | null;
     private _warned: Set<string>;
     private _onCloseCallbacks: WeakMap<HTMLElement, () => void>;
     private _resizeObservers: WeakMap<HTMLElement, ResizeObserver>;
@@ -169,6 +170,7 @@ export class Toasts {
 
     constructor() {
         this._initialized = false;
+        this._root = null;
         this.snackbars = new Map();
         this.positionConfig = new Map();
         this.config = { ...DEFAULT_CONFIG };
@@ -972,6 +974,21 @@ export class Toasts {
     }
 
     /**
+     * All freshly-created `.bt-snackbar` containers live inside this single
+     * `.bt-toasts-root` on `document.body`, instead of each position adding
+     * its own top-level sibling to `<body>`.
+     */
+    private _getRoot(): HTMLElement {
+        if (this._root) return this._root;
+        const root = document.createElement('div');
+        root.className = 'bt-toasts-root';
+        document.body.appendChild(root);
+        document.body.insertBefore(document.createComment(`brents-toasts v${VERSION} root container`), root);
+        this._root = root;
+        return root;
+    }
+
+    /**
      * Reusing the literal `id="snackbar"` element for BOTTOM_CENTER only is a
      * back-compat hook for pages that already had a `<div id="snackbar">`
      * before position support existed — not a statement about which
@@ -1004,8 +1021,9 @@ export class Toasts {
         if (position === ToastPosition.BOTTOM_CENTER) snackbar.id = 'snackbar';
         snackbar.setAttribute('role', 'region');
         snackbar.setAttribute('aria-label', t.notificationsRegion);
-        document.body.appendChild(snackbar);
-        document.body.insertBefore(document.createComment(`brents-toasts v${VERSION} snackbar container`), snackbar);
+        const root = this._getRoot();
+        root.appendChild(snackbar);
+        root.insertBefore(document.createComment(`brents-toasts v${VERSION} snackbar container`), snackbar);
         this.snackbars.set(position, snackbar);
         return snackbar;
     }
