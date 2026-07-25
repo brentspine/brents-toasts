@@ -1,0 +1,186 @@
+<section class="container config">
+  <h1>Config</h1>
+  <p class="intro">
+    Change the library-wide defaults in every way <code>toasts.configure()</code> allows, then hit Apply — every
+    toast fired from the Playground afterwards reflects it.
+  </p>
+
+  <div class="grid">
+    <div class="field">
+      <label for="color">color</label>
+      <input id="color" type="color" [ngModel]="form().color" (ngModelChange)="updateForm('color', $event)" />
+    </div>
+
+    <div class="field">
+      <label for="duration">duration</label>
+      <input
+        id="duration"
+        type="number"
+        [ngModel]="form().duration"
+        (ngModelChange)="updateForm('duration', $event)"
+      />
+    </div>
+
+    <div class="field">
+      <label for="position">position</label>
+      <select id="position" [ngModel]="form().position" (ngModelChange)="updateForm('position', $event)">
+        @for (p of positions; track p) {
+          <option [value]="p">{{ p }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="maxToasts">maxToasts</label>
+      <input
+        id="maxToasts"
+        type="number"
+        [ngModel]="form().maxToasts"
+        (ngModelChange)="updateForm('maxToasts', $event)"
+      />
+    </div>
+
+    <div class="field">
+      <label for="locale">locale</label>
+      <select id="locale" [ngModel]="form().locale" (ngModelChange)="updateForm('locale', $event)">
+        <option value="auto">auto-detect</option>
+        <option value="en">en</option>
+        <option value="de">de</option>
+        <option value="es">es</option>
+        <option value="fr">fr</option>
+      </select>
+    </div>
+
+    <div class="field checkbox">
+      <label>
+        <input
+          type="checkbox"
+          [ngModel]="form().closable"
+          (ngModelChange)="updateForm('closable', $event)"
+        />
+        closable
+      </label>
+    </div>
+
+    <div class="field checkbox">
+      <label>
+        <input type="checkbox" [ngModel]="form().allowHtml" (ngModelChange)="updateForm('allowHtml', $event)" />
+        allowHtml
+      </label>
+    </div>
+
+    <div class="field checkbox">
+      <label>
+        <input
+          type="checkbox"
+          [ngModel]="form().allowLineBreaks"
+          (ngModelChange)="updateForm('allowLineBreaks', $event)"
+        />
+        allowLineBreaks
+      </label>
+    </div>
+
+    <div class="field checkbox">
+      <label>
+        <input
+          type="checkbox"
+          [ngModel]="form().evictOldest"
+          (ngModelChange)="updateForm('evictOldest', $event)"
+        />
+        evictOldest
+      </label>
+    </div>
+
+    <div class="field checkbox">
+      <label>
+        <input
+          type="checkbox"
+          [ngModel]="form().pauseOnHover"
+          (ngModelChange)="updateForm('pauseOnHover', $event)"
+        />
+        pauseOnHover
+      </label>
+    </div>
+
+    <div class="field checkbox">
+      <label>
+        <input type="checkbox" [ngModel]="form().progress" (ngModelChange)="updateForm('progress', $event)" />
+        progress
+      </label>
+    </div>
+  </div>
+
+  <div class="field theme-field">
+    <label for="themeJson">theme (JSON)</label>
+    <textarea
+      id="themeJson"
+      rows="3"
+      placeholder='{ "background": "#1c1c1c", "text": "#f5f5f5" }'
+      [ngModel]="form().themeJson"
+      (ngModelChange)="updateForm('themeJson', $event)"
+    ></textarea>
+    @if (themeError()) {
+      <p class="error">{{ themeError() }}</p>
+    }
+  </div>
+
+  <button type="button" class="apply" (click)="apply()">Apply config</button>
+
+  <app-code-snippet [code]="appliedSnippet()" />
+
+  <h2>Per-position overrides</h2>
+  <p class="intro">Override <code>maxToasts</code>/<code>evictOldest</code> for one position at a time.</p>
+
+  <div class="override-row">
+    <select [ngModel]="overridePosition()" (ngModelChange)="overridePosition.set($event)">
+      @for (p of positions; track p) {
+        <option [value]="p">{{ p }}</option>
+      }
+    </select>
+    <input type="number" [ngModel]="overrideMaxToasts()" (ngModelChange)="overrideMaxToasts.set($event)" />
+    <label>
+      <input
+        type="checkbox"
+        [ngModel]="overrideEvictOldest()"
+        (ngModelChange)="overrideEvictOldest.set($event)"
+      />
+      evictOldest
+    </label>
+    <button type="button" (click)="applyPositionOverride()">Apply override</button>
+  </div>
+
+  @if (positionOverrideEntries().length) {
+    <ul class="override-list">
+      @for (entry of positionOverrideEntries(); track entry[0]) {
+        <li>
+          <code>{{ entry[0] }}</code>: maxToasts={{ entry[1].maxToasts }}, evictOldest={{ entry[1].evictOldest }}
+          <button type="button" class="clear" (click)="clearPositionOverride(entry[0])">Clear</button>
+        </li>
+      }
+    </ul>
+  }
+
+  <h2>All config fields</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (opt of configOptions; track opt.name) {
+          <tr>
+            <td><code>{{ opt.name }}</code></td>
+            <td><code>{{ opt.type }}</code></td>
+            <td>{{ opt.default }}</td>
+            <td>{{ opt.description }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

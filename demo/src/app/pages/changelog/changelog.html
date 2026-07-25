@@ -1,0 +1,74 @@
+<section class="container changelog-page">
+  <h1>Changelog</h1>
+
+  @if (latestChangelog.isLoading()) {
+    <p class="muted">Loading changelog...</p>
+  } @else if (latestChangelog.value(); as md) {
+    <app-markdown-view [markdown]="md" />
+  } @else {
+    <p class="muted">No changelog available for this build yet.</p>
+  }
+
+  <h2>Other versions</h2>
+  <p class="muted">
+    <a href="https://github.com/Brentspine/brents-toasts/releases" target="_blank" rel="noopener"
+      >All releases &amp; changelogs &#8594;</a
+    >
+  </p>
+
+  @if (versionsList.value()?.length) {
+    <ul class="version-list">
+      @for (version of versionsList.value(); track version) {
+        <li>
+          <button type="button" class="version-btn" (click)="selectVersion(version)">
+            {{ version }}
+          </button>
+
+          @if (selectedVersion() === version) {
+            <div class="version-detail panel">
+              @if (historicalOptions.isLoading() || historicalChangelog.isLoading()) {
+                <p class="muted">Loading v{{ version }}...</p>
+              } @else if (historicalOptions.value(); as data) {
+                @if (historicalChangelog.value(); as md) {
+                  <app-markdown-view [markdown]="md" />
+                }
+                <h4>Options in this version</h4>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (opt of data.toastOptions; track opt.name) {
+                        <tr>
+                          <td><code>{{ opt.name }}</code></td>
+                          <td><code>{{ opt.type }}</code></td>
+                          <td>{{ opt.default }}</td>
+                          <td>{{ opt.description }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <p class="muted">
+                  This version predates the in-app version browser.
+                  <a [href]="legacyVersionUrl(version)" target="_blank" rel="noopener"
+                    >View its original demo &#8594;</a
+                  >
+                </p>
+              }
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  } @else if (!versionsList.isLoading()) {
+    <p class="muted">Version history isn't available in local dev — see the releases link above.</p>
+  }
+</section>

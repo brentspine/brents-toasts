@@ -1,0 +1,145 @@
+.playground {
+  padding: 40px 20px 60px;
+}
+
+.intro {
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+.search {
+  width: 100%;
+  max-width: 320px;
+  background: var(--input);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--fg);
+  padding: 8px 10px;
+  margin-bottom: 14px;
+  display: block;
+}
+
+.table-wrap {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  z-index: 1;
+}
+
+tr.selected {
+  background: rgba(40, 166, 245, 0.12);
+}
+
+.name-btn,
+.type-btn {
+  background: none;
+  border: none;
+  color: var(--info);
+  font-family: ui-monospace, monospace;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.name-btn:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.type-btn {
+  color: var(--fg);
+  text-decoration: underline dotted;
+}
+
+.default {
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  white-space: nowrap;
+}
+
+.description {
+  color: var(--muted);
+  max-width: 320px;
+}
+
+.empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 20px;
+}
+
+.snippet-panel {
+  position: sticky;
+  bottom: 0;
+  margin-top: 20px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.snippet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.import-line {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.actions button {
+  background: var(--input);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--fg);
+  padding: 6px 14px;
+}
+
+.code {
+  width: 100%;
+  background: var(--input);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--fg);
+  padding: 10px;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.run-error {
+  color: var(--error);
+  font-size: 13px;
+  margin: 8px 0 0;
+}

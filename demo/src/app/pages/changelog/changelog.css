@@ -1,0 +1,62 @@
+.changelog-page {
+  padding: 40px 20px 80px;
+  max-width: 720px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+h2 {
+  margin-top: 40px;
+}
+
+.version-list {
+  list-style: none;
+  padding: 0;
+}
+
+.version-list li {
+  border-bottom: 1px solid var(--line);
+}
+
+.version-btn {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--fg);
+  padding: 10px 4px;
+  font-family: ui-monospace, monospace;
+  font-size: 14px;
+}
+
+.version-btn:hover {
+  color: var(--info);
+}
+
+.version-detail {
+  margin: 4px 0 16px;
+}
+
+.table-wrap {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}

@@ -1,0 +1,74 @@
+<section class="container playground">
+  <h1>Playground - Try it out</h1>
+  <p class="intro">Try clicking on any field.</p>
+
+  <input
+    class="search"
+    type="search"
+    placeholder="Search options..."
+    [ngModel]="search()"
+    (ngModelChange)="search.set($event)"
+    aria-label="Search options"
+  />
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (opt of filteredOptions(); track opt.name) {
+          <tr [class.selected]="isSelected(opt)">
+            <td>
+              <button type="button" class="name-btn" [disabled]="!opt.builderCall" (click)="toggleOption(opt)">
+                {{ opt.name }}
+              </button>
+            </td>
+            <td>
+              @if (opt.typeRef) {
+                <button type="button" class="type-btn" (click)="openType(opt.typeRef, $event)">{{ opt.type }}</button>
+              } @else {
+                <code>{{ opt.type }}</code>
+              }
+            </td>
+            <td class="default">{{ opt.default }}</td>
+            <td class="description">{{ opt.description }}</td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="4" class="empty">No options match "{{ search() }}".</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="snippet-panel">
+    <div class="snippet-header">
+      <code class="import-line">{{ importLine }}</code>
+      <div class="actions">
+        <button type="button" (click)="run()">Run</button>
+        <button type="button" (click)="copy()">{{ copied() ? 'Copied!' : 'Copy' }}</button>
+      </div>
+    </div>
+    <textarea
+      class="code"
+      rows="8"
+      [ngModel]="code()"
+      (ngModelChange)="code.set($event)"
+      aria-label="Builder code snippet"
+    ></textarea>
+    @if (runError()) {
+      <p class="run-error">{{ runError() }}</p>
+    }
+  </div>
+</section>
+
+@if (selectedTypeSpec(); as spec) {
+  <app-type-spec-panel [typeName]="selectedTypeRef()!" [spec]="spec" (closed)="closeType()" />
+}

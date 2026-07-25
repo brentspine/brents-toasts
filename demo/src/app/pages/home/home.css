@@ -1,0 +1,62 @@
+.hero {
+  padding: 80px 20px 60px;
+  text-align: center;
+}
+
+h1 {
+  font-size: 2.6rem;
+  margin: 0 0 16px;
+}
+
+.tagline {
+  color: var(--muted);
+  max-width: 560px;
+  margin: 0 auto 28px;
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.cta-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.cta {
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+  border: 1px solid var(--line);
+  color: var(--fg);
+  font-weight: 500;
+}
+
+.cta.primary {
+  background: var(--info);
+  border-color: var(--info);
+  color: #05111a;
+}
+
+.features {
+  padding: 20px 20px 80px;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.feature h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.feature p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}

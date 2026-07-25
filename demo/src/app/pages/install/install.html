@@ -1,0 +1,22 @@
+<section class="container install">
+  <h1>Install</h1>
+  <p class="intro">Pick whichever fits your project — the library is the same either way.</p>
+
+  <div class="method">
+    <h2>npm</h2>
+    <p>For any bundler-based project (Vite, webpack, Rollup, Angular, React, Vue, ...).</p>
+    <app-code-snippet [code]="npmSnippet()" />
+  </div>
+
+  <div class="method">
+    <h2>CDN</h2>
+    <p>A UMD build served from unpkg — no install, no build step.</p>
+    <app-code-snippet [code]="cdnSnippet()" />
+  </div>
+
+  <div class="method">
+    <h2>Copy-paste</h2>
+    <p>Paste this straight into an HTML file to see a toast immediately.</p>
+    <app-code-snippet [code]="copyPasteSnippet()" />
+  </div>
+</section>

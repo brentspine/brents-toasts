@@ -1,0 +1,133 @@
+.config {
+  padding: 40px 20px 80px;
+  max-width: 720px;
+}
+
+.intro {
+  color: var(--muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin: 20px 0;
+}
+
+.field label {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 4px;
+  font-family: ui-monospace, monospace;
+}
+
+.field.checkbox label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: inherit;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  background: var(--input);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--fg);
+  padding: 6px 8px;
+  font-family: inherit;
+}
+
+.theme-field {
+  margin-bottom: 20px;
+}
+
+.theme-field textarea {
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+}
+
+.error {
+  color: var(--error);
+  font-size: 13px;
+}
+
+.apply {
+  background: var(--info);
+  color: #05111a;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+h2 {
+  margin-top: 40px;
+}
+
+.override-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
+.override-row select,
+.override-row input {
+  width: auto;
+}
+
+.override-list {
+  list-style: none;
+  padding: 0;
+  font-size: 13px;
+}
+
+.override-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.clear {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--fg);
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.table-wrap {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+}

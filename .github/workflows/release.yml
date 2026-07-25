@@ -18,7 +18,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - run: npm ci
       - run: npm run typecheck
@@ -85,16 +85,15 @@ jobs:
               --prerelease
           fi
 
-      - name: Prepare demo files
+      - name: Build demo (Angular)
         if: steps.prerelease.outputs.flag == ''
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          mkdir -p demo-deploy
-          cp demo/index.html demo-deploy/index.html
-          cp demo/styles.css demo-deploy/styles.css
-          cp dist/index.esm.min.js "demo-deploy/toasts-${VERSION}.js"
-          sed -e "s/__TOASTS_LIB__/toasts-${VERSION}.js/" -e "s/__VERSION__/${VERSION}/g" \
-            demo/app.js > demo-deploy/app.js
+          echo "{\"version\": \"${VERSION}\"}" > demo/public/version.json
+          npm ci --prefix demo
+          npm --prefix demo run test
+          npm --prefix demo run build -- --base-href /brents-toasts/
+          cp demo/src/app/data/options.json "/tmp/options-${VERSION}.json"
 
       - name: Deploy demo to brentspine.github.io
         if: steps.prerelease.outputs.flag == ''
@@ -104,22 +103,13 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           git clone "https://x-access-token:${GH_TOKEN}@github.com/Brentspine/brentspine.github.io.git" pages-repo
 
-          # latest (root) mirror
-          rm -f pages-repo/brents-toasts/toasts-*.js
-          cp demo-deploy/index.html pages-repo/brents-toasts/index.html
-          cp demo-deploy/styles.css pages-repo/brents-toasts/styles.css
-          cp demo-deploy/app.js pages-repo/brents-toasts/app.js
-          cp "demo-deploy/toasts-${VERSION}.js" "pages-repo/brents-toasts/toasts-${VERSION}.js"
+          # Replace the always-latest build at the root — filenames are
+          # content-hashed and change on every build, so everything except the
+          # permanent per-version archive is pruned before copying the new one in.
+          find pages-repo/brents-toasts -mindepth 1 -maxdepth 1 ! -name versions -exec rm -rf {} +
+          cp -r demo/dist/demo/browser/. pages-repo/brents-toasts/
 
-          # versioned archive, kept around indefinitely
-          ARCHIVE="pages-repo/brents-toasts/versions/${VERSION}"
-          mkdir -p "$ARCHIVE"
-          cp demo-deploy/index.html "$ARCHIVE/index.html"
-          cp demo-deploy/styles.css "$ARCHIVE/styles.css"
-          cp demo-deploy/app.js "$ARCHIVE/app.js"
-          cp "demo-deploy/toasts-${VERSION}.js" "$ARCHIVE/toasts-${VERSION}.js"
-
-          # version list, used by the demo page's "Other versions" section
+          # version list, used by the demo's version browser
           node -e "
             const fs = require('fs');
             const path = 'pages-repo/brents-toasts/versions/versions.json';
@@ -140,7 +130,7 @@ jobs:
             git push
           fi
 
-      - name: Commit changelog to main
+      - name: Commit changelog + options snapshot to main
         if: steps.prerelease.outputs.flag == ''
         env:
           GH_TOKEN: ${{ github.token }}
@@ -149,14 +139,15 @@ jobs:
           cp "docs/changelogs/${VERSION}.md" "/tmp/changelog-${VERSION}.md"
           git fetch origin main
           git checkout -B main origin/main
-          mkdir -p docs/changelogs
+          mkdir -p docs/changelogs docs/options
           cp "/tmp/changelog-${VERSION}.md" "docs/changelogs/${VERSION}.md"
+          cp "/tmp/options-${VERSION}.json" "docs/options/${VERSION}.json"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "docs/changelogs/${VERSION}.md"
+          git add "docs/changelogs/${VERSION}.md" "docs/options/${VERSION}.json"
           if git diff --cached --quiet; then
-            echo "No changelog changes to commit"
+            echo "No changelog/options changes to commit"
           else
-            git commit -m "Add changelog for v${VERSION}"
+            git commit -m "Add changelog and options snapshot for v${VERSION}"
             git push origin main
           fi

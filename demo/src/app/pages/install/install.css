@@ -1,0 +1,22 @@
+.install {
+  padding: 40px 20px 80px;
+  max-width: 720px;
+}
+
+.intro {
+  color: var(--muted);
+}
+
+.method {
+  margin-top: 32px;
+}
+
+.method h2 {
+  margin-bottom: 4px;
+}
+
+.method p {
+  color: var(--muted);
+  margin-top: 0;
+  font-size: 0.9rem;
+}
