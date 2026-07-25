@@ -30,6 +30,8 @@ export class ToastBuilder {
     withDuration(durationMs: number): this { this._options.duration = durationMs; return this; }
     withClosable(closable: boolean): this { this._options.closable = closable; return this; }
     withAllowHtml(allowHtml: boolean): this { this._options.allowHtml = allowHtml; return this; }
+    /** Whether "\n"/"<br>" render as real line breaks in `message`, `title`, button labels, and `details`. Defaults to `true`. See `ToastOptions.allowLineBreaks`. */
+    withAllowLineBreaks(allowLineBreaks: boolean): this { this._options.allowLineBreaks = allowLineBreaks; return this; }
     withPosition(position: ToastPositionValue): this { this._options.position = position; return this; }
     withAnimation(animation: ToastAnimationValue): this { this._options.animation = animation; return this; }
     withOnClose(onClose: () => void): this { this._options.onClose = onClose; return this; }

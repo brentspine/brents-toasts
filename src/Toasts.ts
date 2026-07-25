@@ -8,10 +8,11 @@
 import { ToastColor } from './ToastColor';
 import { ToastPosition, IMPLEMENTED_POSITIONS, POSITION_EDGE, type ToastPositionValue } from './ToastPosition';
 import { ToastAnimation, IMPLEMENTED_ANIMATIONS, type ToastAnimationValue } from './ToastAnimation';
-import { createActionButton, renderToastButton, createStepButton, type ToastButton, type ToastButtonStep } from './ToastButton';
+import { createStepButton, type ToastButton, type ToastButtonStep } from './ToastButton';
 import { ToastLocales, matchToastLocale, detectBrowserLocales, type ToastTranslations } from './ToastLocale';
-import { applyThemeVars, autoCloseIconColor, type ToastTheme } from './ToastTheme';
-import { renderTextWithBreaks } from './ToastText';
+import type { ToastTheme } from './ToastTheme';
+import { applyColor, applyContent, applyProgress, renderActions, type ResolvedProgress } from './ToastRender';
+import { TOAST_EDGE_OFFSET, recalculatePositions, stackExistingAway, totalStackedExtent } from './ToastStacking';
 import toastsCss from './toasts.css';
 import VERSION from 'virtual:version';
 
@@ -20,15 +21,12 @@ export type { ToastTranslations } from './ToastLocale';
 export type { ToastTheme } from './ToastTheme';
 
 const MAX_TOASTS = 5;
-const TOAST_GAP = 8;
-// Distance from the anchor edge (top or bottom, per POSITION_EDGE) a toast
-// rests at once its entrance animation finishes.
-const TOAST_EDGE_OFFSET = 22;
 const TOAST_TRANSITION_MS = 300;
 
 export interface ToastDetailItem {
-    /** Optional label shown before the value, e.g. "Status". */
+    /** Optional label shown before the value, e.g. "Status". Rendered as plain text, like `title` — "\n" and literal "<br>"/"<br/>" are still honored as line breaks, same `allowLineBreaks` opt-out. */
     label?: string;
+    /** Rendered as plain text, like `title` — "\n" and literal "<br>"/"<br/>" are still honored as line breaks, same `allowLineBreaks` opt-out. */
     value: string;
     /** Extra action buttons rendered after this item's value — e.g. `toasts.detailsCopyButton(item.value)` to opt this item into a "Copy" button. Same shape and click/keyboard behavior as the top-level `buttons` option. */
     buttons?: ToastButton[];
@@ -66,7 +64,9 @@ export interface ToastOptions {
     closable?: boolean;
     /** If true, `message` is rendered as HTML. XSS: sanitize input yourself if it may contain user-controlled content. */
     allowHtml?: boolean;
-    /** Optional bold title line rendered above the message. Rendered as plain text (never affected by `allowHtml`), except "\n" and literal "<br>"/"<br/>" are still honored as line breaks — same rule as `message`. */
+    /** Whether a literal "\n" or "<br>"/"<br/>" in `message`, `title`, button/step labels, and `details` label/value renders as a real line break. Defaults to `true` or the configured default; set `false` to render them as inert text instead — independent of `allowHtml`, which only governs full HTML in `message`. */
+    allowLineBreaks?: boolean;
+    /** Optional bold title line rendered above the message. Rendered as plain text (never affected by `allowHtml`), except "\n" and literal "<br>"/"<br/>" are still honored as line breaks — same rule as `message`, and same `allowLineBreaks` opt-out. */
     title?: string;
     /** See `ToastPosition`. Defaults to `ToastPosition.BOTTOM_CENTER` or the configured default. */
     position?: ToastPositionValue;
@@ -106,6 +106,8 @@ export interface ToastsConfig {
     duration: number;
     closable: boolean;
     allowHtml: boolean;
+    /** Library-wide default for `ToastOptions.allowLineBreaks`. See there. */
+    allowLineBreaks: boolean;
     position: ToastPositionValue;
     animation: ToastAnimationValue;
     maxToasts: number;
@@ -127,6 +129,7 @@ interface ResolvedToastOptions {
     duration: number;
     closable: boolean;
     allowHtml: boolean;
+    allowLineBreaks: boolean;
     position: ToastPositionValue;
     animation: ToastAnimationValue;
     title?: string;
@@ -162,6 +165,7 @@ const DEFAULT_CONFIG: ToastsConfig = {
     duration: 3000,
     closable: true,
     allowHtml: false,
+    allowLineBreaks: true,
     position: ToastPosition.BOTTOM_CENTER,
     animation: ToastAnimation.SLIDE,
     maxToasts: MAX_TOASTS,
@@ -184,19 +188,6 @@ interface ToastTimerState {
     /** `Date.now()` when the current countdown segment started, or `null` while paused. */
     startedAt: number | null;
     timeoutId: ReturnType<typeof setTimeout> | null;
-}
-
-// Fully-defaulted internal shape for a toast's progress bar config — not
-// exported, mirrors ResolvedToastOptions's role but scoped to just this
-// sub-feature. Stored in `_progressConfig`, keyed off the toast's own root
-// element like `_data`/`_timers`.
-interface ResolvedProgress {
-    position: 'top' | 'bottom';
-    origin: 'left' | 'right' | 'center';
-    mode: 'fill' | 'drain';
-    color: string;
-    trackColor: string;
-    height: number;
 }
 
 /** Snapshot returned by `getToastTimer()` — computed fresh on every call, not live-updating. */
@@ -278,8 +269,9 @@ export class Toasts {
     /**
      * @param message The text to display. HTML only if `allowHtml` is true;
      *   otherwise rendered as plain text, except "\n" and literal
-     *   "<br>"/"<br/>" are still honored as line breaks (everything else in
-     *   the string stays inert text — no other markup is parsed).
+     *   "<br>"/"<br/>" are still honored as line breaks unless
+     *   `allowLineBreaks` is false (everything else in the string stays
+     *   inert text — no other markup is parsed).
      *   Pass a `Node` (e.g. an `HTMLElement`/`DocumentFragment`) instead for
      *   fully custom, interactive content — it's appended directly, so
      *   `allowHtml`/XSS sanitization concerns don't apply to it.
@@ -369,17 +361,17 @@ export class Toasts {
         const closeSpan = document.createElement('span');
         closeSpan.innerHTML = '&times;';
         toastClose.appendChild(closeSpan);
-        this._applyColor(toastClose, toast, opts.color, opts.theme);
+        applyColor(toastClose, toast, opts.color, opts.theme);
 
         const toastContent = document.createElement('div');
         toastContent.className = 'bt-toast-content';
-        this._applyContent(toastContent, message, opts);
+        applyContent(toastContent, message, opts);
 
         toastRow.appendChild(toastClose);
         toastRow.appendChild(toastContent);
         toast.appendChild(toastRow);
-        this._renderActions(toastRow, toast, opts, id, t);
-        this._applyProgress(toast, toastContainer, opts.progress, opts.color);
+        renderActions(toastRow, toast, opts, id, t, (toastId) => this.resetToastTimer(toastId));
+        this._setProgressConfig(toastContainer, applyProgress(toast, opts.progress, opts.color));
         this._syncProgressBar(toastContainer); // no _timers entry yet → starts hidden
         toastContainer.appendChild(toast);
 
@@ -392,17 +384,17 @@ export class Toasts {
             snackbar.insertBefore(toastContainer, snackbar.firstChild);
             // Existing toasts don't need to move — this one is landing
             // beyond all of them, not displacing them from the edge.
-            targetOffset = TOAST_EDGE_OFFSET + this._totalStackedExtent(snackbar, toastContainer);
+            targetOffset = TOAST_EDGE_OFFSET + totalStackedExtent(snackbar, toastContainer);
         } else {
             snackbar.appendChild(toastContainer);
-            this._stackExistingAway(snackbar, toastContainer);
+            stackExistingAway(snackbar, toastContainer);
             targetOffset = TOAST_EDGE_OFFSET;
         }
 
         // Any later height change (details toggled open/closed, or a
         // consumer mutating the toast's own content in place) reflows the
         // whole stack, so an expanded toast never overlaps the ones above it.
-        const resizeObserver = new ResizeObserver(() => this._recalculatePositions(snackbar));
+        const resizeObserver = new ResizeObserver(() => recalculatePositions(snackbar));
         resizeObserver.observe(toast);
         this._resizeObservers.set(toastContainer, resizeObserver);
 
@@ -462,13 +454,13 @@ export class Toasts {
         toastContainer.style.opacity = '0';
         // Reposition the remaining toasts now, in parallel with the fade-out,
         // instead of waiting for this one to finish disappearing.
-        if (parent) this._recalculatePositions(parent);
+        if (parent) recalculatePositions(parent);
 
         setTimeout(() => {
             toastContainer.remove();
             this._resizeObservers.get(toastContainer)?.disconnect();
             this._resizeObservers.delete(toastContainer);
-            if (parent) this._recalculatePositions(parent);
+            if (parent) recalculatePositions(parent);
         }, TOAST_TRANSITION_MS);
     }
 
@@ -502,19 +494,19 @@ export class Toasts {
         const state: ToastState = { ...prev, ...update };
         this._toastState.set(toastContainer, state);
 
-        if ('message' in update || 'title' in update || 'allowHtml' in update) {
-            this._applyContent(toastContent, state.message, state);
+        if ('message' in update || 'title' in update || 'allowHtml' in update || 'allowLineBreaks' in update) {
+            applyContent(toastContent, state.message, state);
         }
-        if ('color' in update || 'theme' in update) this._applyColor(toastClose, toast, state.color, state.theme);
+        if ('color' in update || 'theme' in update) applyColor(toastClose, toast, state.color, state.theme);
         if ('progress' in update || 'color' in update) {
             // Reacts to `color` too, not just `progress` — progress.color
             // defaults to "reuse the toast's own color", so changing `color`
             // alone must re-sync a bar that's using that default.
-            this._applyProgress(toast, toastContainer, state.progress, state.color);
+            this._setProgressConfig(toastContainer, applyProgress(toast, state.progress, state.color));
             this._syncProgressBar(toastContainer);
         }
-        if ('buttons' in update || 'details' in update || 'detailsLabel' in update || 'detailsHideLabel' in update) {
-            this._renderActions(toastRow, toast, state, id, this._getTranslations());
+        if ('buttons' in update || 'details' in update || 'detailsLabel' in update || 'detailsHideLabel' in update || 'allowLineBreaks' in update) {
+            renderActions(toastRow, toast, state, id, this._getTranslations(), (toastId) => this.resetToastTimer(toastId));
         }
         if ('data' in update) this.setToastData(id, update.data);
         if ('onClose' in update) {
@@ -832,181 +824,12 @@ export class Toasts {
         return el ? this._toastState.get(el) : undefined;
     }
 
-    // Shared by showToast (creation) and updateToast — sets the indicator bar
-    // color, the role/aria-live pair it drives, and the rest of the theme
-    // (card background/text/details background/action color as CSS vars, plus
-    // the close icon color) so all of it can never fall out of sync between
-    // the two call sites.
-    private _applyColor(toastClose: HTMLElement, toast: HTMLElement, color: string, theme?: ToastTheme): void {
-        toastClose.style.setProperty('--data-background', color);
-        const isAlert = color === ToastColor.ERROR || color === ToastColor.WARNING;
-        toast.setAttribute('role', isAlert ? 'alert' : 'status');
-        toast.setAttribute('aria-live', isAlert ? 'assertive' : 'polite');
-        applyThemeVars(toast, theme);
-        // Always set explicitly (never left to plain CSS) — this is the one
-        // theme field whose whole point is computing something CSS can't:
-        // contrast against the toast's own (possibly per-toast) `color`.
-        toastClose.style.setProperty('--bt-close-icon', theme?.closeIcon ?? autoCloseIconColor(color));
-    }
-
-    // Shared by showToast and updateToast — (re)builds the title/message
-    // children of `toastContent` in place, handling title appearing/
-    // disappearing between calls.
-    private _applyContent(toastContent: HTMLElement, message: string | Node, opts: { title?: string; allowHtml: boolean }): void {
-        let toastTitle = toastContent.querySelector<HTMLElement>('.bt-toast-title');
-        if (opts.title) {
-            if (!toastTitle) {
-                toastTitle = document.createElement('div');
-                toastTitle.className = 'bt-toast-title';
-                toastContent.insertBefore(toastTitle, toastContent.firstChild);
-            }
-            toastTitle.replaceChildren();
-            // Plain text, like message when allowHtml is false — "\n" and
-            // literal "<br>"/"<br/>" still render as line breaks regardless
-            // of allowHtml, since title never opts into full HTML.
-            renderTextWithBreaks(toastTitle, opts.title);
-        } else if (toastTitle) {
-            toastTitle.remove();
-        }
-
-        let toastMessage = toastContent.querySelector<HTMLElement>('.bt-toast-message');
-        if (!toastMessage) {
-            toastMessage = document.createElement('div');
-            toastMessage.className = 'bt-toast-message';
-            toastContent.appendChild(toastMessage);
-        }
-        toastMessage.replaceChildren();
-        if (message instanceof Node) {
-            toastMessage.appendChild(message);
-        } else if (opts.allowHtml) {
-            toastMessage.innerHTML = message;
-        } else {
-            renderTextWithBreaks(toastMessage, message);
-        }
-    }
-
-    // Shared by showToast and updateToast — fully rebuilds `.bt-toast-progress`
-    // from scratch (same full-rebuild-not-diff approach as _renderActions),
-    // storing its resolved config in `_progressConfig`. Purely structural —
-    // never touches transform/transition; _syncProgressBar (called immediately
-    // after, at every call site) owns what value/animation is currently showing.
-    private _applyProgress(
-        toast: HTMLElement,
-        toastContainer: HTMLElement,
-        progress: boolean | ToastProgressOptions | undefined,
-        toastColor: string
-    ): void {
-        toast.querySelector('.bt-toast-progress')?.remove();
-        this._progressConfig.delete(toastContainer);
-        if (!progress) return;
-
-        const p = progress === true ? {} : progress;
-        const cfg: ResolvedProgress = {
-            position: p.position ?? 'bottom',
-            origin: p.origin ?? 'left',
-            mode: p.mode ?? 'drain',
-            color: p.color ?? toastColor,
-            trackColor: p.trackColor ?? 'transparent',
-            height: p.height ?? 3,
-        };
-        this._progressConfig.set(toastContainer, cfg);
-
-        const wrap = document.createElement('div');
-        wrap.className = 'bt-toast-progress';
-        wrap.dataset.position = cfg.position;
-        wrap.style.height = `${cfg.height}px`;
-        wrap.style.background = cfg.trackColor;
-        wrap.style.display = 'none'; // defensive default; _syncProgressBar (called right after) sets the real value
-
-        const fill = document.createElement('div');
-        fill.className = 'bt-toast-progress-fill';
-        fill.dataset.origin = cfg.origin;
-        fill.style.background = cfg.color;
-        fill.style.transition = 'none';
-        fill.style.transform = `scaleX(${cfg.mode === 'fill' ? 0 : 1})`;
-
-        wrap.appendChild(fill);
-        toast.appendChild(wrap);
-    }
-
-    // Shared by showToast and updateToast — fully rebuilds the `.bt-toast-actions`
-    // (buttons + details-toggle) and `.bt-toast-details` subtrees from `opts`,
-    // rather than diffing against whatever's currently rendered. Toasts are
-    // small, so a full rebuild is cheap and keeps this the single place that
-    // knows how buttons/details/the toggle button relate to each other.
-    private _renderActions(toastRow: HTMLElement, toast: HTMLElement, opts: ResolvedToastOptions, id: string, t: ToastTranslations): void {
-        toastRow.querySelector('.bt-toast-actions')?.remove();
-        toast.querySelector('.bt-toast-details')?.remove();
-
-        let toastActions: HTMLDivElement | undefined;
-        const ensureActions = (): HTMLDivElement => {
-            if (!toastActions) {
-                toastActions = document.createElement('div');
-                toastActions.className = 'bt-toast-actions';
-            }
-            return toastActions;
-        };
-
-        if (opts.buttons && opts.buttons.length) {
-            opts.buttons.forEach((btn) => {
-                ensureActions().appendChild(renderToastButton(btn, id));
-            });
-        }
-
-        let detailsEl: HTMLDivElement | undefined;
-        if (opts.details && opts.details.length) {
-            detailsEl = document.createElement('div');
-            detailsEl.className = 'bt-toast-details';
-            detailsEl.id = `${id}-details`;
-
-            opts.details.forEach((raw) => {
-                const item: ToastDetailItem = typeof raw === 'string' ? { value: raw } : raw;
-                const row = document.createElement('div');
-                row.className = 'bt-toast-detail-item';
-
-                const text = document.createElement('span');
-                text.className = 'bt-toast-detail-text';
-                if (item.label) {
-                    const label = document.createElement('span');
-                    label.className = 'bt-toast-detail-label';
-                    label.textContent = item.label;
-                    text.appendChild(label);
-                }
-                const value = document.createElement('span');
-                value.className = 'bt-toast-detail-value';
-                value.textContent = item.value;
-                text.appendChild(value);
-                row.appendChild(text);
-
-                if (item.buttons && item.buttons.length) {
-                    item.buttons.forEach((btn) => {
-                        row.appendChild(renderToastButton(btn, id, 'bt-toast-detail-action'));
-                    });
-                }
-
-                detailsEl!.appendChild(row);
-            });
-
-            const detailsLabel = opts.detailsLabel ?? t.details;
-            const detailsHideLabel = opts.detailsHideLabel ?? t.hideDetails;
-            let toggleBtn: HTMLButtonElement;
-            toggleBtn = createActionButton(detailsLabel, () => {
-                const isOpen = detailsEl!.classList.toggle('bt-open');
-                toggleBtn.replaceChildren();
-                renderTextWithBreaks(toggleBtn, isOpen ? detailsHideLabel : detailsLabel);
-                toggleBtn.setAttribute('aria-expanded', String(isOpen));
-                // Opening details re-arms the toast's timer, same reasoning as
-                // confirmButton()/detailsCopyButton() below — a user who just
-                // asked to read more shouldn't have it disappear mid-read.
-                if (isOpen) this.resetToastTimer(id);
-            });
-            toggleBtn.setAttribute('aria-expanded', 'false');
-            toggleBtn.setAttribute('aria-controls', detailsEl.id);
-            ensureActions().appendChild(toggleBtn);
-        }
-
-        if (toastActions) toastRow.appendChild(toastActions);
-        if (detailsEl) toast.appendChild(detailsEl);
+    // Stores (or clears) `toastContainer`'s resolved progress config —
+    // shared by showToast/updateToast right after calling applyProgress(),
+    // which returns `undefined` when `progress` is falsy.
+    private _setProgressConfig(toastContainer: HTMLElement, cfg: ResolvedProgress | undefined): void {
+        if (cfg) this._progressConfig.set(toastContainer, cfg);
+        else this._progressConfig.delete(toastContainer);
     }
 
     // The single place that reconciles the progress bar's visual state with
@@ -1071,6 +894,7 @@ export class Toasts {
             duration: this.config.duration,
             closable: this.config.closable,
             allowHtml: this.config.allowHtml,
+            allowLineBreaks: this.config.allowLineBreaks,
             position: this.config.position,
             animation: this.config.animation,
             title: undefined,
@@ -1142,65 +966,6 @@ export class Toasts {
         if (this._warned.has(key)) return;
         this._warned.add(key);
         console.warn(`[brents-toasts] ${kind} "${value}" is not implemented yet, falling back to "${fallback}".`);
-    }
-
-    // The snackbar element's own `data-position` (set by _getSnackbar) is the
-    // single source of truth for which CSS property ('top' or 'bottom') its
-    // toasts stack away from — read it back here instead of threading an
-    // `edge` parameter through every stacking call site.
-    private _edgeFor(snackbar: HTMLElement): 'top' | 'bottom' {
-        return POSITION_EDGE[snackbar.dataset.position as ToastPositionValue] ?? 'bottom';
-    }
-
-    // Repositions all remaining toasts nearest-DOM-position-last-first
-    // (matching the insertion order established when each toast was added —
-    // see the `reverseOrder` branch in `showToast`), using each toast's
-    // actual rendered height so variable-height toasts (e.g. with a title)
-    // don't overlap their neighbors. Stacks away from the snackbar's anchor
-    // edge (top or bottom) — see _edgeFor.
-    private _recalculatePositions(snackbar: HTMLElement): void {
-        const edge = this._edgeFor(snackbar);
-        let offset = TOAST_EDGE_OFFSET;
-        Array.from(snackbar.children)
-            .filter(el => !el.classList.contains('bt-hiding'))
-            .reverse()
-            .forEach((el) => {
-                const toastEl = el as HTMLElement;
-                toastEl.style[edge] = `${offset}px`;
-                offset += toastEl.getBoundingClientRect().height + TOAST_GAP;
-            });
-    }
-
-    // Pushes every toast other than `newToast` away from the snackbar's
-    // anchor edge to make room for it, walking DOM order back-to-front by
-    // each toast's actual rendered height.
-    private _stackExistingAway(snackbar: HTMLElement, newToast: HTMLElement): void {
-        const edge = this._edgeFor(snackbar);
-        let offset = TOAST_EDGE_OFFSET + newToast.getBoundingClientRect().height + TOAST_GAP;
-        Array.from(snackbar.children)
-            .filter(el => el !== newToast)
-            .reverse()
-            .forEach((el) => {
-                const toastEl = el as HTMLElement;
-                toastEl.style[edge] = `${offset}px`;
-                offset += toastEl.getBoundingClientRect().height + TOAST_GAP;
-            });
-    }
-
-    // Total distance from the anchor edge occupied by every toast other than
-    // `excludeEl` — used to land a `reverseOrder` toast beyond all of them,
-    // instead of nearest the edge. Mirrors `_stackExistingAway`'s loop (same
-    // `.bt-hiding` treatment — a fading-out toast still reserves its space)
-    // but sums instead of assigning a per-element offset, since none of the
-    // other toasts need to move for this case.
-    private _totalStackedExtent(snackbar: HTMLElement, excludeEl: HTMLElement): number {
-        let offset = TOAST_EDGE_OFFSET;
-        Array.from(snackbar.children)
-            .filter(el => el !== excludeEl)
-            .forEach((el) => {
-                offset += (el as HTMLElement).getBoundingClientRect().height + TOAST_GAP;
-            });
-        return offset;
     }
 
     private _appendStyle(): void {

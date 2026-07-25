@@ -70,11 +70,19 @@ options object as form 4, so behavior is identical across all three.
 As plain text (`allowHtml: false`, the default), `message` still honors line
 breaks: a literal `\n` or `<br>`/`<br/>` in the string renders as a real line
 break — everything else in the string stays inert text, no other markup is
-parsed. `title` and every button label (`buttons`, `closeButton()`,
+parsed. `title`, every button label (`buttons`, `closeButton()`,
 `detailsCopyButton()`, `confirmButton()`, `stepButton()`, the auto-added
-details toggle, ...) follow the same rule, regardless of `allowHtml` — none
-of them otherwise render HTML, but all of them still honor `\n`/`<br>` line
-breaks.
+details toggle, ...), and each `details` item's `label`/`value` follow the
+same rule, regardless of `allowHtml` — none of them otherwise render HTML,
+but all of them still honor `\n`/`<br>` line breaks.
+
+Set `allowLineBreaks: false` (per-toast, or as a `configure()` default) to
+turn that off — `\n`/`<br>` then render as inert text everywhere above,
+same as any other character:
+
+```ts
+toasts.showToast('literal \\n stays as text', { allowLineBreaks: false });
+```
 
 For a simple HTML string, opt in with `allowHtml` (sanitize the input
 yourself — this renders via `innerHTML`):
