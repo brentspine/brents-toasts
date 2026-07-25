@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { toasts, ToastAnimation, ToastColor, ToastPosition, type ToastPositionValue, type PositionConfig } from 'brents-toasts';
 import { CodeSnippet } from '../../shared/code-snippet';
 import { OptionsDataService } from '../../services/options-data';
@@ -36,10 +37,22 @@ const DEFAULT_FORM_STATE: ConfigFormState = {
   themeJson: '',
 };
 
+const STORAGE_KEY = 'bt-demo:config-form';
+
+function loadStoredForm(): ConfigFormState {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_FORM_STATE };
+    return { ...DEFAULT_FORM_STATE, ...JSON.parse(raw) };
+  } catch {
+    return { ...DEFAULT_FORM_STATE };
+  }
+}
+
 @Component({
   selector: 'app-config',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, CodeSnippet],
+  imports: [FormsModule, RouterLink, CodeSnippet],
   templateUrl: './config.html',
   styleUrl: './config.css',
 })
@@ -47,7 +60,7 @@ export class Config {
   readonly configOptions = inject(OptionsDataService).data.configOptions;
   readonly positions = Object.values(ToastPosition);
 
-  readonly form = signal<ConfigFormState>({ ...DEFAULT_FORM_STATE });
+  readonly form = signal<ConfigFormState>(loadStoredForm());
   readonly themeError = signal<string | null>(null);
   readonly appliedSnippet = signal('// Click "Apply config" to see the generated code here.');
 
@@ -55,6 +68,22 @@ export class Config {
   readonly overrideMaxToasts = signal(3);
   readonly overrideEvictOldest = signal(true);
   readonly positionOverrides = signal(new Map(toasts.positionConfig));
+
+  constructor() {
+    // Re-apply whatever was last configured (including on first load, which is a harmless
+    // no-op re-application of the library's own defaults) so Playground toasts reflect it
+    // immediately, without the user needing to click Apply again after a reload.
+    this.apply();
+
+    effect(() => {
+      const state = this.form();
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch {
+        // Storage unavailable (private browsing, quota): persistence is a nice-to-have, not required.
+      }
+    });
+  }
 
   updateForm<K extends keyof ConfigFormState>(key: K, value: ConfigFormState[K]): void {
     this.form.update((current) => ({ ...current, [key]: value }));

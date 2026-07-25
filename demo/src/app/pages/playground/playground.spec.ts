@@ -1,10 +1,15 @@
 import { TestBed } from '@angular/core/testing';
-import { describe, expect, it } from 'vitest';
+import { provideRouter } from '@angular/router';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { Playground } from './playground';
 
 describe('Playground', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   async function createComponent() {
-    await TestBed.configureTestingModule({ imports: [Playground] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [Playground], providers: [provideRouter([])] }).compileComponents();
     const fixture = TestBed.createComponent(Playground);
     fixture.detectChanges();
     return fixture;
@@ -101,5 +106,71 @@ describe('Playground', () => {
     component.code.set('this is not valid javascript {{{');
     component.run();
     expect(component.runError()).toBeTruthy();
+  });
+
+  it('selection state is derived from the code text, so a hand-edited/pasted snippet is recognized without clobbering it', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    const colorOption = component.filteredOptions().find((o) => o.name === 'color')!;
+    const durationOption = component.filteredOptions().find((o) => o.name === 'duration')!;
+
+    component.code.set('new ToastBuilder("Pasted!")\n  .withColor("#000000")\n  .show();');
+    fixture.detectChanges();
+
+    expect(component.isSelected(colorOption)).toBe(true);
+    expect(component.isSelected(durationOption)).toBe(false);
+
+    component.toggleOption(durationOption);
+    fixture.detectChanges();
+
+    // toggling a different row must not discard the pasted content
+    expect(component.code()).toContain('Pasted!');
+    expect(component.code()).toContain('.withColor("#000000")');
+    expect(component.isSelected(durationOption)).toBe(true);
+  });
+
+  it('reset() restores the default snippet and clears any run error', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    component.code.set('broken {{{');
+    component.run();
+    expect(component.runError()).toBeTruthy();
+
+    component.reset();
+
+    expect(component.code()).toContain('.show();');
+    expect(component.code()).not.toContain('broken');
+    expect(component.runError()).toBeNull();
+  });
+
+  it('the code snippet is persisted to localStorage and restored on next load', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    component.code.set('new ToastBuilder("Persisted!").show();');
+    fixture.detectChanges();
+
+    expect(localStorage.getItem('bt-demo:playground-code')).toContain('Persisted!');
+
+    TestBed.resetTestingModule();
+    const secondFixture = await createComponent();
+    expect(secondFixture.componentInstance.code()).toContain('Persisted!');
+  });
+
+  it('lists curated examples and tryExample() loads + runs one', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    expect(component.examples.length).toBeGreaterThan(3);
+
+    const example = component.examples[0];
+    component.tryExample(example);
+    fixture.detectChanges();
+
+    expect(component.code()).toBe(example.code);
+    expect(component.runError()).toBeNull();
+  });
+
+  it('surpriseMe() fires without throwing', async () => {
+    const fixture = await createComponent();
+    expect(() => fixture.componentInstance.surpriseMe()).not.toThrow();
   });
 });

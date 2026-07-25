@@ -2,10 +2,10 @@
   <h1>Toasts that just work.</h1>
   <p class="tagline">
     A zero-dependency, framework-agnostic toast/snackbar library. Drop it in with a
-    &lt;script&gt; tag or <code>npm install</code> — no build step required.
+    &lt;script&gt; tag or <code>npm install</code>, no build step required.
   </p>
   <div class="cta-row">
-    <a class="cta primary" routerLink="/playground">Try it out — Playground</a>
+    <a class="cta primary" routerLink="/playground">Try it out: Playground</a>
     <a class="cta" routerLink="/install">Install</a>
   </div>
 </section>
@@ -16,6 +16,16 @@
       <div class="feature panel">
         <h3>{{ feature.title }}</h3>
         <p>{{ feature.description }}</p>
+        @if (feature.exampleId) {
+          <a
+            class="example-link"
+            [routerLink]="['/playground']"
+            [fragment]="'example-' + feature.exampleId"
+            [attr.aria-label]="'See an example of: ' + feature.title"
+            title="See an example"
+            >&#8594;</a
+          >
+        }
       </div>
     }
   </div>

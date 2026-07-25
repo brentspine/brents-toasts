@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, resource, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, resource, signal } from '@angular/core';
 import { MarkdownView } from '../../shared/markdown-view';
 import { VersionService } from '../../services/version';
 import type { OptionsData } from '../../data/options.types';
@@ -37,6 +37,10 @@ export class ChangelogPage {
   readonly versionsList = resource({
     loader: async ({ abortSignal }) => (await fetchJson<string[]>('versions/versions.json', abortSignal)) ?? [],
   });
+
+  // versions.json is stored oldest-first (append-on-release); the browser should read
+  // newest-first, so reverse it for display only.
+  readonly sortedVersions = computed(() => [...(this.versionsList.value() ?? [])].reverse());
 
   readonly historicalOptions = resource({
     params: () => (this.selectedVersion() ? { version: this.selectedVersion()! } : undefined),

@@ -1,8 +1,9 @@
 <section class="container config">
   <h1>Config</h1>
   <p class="intro">
-    Change the library-wide defaults in every way <code>toasts.configure()</code> allows, then hit Apply — every
-    toast fired from the Playground afterwards reflects it.
+    Change the library-wide defaults in every way <code>toasts.configure()</code> allows, then hit Apply: every
+    toast fired from the Playground afterwards reflects it. Your changes are saved locally and re-applied
+    automatically next time you visit.
   </p>
 
   <div class="grid">
@@ -124,7 +125,10 @@
     }
   </div>
 
-  <button type="button" class="apply" (click)="apply()">Apply config</button>
+  <div class="apply-row">
+    <button type="button" class="apply" (click)="apply()">Apply config</button>
+    <a class="try-it-out" routerLink="/playground">Try it out on the Playground &#8594;</a>
+  </div>
 
   <app-code-snippet [code]="appliedSnippet()" />
 

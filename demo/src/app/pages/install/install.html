@@ -1,22 +1,25 @@
 <section class="container install">
   <h1>Install</h1>
-  <p class="intro">Pick whichever fits your project — the library is the same either way.</p>
+  <p class="intro">Pick whichever fits your project: the library is the same either way.</p>
+
+  <div class="coming-soon panel">
+    <p>
+      <strong>Not published yet.</strong> brents-toasts isn't live on npm or a CDN for real projects to depend on
+      just yet. In the meantime, browse the source on
+      <a href="https://github.com/Brentspine/brents-toasts" target="_blank" rel="noopener">GitHub</a>
+      or try every option live in the <a routerLink="/playground">Playground</a>.
+    </p>
+  </div>
 
   <div class="method">
-    <h2>npm</h2>
+    <h2>npm <span class="badge">Coming soon</span></h2>
     <p>For any bundler-based project (Vite, webpack, Rollup, Angular, React, Vue, ...).</p>
     <app-code-snippet [code]="npmSnippet()" />
   </div>
 
   <div class="method">
-    <h2>CDN</h2>
-    <p>A UMD build served from unpkg — no install, no build step.</p>
+    <h2>CDN / script tag <span class="badge">Coming soon</span></h2>
+    <p>A UMD build served from a CDN, no install and no build step, just paste this into an HTML file.</p>
     <app-code-snippet [code]="cdnSnippet()" />
-  </div>
-
-  <div class="method">
-    <h2>Copy-paste</h2>
-    <p>Paste this straight into an HTML file to see a toast immediately.</p>
-    <app-code-snippet [code]="copyPasteSnippet()" />
   </div>
 </section>

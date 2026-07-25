@@ -7,6 +7,12 @@
   margin-bottom: 20px;
 }
 
+.hint {
+  color: var(--muted);
+  font-size: 13px;
+  margin: -10px 0 20px;
+}
+
 .search {
   width: 100%;
   max-width: 320px;
@@ -127,19 +133,58 @@ tr.selected {
   padding: 6px 14px;
 }
 
-.code {
-  width: 100%;
-  background: var(--input);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--fg);
-  padding: 10px;
-  font-size: 13px;
-  resize: vertical;
+.actions .surprise {
+  border-color: var(--warning);
 }
 
 .run-error {
   color: var(--error);
   font-size: 13px;
   margin: 8px 0 0;
+}
+
+.examples {
+  padding: 20px 20px 80px;
+  scroll-margin-top: 80px;
+}
+
+.example {
+  scroll-margin-top: 80px;
+}
+
+.examples h2 {
+  margin-bottom: 4px;
+}
+
+.example-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.example h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.example p {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.example-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.example-actions button {
+  background: var(--input);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--fg);
+  padding: 6px 12px;
+  font-size: 13px;
 }

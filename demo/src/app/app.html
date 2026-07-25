@@ -11,6 +11,7 @@
       <a routerLink="/install" routerLinkActive="active">Install</a>
       <a routerLink="/config" routerLinkActive="active">Config</a>
       <a routerLink="/playground" routerLinkActive="active">Playground</a>
+      <a routerLink="/playground" fragment="examples">Examples</a>
       <a routerLink="/changelog" routerLinkActive="active">Changelog</a>
     </nav>
 
@@ -28,7 +29,7 @@
         />
       </svg>
       <span>Star</span>
-      <span class="star-count">{{ repo ? formatCompactCount(repo.stargazers_count) : '—' }}</span>
+      <span class="star-count">{{ repo ? formatCompactCount(repo.stargazers_count) : '-' }}</span>
     </a>
   </div>
 </header>

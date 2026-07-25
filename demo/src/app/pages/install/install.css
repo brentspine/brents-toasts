@@ -7,12 +7,35 @@
   color: var(--muted);
 }
 
+.coming-soon {
+  margin-top: 20px;
+}
+
+.coming-soon p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
 .method {
   margin-top: 32px;
 }
 
 .method h2 {
   margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.1rem;
+}
+
+.badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--warning);
+  border: 1px solid var(--warning);
+  border-radius: 999px;
+  padding: 2px 8px;
 }
 
 .method p {

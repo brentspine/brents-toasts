@@ -19,7 +19,7 @@ export class GithubStatsService {
   private readonly resource = httpResource<GithubRepoStats>(() => REPO_API_URL);
 
   // .value() throws while the resource is in an error state (e.g. the
-  // unauthenticated GitHub API's 60 req/hour rate limit) — expose a safe
-  // computed instead so the header/footer degrade to "—" rather than crashing.
+  // unauthenticated GitHub API's 60 req/hour rate limit), expose a safe
+  // computed instead so the header/footer degrade to "-" rather than crashing.
   readonly repo = computed(() => (this.resource.hasValue() ? this.resource.value() : undefined));
 }

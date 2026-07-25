@@ -6,7 +6,7 @@ describe('ChangelogPage', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    // Default: everything 404s — no real network calls, deterministic in CI.
+    // Default: everything 404s, no real network calls, deterministic in CI.
     fetchMock = vi.fn(async () => new Response('', { status: 404 }));
     vi.stubGlobal('fetch', fetchMock);
   });
@@ -85,5 +85,17 @@ describe('ChangelogPage', () => {
       String(call[0]).includes('/docs/options/'),
     );
     expect(historicalCalls).toEqual([]);
+  });
+
+  it('sortedVersions() lists the newest release first, even though versions.json is stored oldest-first', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('versions/versions.json')) {
+        return new Response(JSON.stringify(['2.0.0', '2.1.0', '2.2.0']), { status: 200 });
+      }
+      return new Response('', { status: 404 });
+    });
+
+    const fixture = await createComponent();
+    expect(fixture.componentInstance.sortedVersions()).toEqual(['2.2.0', '2.1.0', '2.0.0']);
   });
 });

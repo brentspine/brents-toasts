@@ -9,6 +9,17 @@
     <p class="muted">No changelog available for this build yet.</p>
   }
 
+  <p class="generated-note">
+    Note: Changelogs are
+    <a
+      href="https://github.com/brentspine/brents-toasts/blob/main/.github/workflows/release.yml"
+      target="_blank"
+      rel="noopener"
+      >automatically generated</a
+    >
+    from the diff and commit messages of each release.
+  </p>
+
   <h2>Other versions</h2>
   <p class="muted">
     <a href="https://github.com/Brentspine/brents-toasts/releases" target="_blank" rel="noopener"
@@ -16,9 +27,9 @@
     >
   </p>
 
-  @if (versionsList.value()?.length) {
+  @if (sortedVersions().length) {
     <ul class="version-list">
-      @for (version of versionsList.value(); track version) {
+      @for (version of sortedVersions(); track version) {
         <li>
           <button type="button" class="version-btn" (click)="selectVersion(version)">
             {{ version }}
@@ -69,6 +80,6 @@
       }
     </ul>
   } @else if (!versionsList.isLoading()) {
-    <p class="muted">Version history isn't available in local dev — see the releases link above.</p>
+    <p class="muted">Version history isn't available in local dev, see the releases link above.</p>
   }
 </section>

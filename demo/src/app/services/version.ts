@@ -16,7 +16,7 @@ export class VersionService {
     defaultValue: { version: 'dev' },
   });
 
-  // .value() throws while the resource is in an error state — guard with
+  // .value() throws while the resource is in an error state, so guard with
   // hasValue() so a failed fetch (offline, blocked request, ...) falls back
   // to "dev" instead of crashing every template that reads this signal.
   readonly version = computed(() => (this.resource.hasValue() ? this.resource.value().version : 'dev'));

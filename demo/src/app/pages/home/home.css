@@ -49,9 +49,14 @@ h1 {
   gap: 16px;
 }
 
+.feature {
+  position: relative;
+}
+
 .feature h3 {
   margin: 0 0 8px;
   font-size: 1rem;
+  padding-right: 20px;
 }
 
 .feature p {
@@ -59,4 +64,18 @@ h1 {
   color: var(--muted);
   font-size: 0.9rem;
   line-height: 1.5;
+}
+
+.example-link {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  color: var(--info);
+  text-decoration: none;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.example-link:hover {
+  color: var(--fg);
 }

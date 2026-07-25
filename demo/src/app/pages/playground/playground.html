@@ -1,6 +1,10 @@
 <section class="container playground">
   <h1>Playground - Try it out</h1>
   <p class="intro">Try clicking on any field.</p>
+  <p class="hint">
+    Looking for library-wide defaults instead of per-toast options?
+    <a routerLink="/config">Set them on the Config page</a> and every toast fired here will pick them up.
+  </p>
 
   <input
     class="search"
@@ -52,19 +56,35 @@
     <div class="snippet-header">
       <code class="import-line">{{ importLine }}</code>
       <div class="actions">
+        <button type="button" class="surprise" (click)="surpriseMe()" title="Fire a randomized toast">
+          🎲 Surprise me
+        </button>
+        <button type="button" class="reset" (click)="reset()">Reset</button>
         <button type="button" (click)="run()">Run</button>
         <button type="button" (click)="copy()">{{ copied() ? 'Copied!' : 'Copy' }}</button>
       </div>
     </div>
-    <textarea
-      class="code"
-      rows="8"
-      [ngModel]="code()"
-      (ngModelChange)="code.set($event)"
-      aria-label="Builder code snippet"
-    ></textarea>
+    <app-code-editor [(code)]="code" [rows]="8" ariaLabel="Builder code snippet" />
     @if (runError()) {
       <p class="run-error">{{ runError() }}</p>
+    }
+  </div>
+</section>
+
+<section class="container examples" id="examples">
+  <h2>Browse examples</h2>
+  <p class="intro">Curated snippets showcasing standout features, one at a time.</p>
+
+  <div class="example-grid">
+    @for (example of examples; track example.id) {
+      <div class="example panel" [id]="'example-' + example.id">
+        <h3>{{ example.title }}</h3>
+        <p>{{ example.description }}</p>
+        <div class="example-actions">
+          <button type="button" (click)="tryExample(example)">Try it out</button>
+          <button type="button" (click)="copyExample(example)">Copy</button>
+        </div>
+      </div>
     }
   </div>
 </section>

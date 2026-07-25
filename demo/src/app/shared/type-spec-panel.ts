@@ -55,7 +55,7 @@ import type { TypeSpec } from '../data/options.types';
                 <tr>
                   <td><code>{{ f.name }}</code></td>
                   <td><code>{{ f.type }}</code></td>
-                  <td>{{ f.default ?? '—' }}</td>
+                  <td>{{ f.default ?? '-' }}</td>
                   <td>{{ f.description }}</td>
                 </tr>
               }

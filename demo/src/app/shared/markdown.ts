@@ -1,5 +1,5 @@
 /**
- * Minimal changelog-markdown parser — deliberately handles only the subset
+ * Minimal changelog-markdown parser, deliberately handles only the subset
  * `scripts/generate-changelog.js` actually produces: `#`/`##` headings,
  * `- ` bullet lists, plain paragraphs, and `` `code` `` spans. Returns a plain
  * block AST instead of an HTML string so templates render it with @for/@if

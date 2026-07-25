@@ -1,11 +1,12 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { toasts } from 'brents-toasts';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Config } from './config';
 
 describe('Config', () => {
   async function createComponent() {
-    await TestBed.configureTestingModule({ imports: [Config] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [Config], providers: [provideRouter([])] }).compileComponents();
     const fixture = TestBed.createComponent(Config);
     fixture.detectChanges();
     return fixture;
@@ -13,6 +14,7 @@ describe('Config', () => {
 
   beforeEach(() => {
     toasts.positionConfig.clear();
+    localStorage.clear();
   });
 
   it('lists every configOptions row', async () => {
@@ -78,5 +80,20 @@ describe('Config', () => {
     component.clearPositionOverride('top-right');
     expect(toasts.positionConfig.has('top-right')).toBe(false);
     expect(component.positionOverrideEntries()).toEqual([]);
+  });
+
+  it('persists form changes to localStorage and restores them on next load', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    component.updateForm('duration', 9000);
+    fixture.detectChanges();
+
+    expect(JSON.parse(localStorage.getItem('bt-demo:config-form')!).duration).toBe(9000);
+
+    TestBed.resetTestingModule();
+    const secondFixture = await createComponent();
+    expect(secondFixture.componentInstance.form().duration).toBe(9000);
+    // Re-applied automatically on construction, without needing another click of Apply.
+    expect(toasts.config.duration).toBe(9000);
   });
 });

@@ -25,6 +25,6 @@ describe('App', () => {
     const links = Array.from(fixture.nativeElement.querySelectorAll('.nav a')).map(
       (a) => (a as HTMLAnchorElement).textContent?.trim(),
     );
-    expect(links).toEqual(['Install', 'Config', 'Playground', 'Changelog']);
+    expect(links).toEqual(['Install', 'Config', 'Playground', 'Examples', 'Changelog']);
   });
 });

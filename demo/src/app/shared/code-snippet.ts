@@ -45,7 +45,7 @@ export class CodeSnippet {
       this.copied.set(true);
       setTimeout(() => this.copied.set(false), 1500);
     } catch {
-      // Clipboard API unavailable (e.g. insecure context) — no-op, same as the library's own detailsCopyButton().
+      // Clipboard API unavailable (e.g. insecure context): no-op, same as the library's own detailsCopyButton().
     }
   }
 }
