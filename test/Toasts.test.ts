@@ -349,6 +349,48 @@ describe('eviction and stacking', () => {
     });
 });
 
+describe('multiple instances sharing a snackbar', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+        cleanup();
+    });
+
+    it('removing a toast via a different instance still uses the owning instance\'s onClose/animation', () => {
+        vi.useFakeTimers();
+        const a = new Toasts();
+        const b = new Toasts();
+        const onClose = vi.fn();
+        const id = b.showToast('x', { duration: 0, animation: ToastAnimation.NONE, onClose });
+        a.removeToast(id); // cross-instance removal, both default to BOTTOM_CENTER
+        vi.advanceTimersByTime(0);
+        // NONE's exitDurationMs is 0 (instant removal) — if `a`'s own
+        // fallback (SLIDE) animation had been used instead, the element
+        // would still be mid-exit-transition here.
+        expect(document.getElementById(id)).toBeNull();
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('evicts by true cross-instance creation order, not a per-instance fallback', () => {
+        const a = new Toasts();
+        a.configure({ maxToasts: 2, evictOldest: true });
+        const idA1 = a.showToast('a1', { duration: 0 }); // globally oldest
+        const b = new Toasts();
+        const idB1 = b.showToast('b1', { duration: 0 }); // created after idA1, foreign to `a`
+        a.showToast('a2', { duration: 0 }); // 2 active toasts >= maxToasts(2) triggers eviction
+        expect(document.getElementById(idA1)?.classList.contains('bt-hiding')).toBe(true);
+        expect(document.getElementById(idB1)?.classList.contains('bt-hiding')).toBe(false);
+    });
+
+    it('removeAllToasts on one instance correctly closes toasts owned by another', () => {
+        const a = new Toasts();
+        const b = new Toasts();
+        const onClose = vi.fn();
+        b.showToast('mine', { duration: 0, onClose });
+        a.removeAllToasts();
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe('locale resolution', () => {
     afterEach(cleanup);
 

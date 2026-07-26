@@ -202,6 +202,20 @@ export interface ToastTimerInfo {
 /** Per-position `maxToasts`/`evictOldest` override — see `Toasts.configurePosition()`. */
 export type PositionConfig = Partial<Pick<ToastsConfig, 'maxToasts' | 'evictOldest'>>;
 
+// Shared across every `Toasts` instance, not per-instance — same-position
+// instances (BOTTOM_CENTER by default) render into one physical snackbar
+// (see `_getSnackbar`'s literal `id="snackbar"` reuse), so ownership and
+// creation order have to be comparable across instances, not just within
+// one, or `removeToast`/eviction can act on a toast in ways the instance
+// that actually created it never agreed to (wrong onClose/timer/animation,
+// wrong "oldest" pick).
+const toastOwners = new WeakMap<HTMLElement, Toasts>();
+// Creation order, independent of DOM position — needed because
+// `reverseOrder` toasts are prepended rather than appended, so DOM
+// position 0 is no longer reliably "the oldest toast" for eviction.
+const toastSeq = new WeakMap<HTMLElement, number>();
+let seqCounter = 0;
+
 export class Toasts {
     public config: ToastsConfig;
     public snackbars: Map<ToastPositionValue, HTMLElement>;
@@ -220,11 +234,6 @@ export class Toasts {
     private _progressConfig: WeakMap<HTMLElement, ResolvedProgress>;
     private _data: WeakMap<HTMLElement, unknown>;
     private _toastState: WeakMap<HTMLElement, ToastState>;
-    // Creation order, independent of DOM position — needed because
-    // `reverseOrder` toasts are prepended rather than appended, so DOM
-    // position 0 is no longer reliably "the oldest toast" for eviction.
-    private _toastSeq: WeakMap<HTMLElement, number>;
-    private _seqCounter: number;
 
     constructor() {
         this._initialized = false;
@@ -240,8 +249,6 @@ export class Toasts {
         this._progressConfig = new WeakMap();
         this._data = new WeakMap();
         this._toastState = new WeakMap();
-        this._toastSeq = new WeakMap();
-        this._seqCounter = 0;
     }
 
     /**
@@ -330,7 +337,7 @@ export class Toasts {
             let oldest: Element | undefined;
             let oldestSeq = Infinity;
             for (const el of activeToasts) {
-                const seq = this._toastSeq.get(el as HTMLElement) ?? -1;
+                const seq = toastSeq.get(el as HTMLElement) ?? -1;
                 if (seq < oldestSeq) {
                     oldestSeq = seq;
                     oldest = el;
@@ -346,7 +353,8 @@ export class Toasts {
         toastContainer.style.transition = animationDef.containerTransition;
         toastContainer.id = id;
         this._toastAnimations.set(toastContainer, animationDef);
-        this._toastSeq.set(toastContainer, this._seqCounter++);
+        toastOwners.set(toastContainer, this);
+        toastSeq.set(toastContainer, seqCounter++);
         if (opts.onClose) this._onCloseCallbacks.set(toastContainer, opts.onClose);
         if (opts.data !== undefined) this._data.set(toastContainer, opts.data);
         this._toastState.set(toastContainer, { ...opts, message });
@@ -445,6 +453,16 @@ export class Toasts {
         const toastContainer = document.getElementById(id);
         if (!toastContainer) return;
         if (toastContainer.classList.contains('bt-hiding')) return;
+        // A same-position instance (BOTTOM_CENTER by default) can share a
+        // physical snackbar with other Toasts instances, so `id` may belong
+        // to a toast this instance never created — delegate to whichever
+        // instance actually owns it so its own onClose/timer/animation state
+        // (not this instance's, which would simply miss) is what runs.
+        const owner = toastOwners.get(toastContainer);
+        if (owner && owner !== this) {
+            owner.removeToast(id);
+            return;
+        }
         const parent = toastContainer.parentElement;
 
         const onClose = this._onCloseCallbacks.get(toastContainer);
@@ -823,9 +841,13 @@ export class Toasts {
     /**
      * Dismisses every currently visible toast, across all positions/snackbars —
      * each one animates out via `removeToast` rather than vanishing instantly.
+     * Queries the DOM directly rather than iterating `this.snackbars`, since a
+     * same-position instance (BOTTOM_CENTER by default) may share a physical
+     * snackbar this instance never itself created/discovered — `removeToast`
+     * still delegates each toast to its real owning instance either way.
      */
     removeAllToasts(): void {
-        this.snackbars.forEach(snackbar => {
+        document.querySelectorAll<HTMLElement>('.bt-snackbar').forEach(snackbar => {
             Array.from(snackbar.children).forEach(child => this.removeToast(child.id));
         });
     }
