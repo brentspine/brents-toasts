@@ -56,14 +56,29 @@
     <div class="snippet-header">
       <code class="import-line">{{ importLine }}</code>
       <div class="actions">
+        <button type="button" class="reset" (click)="reset()">Reset</button>
+        <button type="button" (click)="copy()">{{ copied() ? 'Copied!' : 'Copy' }}</button>
         <button type="button" class="surprise" (click)="surpriseMe()" title="Fire a randomized toast">
           🎲 Surprise me
         </button>
-        <button type="button" class="reset" (click)="reset()">Reset</button>
-        <button type="button" (click)="run()">Run</button>
-        <button type="button" (click)="copy()">{{ copied() ? 'Copied!' : 'Copy' }}</button>
+        <button type="button" class="run" (click)="run()">Run</button>
+        <label class="color-picker" title="Pick a color to insert into your snippet">
+          <span>🎨</span>
+          <input
+            type="color"
+            [value]="colorPickerValue()"
+            (input)="onColorPicked($event)"
+            aria-label="Pick a color to insert into the snippet"
+          />
+        </label>
       </div>
     </div>
+    @if (previousCode(); as prev) {
+      <p class="undo-row">
+        Replaced by an example.
+        <button type="button" class="undo" (click)="undoLastExample()">Undo</button>
+      </p>
+    }
     <app-code-editor [(code)]="code" [rows]="8" ariaLabel="Builder code snippet" />
     @if (runError()) {
       <p class="run-error">{{ runError() }}</p>
@@ -82,7 +97,9 @@
         <p>{{ example.description }}</p>
         <div class="example-actions">
           <button type="button" (click)="tryExample(example)">Try it out</button>
-          <button type="button" (click)="copyExample(example)">Copy</button>
+          <button type="button" (click)="copyExample(example)">
+            {{ copiedExampleId() === example.id ? 'Copied!' : 'Copy' }}
+          </button>
         </div>
       </div>
     }

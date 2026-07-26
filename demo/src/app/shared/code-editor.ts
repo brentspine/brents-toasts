@@ -221,6 +221,10 @@ export class CodeEditor {
       automaticLayout: true,
       scrollBeyondLastLine: false,
       wordWrap: 'on',
+      // The editor's host is short (220px) and often near the bottom of the viewport, so
+      // suggestion/hover widgets need to escape its bounding box (position: fixed against
+      // the body) instead of being confined and clipped/flipped upward within it.
+      fixedOverflowWidgets: true,
     });
 
     this.editorInstance.onDidChangeModelContent(() => {

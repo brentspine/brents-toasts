@@ -10,8 +10,19 @@
     <nav class="nav" aria-label="Sections">
       <a routerLink="/install" routerLinkActive="active">Install</a>
       <a routerLink="/config" routerLinkActive="active">Config</a>
-      <a routerLink="/playground" routerLinkActive="active">Playground</a>
-      <a routerLink="/playground" fragment="examples">Examples</a>
+      <a
+        routerLink="/playground"
+        routerLinkActive
+        #playgroundLink="routerLinkActive"
+        [class.active]="playgroundLink.isActive && section.activeSection() === 'playground'"
+        >Playground</a
+      >
+      <a
+        routerLink="/playground"
+        fragment="examples"
+        [class.active]="playgroundLink.isActive && section.activeSection() === 'examples'"
+        >Examples</a
+      >
       <a routerLink="/changelog" routerLinkActive="active">Changelog</a>
     </nav>
 

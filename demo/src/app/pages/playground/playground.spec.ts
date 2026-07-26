@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Playground } from './playground';
 
 describe('Playground', () => {
@@ -172,5 +172,82 @@ describe('Playground', () => {
   it('surpriseMe() fires without throwing', async () => {
     const fixture = await createComponent();
     expect(() => fixture.componentInstance.surpriseMe()).not.toThrow();
+  });
+
+  it('tryExample() remembers the prior code, undoLastExample() restores it', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    const original = component.code();
+
+    component.tryExample(component.examples[0]);
+    fixture.detectChanges();
+    expect(component.code()).toBe(component.examples[0].code);
+    expect(component.previousCode()).toBe(original);
+
+    component.undoLastExample();
+    fixture.detectChanges();
+    expect(component.code()).toBe(original);
+    expect(component.previousCode()).toBeNull();
+  });
+
+  it('undoLastExample() is a no-op when nothing has been tried yet', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    const original = component.code();
+    component.undoLastExample();
+    expect(component.code()).toBe(original);
+  });
+
+  it('copyExample() marks that example as copied, then clears it', async () => {
+    vi.useFakeTimers();
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    const example = component.examples[0];
+
+    await component.copyExample(example);
+    expect(component.copiedExampleId()).toBe(example.id);
+
+    vi.advanceTimersByTime(1500);
+    expect(component.copiedExampleId()).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('flashes an example card once when linked to, but not again after it has already been shown', async () => {
+    vi.useFakeTimers();
+    const fixture = await createComponent();
+    document.body.appendChild(fixture.nativeElement);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance as unknown as { flashExampleHighlight(id: string): void };
+    const el = document.getElementById('example-positions')!;
+    expect(el).toBeTruthy();
+
+    component.flashExampleHighlight('example-positions');
+    expect(el.classList.contains('highlight')).toBe(true);
+    expect(localStorage.getItem('bt-demo:highlighted-examples')).toContain('example-positions');
+
+    vi.advanceTimersByTime(2000);
+    expect(el.classList.contains('highlight')).toBe(false);
+
+    component.flashExampleHighlight('example-positions');
+    expect(el.classList.contains('highlight')).toBe(false);
+
+    fixture.nativeElement.remove();
+    vi.useRealTimers();
+  });
+
+  it('onColorPicked() inserts a .withColor(...) call, picking again updates it in place', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+
+    component.onColorPicked({ target: { value: '#ff0000' } } as unknown as Event);
+    fixture.detectChanges();
+    expect(component.code()).toContain('.withColor("#ff0000")');
+
+    component.onColorPicked({ target: { value: '#00ff00' } } as unknown as Event);
+    fixture.detectChanges();
+    expect(component.code()).toContain('.withColor("#00ff00")');
+    expect(component.code()).not.toContain('#ff0000');
+    expect(component.code().match(/\.withColor\(/g)?.length).toBe(1);
   });
 });

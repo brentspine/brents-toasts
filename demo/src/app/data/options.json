@@ -168,7 +168,7 @@
       "id": "progress",
       "title": "Progress bar",
       "description": "A thin progress bar synced to the toast's auto-dismiss countdown.",
-      "code": "new ToastBuilder(\"Uploading...\")\n  .withDuration(6000)\n  .withProgress({ mode: \"drain\", color: \"#28a6f5\" })\n  .show();"
+      "code": "new ToastBuilder(\"Uploading...\")\n  .withDuration(6000)\n  .withProgress({ mode: \"drain\", color: \"#28a6f5\" })\n  .withOnClose(() => {\n    new ToastBuilder(\"Upload complete!\")\n      .withColor(ToastColor.SUCCESS)\n      .show();\n  })\n  .show();"
     },
     {
       "id": "reverse-order",
@@ -186,7 +186,7 @@
       "id": "sticky",
       "title": "Sticky toast with actions",
       "description": "duration: 0 keeps a toast on screen until the user acts on it, instead of auto-dismissing.",
-      "code": "new ToastBuilder(\"Update available\")\n  .withDuration(0)\n  .withButton(\"Reload\", () => console.log(\"reload\"))\n  .withCloseButton(\"Dismiss\")\n  .show();"
+      "code": "new ToastBuilder(\"Update available\")\n  .withDuration(0)\n  .withButton(\"Reload\", () => {\n    new ToastBuilder(\"Reloaded successfully!\")\n      .withColor(ToastColor.SUCCESS)\n      .show();\n  })\n  .withCloseButton(\"Dismiss\")\n  .show();"
     },
     {
       "id": "html-content",

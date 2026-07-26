@@ -122,6 +122,7 @@ tr.selected {
 
 .actions {
   display: flex;
+  align-items: center;
   gap: 8px;
 }
 
@@ -135,6 +136,51 @@ tr.selected {
 
 .actions .surprise {
   border-color: var(--warning);
+}
+
+.actions .run {
+  background: var(--info);
+  border-color: var(--info);
+  color: #05111a;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.color-picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.color-picker input[type='color'] {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.undo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+
+.undo-row .undo {
+  background: var(--input);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--fg);
+  padding: 3px 10px;
+  font-size: 13px;
 }
 
 .run-error {
@@ -187,4 +233,21 @@ tr.selected {
   color: var(--fg);
   padding: 6px 12px;
   font-size: 13px;
+}
+
+.example.highlight {
+  animation: example-glow 2s ease-in-out;
+}
+
+@keyframes example-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 210, 0, 0);
+    border-color: var(--line);
+  }
+  20%,
+  80% {
+    box-shadow: 0 0 18px 4px rgba(255, 210, 0, 0.7);
+    border-color: #ffd200;
+  }
 }

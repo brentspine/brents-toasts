@@ -1,9 +1,19 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { toasts, ToastBuilder, ToastColor, ToastPosition, ToastAnimation } from 'brents-toasts';
 import { OptionsDataService } from '../../services/options-data';
+import { SectionService } from '../../services/section';
 import { TypeSpecPanel } from '../../shared/type-spec-panel';
 import { CodeEditor } from '../../shared/code-editor';
 import type { OptionDescriptor, PlaygroundExample } from '../../data/options.types';
@@ -11,6 +21,7 @@ import type { OptionDescriptor, PlaygroundExample } from '../../data/options.typ
 const IMPORT_LINE = "import { ToastBuilder, ToastColor, ToastPosition, ToastAnimation } from 'brents-toasts';";
 const DEFAULT_CODE = 'new ToastBuilder("Something happened!")\n  .show();';
 const STORAGE_KEY = 'bt-demo:playground-code';
+const HIGHLIGHTED_EXAMPLES_KEY = 'bt-demo:highlighted-examples';
 
 const RANDOM_MESSAGES = ['Nice!', 'Boom.', 'All set.', 'Here you go!', 'Look at that.', 'Ta-da!'];
 const RANDOM_COLORS = [ToastColor.INFO, ToastColor.SUCCESS, ToastColor.WARNING, ToastColor.ERROR];
@@ -21,6 +32,24 @@ function loadStoredCode(): string {
     return localStorage.getItem(STORAGE_KEY) ?? DEFAULT_CODE;
   } catch {
     return DEFAULT_CODE;
+  }
+}
+
+function loadHighlightedExamples(): Set<string> {
+  try {
+    const raw = localStorage.getItem(HIGHLIGHTED_EXAMPLES_KEY);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function markExampleHighlighted(id: string, seen: Set<string>): void {
+  seen.add(id);
+  try {
+    localStorage.setItem(HIGHLIGHTED_EXAMPLES_KEY, JSON.stringify([...seen]));
+  } catch {
+    // Storage unavailable: the glow just replays next time, which is harmless.
   }
 }
 
@@ -37,7 +66,7 @@ function methodPrefix(builderCall: string): string {
  * that settles lands short of the target. Debounces on document.body's ResizeObserver,
  * with a hard cutoff so a fragment link can never wait indefinitely.
  */
-function scrollToFragmentWhenStable(id: string): void {
+function scrollToFragmentWhenStable(id: string, onSettled?: () => void): void {
   let debounce: ReturnType<typeof setTimeout> | undefined;
   const cutoff = setTimeout(finish, 2500);
   const observer = new ResizeObserver(() => {
@@ -51,6 +80,7 @@ function scrollToFragmentWhenStable(id: string): void {
     clearTimeout(cutoff);
     observer.disconnect();
     document.getElementById(id)?.scrollIntoView({ behavior: 'auto', block: 'start' });
+    onSettled?.();
   }
 }
 
@@ -63,6 +93,8 @@ function scrollToFragmentWhenStable(id: string): void {
 })
 export class Playground {
   private readonly optionsData = inject(OptionsDataService).data;
+  private readonly destroyRef = inject(DestroyRef);
+  protected readonly section = inject(SectionService);
 
   readonly importLine = IMPORT_LINE;
   readonly search = signal('');
@@ -71,6 +103,14 @@ export class Playground {
   readonly runError = signal<string | null>(null);
   readonly copied = signal(false);
   readonly examples: PlaygroundExample[] = this.optionsData.examples;
+
+  // Set right before an example/undo overwrites the editor, so a "Try it out" click is
+  // one step reversible instead of silently discarding whatever the user had.
+  readonly previousCode = signal<string | null>(null);
+  readonly copiedExampleId = signal<string | null>(null);
+  readonly colorPickerValue = signal('#28a6f5');
+
+  private readonly highlightedExamples = loadHighlightedExamples();
 
   readonly filteredOptions = computed(() => {
     const query = this.search().trim().toLowerCase();
@@ -120,8 +160,36 @@ export class Playground {
     effect(() => {
       const id = this.fragment();
       if (!id) return;
-      scrollToFragmentWhenStable(id);
+      scrollToFragmentWhenStable(id, () => {
+        if (id.startsWith('example-')) this.flashExampleHighlight(id);
+      });
     });
+
+    // Flips the header nav from "Playground" to "Examples" once that section scrolls
+    // into view, and back on the way out. Both nav links point at this same route, so
+    // RouterLinkActive alone can't tell them apart.
+    afterNextRender(() => {
+      const el = document.getElementById('examples');
+      if (!el) return;
+      const observer = new IntersectionObserver(
+        ([entry]) => this.section.activeSection.set(entry.isIntersecting ? 'examples' : 'playground'),
+        { rootMargin: '-96px 0px -70% 0px', threshold: 0 },
+      );
+      observer.observe(el);
+      this.destroyRef.onDestroy(() => observer.disconnect());
+    });
+
+    this.destroyRef.onDestroy(() => this.section.activeSection.set('playground'));
+  }
+
+  /** Briefly glows an example card's border, but only the first time a given example is linked to. */
+  private flashExampleHighlight(id: string): void {
+    if (this.highlightedExamples.has(id)) return;
+    const el = document.getElementById(id);
+    if (!el) return;
+    markExampleHighlighted(id, this.highlightedExamples);
+    el.classList.add('highlight');
+    setTimeout(() => el.classList.remove('highlight'), 2000);
   }
 
   isSelected(opt: OptionDescriptor): boolean {
@@ -159,16 +227,48 @@ export class Playground {
   }
 
   tryExample(example: PlaygroundExample): void {
+    if (this.code() !== example.code) this.previousCode.set(this.code());
     this.code.set(example.code);
     this.run();
+  }
+
+  /** Restores whatever was in the editor right before the last "Try it out" click. */
+  undoLastExample(): void {
+    const previous = this.previousCode();
+    if (previous === null) return;
+    this.code.set(previous);
+    this.previousCode.set(null);
+    this.runError.set(null);
   }
 
   async copyExample(example: PlaygroundExample): Promise<void> {
     try {
       await navigator.clipboard.writeText(`${this.importLine}\n\n${example.code}`);
+      this.copiedExampleId.set(example.id);
+      setTimeout(() => {
+        if (this.copiedExampleId() === example.id) this.copiedExampleId.set(null);
+      }, 1500);
     } catch {
       // Clipboard API unavailable, no-op, same fallback as the library's own detailsCopyButton().
     }
+  }
+
+  /** Inserts or updates a .withColor(...) call from a picked hex value, no hand-typed hex required. */
+  onColorPicked(event: Event): void {
+    const hex = (event.target as HTMLInputElement).value;
+    this.colorPickerValue.set(hex);
+    const lines = this.code().split('\n');
+    const colorLine = `  .withColor("${hex}")`;
+    const existingIndex = lines.findIndex((line) => line.trim().startsWith('.withColor('));
+
+    if (existingIndex !== -1) {
+      lines[existingIndex] = colorLine;
+    } else {
+      const showIndex = lines.findIndex((line) => line.trim() === '.show();');
+      const insertAt = showIndex === -1 ? lines.length : showIndex;
+      lines.splice(insertAt, 0, colorLine);
+    }
+    this.code.set(lines.join('\n'));
   }
 
   /** Fires a toast with randomized options, just to show off how much the API can combine. */
