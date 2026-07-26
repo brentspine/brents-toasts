@@ -21,7 +21,6 @@ import type { OptionDescriptor, PlaygroundExample } from '../../data/options.typ
 const IMPORT_LINE = "import { ToastBuilder, ToastColor, ToastPosition, ToastAnimation } from 'brents-toasts';";
 const DEFAULT_CODE = 'new ToastBuilder("Something happened!")\n  .show();';
 const STORAGE_KEY = 'bt-demo:playground-code';
-const HIGHLIGHTED_EXAMPLES_KEY = 'bt-demo:highlighted-examples';
 
 const RANDOM_MESSAGES = ['Nice!', 'Boom.', 'All set.', 'Here you go!', 'Look at that.', 'Ta-da!'];
 const RANDOM_COLORS = [ToastColor.INFO, ToastColor.SUCCESS, ToastColor.WARNING, ToastColor.ERROR];
@@ -32,24 +31,6 @@ function loadStoredCode(): string {
     return localStorage.getItem(STORAGE_KEY) ?? DEFAULT_CODE;
   } catch {
     return DEFAULT_CODE;
-  }
-}
-
-function loadHighlightedExamples(): Set<string> {
-  try {
-    const raw = localStorage.getItem(HIGHLIGHTED_EXAMPLES_KEY);
-    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function markExampleHighlighted(id: string, seen: Set<string>): void {
-  seen.add(id);
-  try {
-    localStorage.setItem(HIGHLIGHTED_EXAMPLES_KEY, JSON.stringify([...seen]));
-  } catch {
-    // Storage unavailable: the glow just replays next time, which is harmless.
   }
 }
 
@@ -93,8 +74,6 @@ export class Playground {
   // fallen back to a textarea) - see the fragment effect below for why a fragment scroll
   // has to wait on this instead of firing immediately.
   readonly editorStable = signal(false);
-
-  private readonly highlightedExamples = loadHighlightedExamples();
 
   readonly filteredOptions = computed(() => {
     const query = this.search().trim().toLowerCase();
@@ -172,12 +151,10 @@ export class Playground {
     this.destroyRef.onDestroy(() => this.section.activeSection.set('playground'));
   }
 
-  /** Briefly glows an example card's border, but only the first time a given example is linked to. */
+  /** Briefly glows an example card's border to draw attention to it after a fragment link scroll. */
   private flashExampleHighlight(id: string): void {
-    if (this.highlightedExamples.has(id)) return;
     const el = document.getElementById(id);
     if (!el) return;
-    markExampleHighlighted(id, this.highlightedExamples);
     el.classList.add('highlight');
     setTimeout(() => el.classList.remove('highlight'), 2000);
   }

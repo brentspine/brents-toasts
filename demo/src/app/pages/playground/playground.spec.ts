@@ -230,7 +230,7 @@ describe('Playground', () => {
     vi.useRealTimers();
   });
 
-  it('flashes an example card once when linked to, but not again after it has already been shown', async () => {
+  it('flashes an example card every time it is linked to, not just the first time', async () => {
     vi.useFakeTimers();
     const fixture = await createComponent();
     document.body.appendChild(fixture.nativeElement);
@@ -242,13 +242,12 @@ describe('Playground', () => {
 
     component.flashExampleHighlight('example-positions');
     expect(el.classList.contains('highlight')).toBe(true);
-    expect(localStorage.getItem('bt-demo:highlighted-examples')).toContain('example-positions');
 
     vi.advanceTimersByTime(2000);
     expect(el.classList.contains('highlight')).toBe(false);
 
     component.flashExampleHighlight('example-positions');
-    expect(el.classList.contains('highlight')).toBe(false);
+    expect(el.classList.contains('highlight')).toBe(true);
 
     fixture.nativeElement.remove();
     vi.useRealTimers();
