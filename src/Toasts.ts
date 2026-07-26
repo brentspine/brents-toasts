@@ -7,12 +7,12 @@
 
 import { ToastColor } from './ToastColor';
 import { ToastPosition, IMPLEMENTED_POSITIONS, POSITION_EDGE, type ToastPositionValue } from './ToastPosition';
-import { ToastAnimation, IMPLEMENTED_ANIMATIONS, type ToastAnimationValue } from './ToastAnimation';
+import { ToastAnimation, getToastAnimation, type ToastAnimationValue, type ToastAnimationDefinition } from './ToastAnimation';
 import { createStepButton, type ToastButton, type ToastButtonStep } from './ToastButton';
 import { ToastLocales, matchToastLocale, detectBrowserLocales, type ToastTranslations } from './ToastLocale';
 import type { ToastTheme } from './ToastTheme';
 import { applyColor, applyContent, applyProgress, renderActions, type ResolvedProgress } from './ToastRender';
-import { TOAST_EDGE_OFFSET, recalculatePositions, stackExistingAway, totalStackedExtent } from './ToastStacking';
+import { TOAST_EDGE_OFFSET, recalculatePositions, stackExistingAway, totalStackedExtent, edgeFor } from './ToastStacking';
 import toastsCss from './toasts.css';
 import VERSION from 'virtual:version';
 
@@ -21,7 +21,6 @@ export type { ToastTranslations } from './ToastLocale';
 export type { ToastTheme } from './ToastTheme';
 
 const MAX_TOASTS = 5;
-const TOAST_TRANSITION_MS = 300;
 
 export interface ToastDetailItem {
     /** Optional label shown before the value, e.g. "Status". Rendered as plain text, like `title` — "\n" and literal "<br>"/"<br/>" are still honored as line breaks, same `allowLineBreaks` opt-out. */
@@ -70,7 +69,7 @@ export interface ToastOptions {
     title?: string;
     /** See `ToastPosition`. Defaults to `ToastPosition.BOTTOM_CENTER` or the configured default. */
     position?: ToastPositionValue;
-    /** See `ToastAnimation` — only SLIDE is implemented today. */
+    /** See `ToastAnimation`/"Animations" in README.md. `slide` (default), `fade`, `none`, or a name registered via `registerToastAnimation`. */
     animation?: ToastAnimationValue;
     /** Called as soon as the toast starts closing (manually or via duration timeout). */
     onClose?: () => void;
@@ -213,6 +212,10 @@ export class Toasts {
     private _warned: Set<string>;
     private _onCloseCallbacks: WeakMap<HTMLElement, () => void>;
     private _resizeObservers: WeakMap<HTMLElement, ResizeObserver>;
+    // The animation definition resolved for each toast at creation, so
+    // `removeToast` runs the same one's `exit()`/`exitDurationMs` a toast
+    // entered with, even if `configure()`'s default has changed since.
+    private _toastAnimations: WeakMap<HTMLElement, ToastAnimationDefinition>;
     private _timers: WeakMap<HTMLElement, ToastTimerState>;
     private _progressConfig: WeakMap<HTMLElement, ResolvedProgress>;
     private _data: WeakMap<HTMLElement, unknown>;
@@ -232,6 +235,7 @@ export class Toasts {
         this._warned = new Set();
         this._onCloseCallbacks = new WeakMap();
         this._resizeObservers = new WeakMap();
+        this._toastAnimations = new WeakMap();
         this._timers = new WeakMap();
         this._progressConfig = new WeakMap();
         this._data = new WeakMap();
@@ -307,7 +311,8 @@ export class Toasts {
         }
 
         const position = this._resolvePosition(opts.position);
-        this._resolveAnimation(opts.animation);
+        const animationName = this._resolveAnimation(opts.animation);
+        const animationDef = getToastAnimation(animationName)!;
         const snackbar = this._getSnackbar(position, t);
         const edge = POSITION_EDGE[position];
 
@@ -338,9 +343,9 @@ export class Toasts {
 
         const toastContainer = document.createElement('div');
         toastContainer.className = 'bt-toast-container';
-        toastContainer.style[edge] = '0px';
-        toastContainer.style.opacity = '0';
+        toastContainer.style.transition = animationDef.containerTransition;
         toastContainer.id = id;
+        this._toastAnimations.set(toastContainer, animationDef);
         this._toastSeq.set(toastContainer, this._seqCounter++);
         if (opts.onClose) this._onCloseCallbacks.set(toastContainer, opts.onClose);
         if (opts.data !== undefined) this._data.set(toastContainer, opts.data);
@@ -398,10 +403,12 @@ export class Toasts {
         resizeObserver.observe(toast);
         this._resizeObservers.set(toastContainer, resizeObserver);
 
-        // Minimaler Delay damit CSS-Transition greift
+        const animCtx = { container: toastContainer, edge };
+        animationDef.enterFrom(animCtx, targetOffset);
+        // Minimal delay so the CSS transition set above actually registers
+        // the `enterFrom` frame before `enterTo` changes it.
         requestAnimationFrame(() => {
-            toastContainer.style[edge] = `${targetOffset}px`;
-            toastContainer.style.opacity = '1';
+            animationDef.enterTo(animCtx, targetOffset);
         });
 
         // Listeners are always attached (not just `if (opts.closable)`/`if
@@ -450,18 +457,22 @@ export class Toasts {
         this._syncProgressBar(toastContainer);
         this._toastState.delete(toastContainer);
 
+        const animationDef = this._toastAnimations.get(toastContainer) ?? getToastAnimation(ToastAnimation.SLIDE)!;
+        const edge = parent ? edgeFor(parent) : 'bottom';
+
         toastContainer.classList.add('bt-hiding');
-        toastContainer.style.opacity = '0';
-        // Reposition the remaining toasts now, in parallel with the fade-out,
-        // instead of waiting for this one to finish disappearing.
+        animationDef.exit({ container: toastContainer, edge });
+        // Reposition the remaining toasts now, in parallel with the exit
+        // animation, instead of waiting for this one to finish disappearing.
         if (parent) recalculatePositions(parent);
 
         setTimeout(() => {
             toastContainer.remove();
             this._resizeObservers.get(toastContainer)?.disconnect();
             this._resizeObservers.delete(toastContainer);
+            this._toastAnimations.delete(toastContainer);
             if (parent) recalculatePositions(parent);
-        }, TOAST_TRANSITION_MS);
+        }, animationDef.exitDurationMs);
     }
 
     /**
@@ -937,7 +948,7 @@ export class Toasts {
     }
 
     private _resolveAnimation(animation: ToastAnimationValue): ToastAnimationValue {
-        if (IMPLEMENTED_ANIMATIONS.has(animation)) return animation;
+        if (getToastAnimation(animation)) return animation;
         this._warnUnimplemented('animation', animation, ToastAnimation.SLIDE);
         return ToastAnimation.SLIDE;
     }

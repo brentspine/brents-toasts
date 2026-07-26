@@ -24,7 +24,7 @@ declare const ToastPosition: {
   BOTTOM_CENTER: string; TOP_CENTER: string; TOP_LEFT: string;
   TOP_RIGHT: string; BOTTOM_LEFT: string; BOTTOM_RIGHT: string;
 };
-declare const ToastAnimation: { SLIDE: string; FADE: string };
+declare const ToastAnimation: { SLIDE: string; FADE: string; NONE: string };
 
 interface ToastButton { label: string; onClick?: (event: MouseEvent, id: string) => void; className?: string }
 interface ToastButtonStep {

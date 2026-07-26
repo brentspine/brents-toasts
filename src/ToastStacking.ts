@@ -9,7 +9,7 @@ export const TOAST_EDGE_OFFSET = 22;
 // the single source of truth for which CSS property ('top' or 'bottom') its
 // toasts stack away from — read it back here instead of threading an `edge`
 // parameter through every stacking call site.
-function edgeFor(snackbar: HTMLElement): 'top' | 'bottom' {
+export function edgeFor(snackbar: HTMLElement): 'top' | 'bottom' {
     return POSITION_EDGE[snackbar.dataset.position as ToastPositionValue] ?? 'bottom';
 }
 

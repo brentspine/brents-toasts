@@ -23,7 +23,7 @@
     { "name": "allowHtml", "type": "boolean", "default": "false", "description": "If true, message is rendered as HTML. Sanitize the input yourself if it may contain user-controlled content.", "builderCall": ".withAllowHtml(true)" },
     { "name": "allowLineBreaks", "type": "boolean", "default": "true", "description": "Whether \\n or literal <br> in message/title/button labels/details renders as a real line break.", "builderCall": ".withAllowLineBreaks(false)" },
     { "name": "position", "type": "ToastPositionValue", "typeRef": "ToastPositionValue", "default": "ToastPosition.BOTTOM_CENTER", "description": "Which screen edge/corner this toast stacks from.", "builderCall": ".withPosition(ToastPosition.TOP_RIGHT)" },
-    { "name": "animation", "type": "ToastAnimationValue", "typeRef": "ToastAnimationValue", "default": "ToastAnimation.SLIDE", "description": "Entry/exit animation. Only SLIDE is implemented today.", "builderCall": ".withAnimation(ToastAnimation.SLIDE)" },
+    { "name": "animation", "type": "ToastAnimationValue", "typeRef": "ToastAnimationValue", "default": "ToastAnimation.SLIDE", "description": "Entry/exit animation. slide, fade, none, or a name registered via registerToastAnimation().", "builderCall": ".withAnimation(ToastAnimation.FADE)" },
     { "name": "onClose", "type": "() => void", "default": "undefined", "description": "Called as soon as the toast starts closing, manually or via duration timeout.", "builderCall": ".withOnClose(() => console.log(\"closed\"))" },
     { "name": "removeOtherToasts", "type": "boolean", "default": "false", "description": "If true, dismisses every other currently-visible toast before showing this one.", "builderCall": ".andRemoveOtherToasts()" },
     { "name": "reverseOrder", "type": "boolean", "default": "false", "description": "If true, inserts this toast at the far end of its position's stack instead of nearest the anchor edge. Creation-time only.", "builderCall": ".andReverseOrder()" },
@@ -46,7 +46,7 @@
     { "name": "allowHtml", "type": "boolean", "default": "false", "description": "Library-wide default for whether message is rendered as HTML.", "control": "boolean" },
     { "name": "allowLineBreaks", "type": "boolean", "default": "true", "description": "Library-wide default for \\n/<br> rendering as real line breaks.", "control": "boolean" },
     { "name": "position", "type": "ToastPositionValue", "typeRef": "ToastPositionValue", "default": "ToastPosition.BOTTOM_CENTER", "description": "Library-wide default stacking position.", "control": "select", "selectOptions": ["bottom-center", "top-center", "top-left", "top-right", "bottom-left", "bottom-right"] },
-    { "name": "animation", "type": "ToastAnimationValue", "typeRef": "ToastAnimationValue", "default": "ToastAnimation.SLIDE", "description": "Library-wide default entry/exit animation.", "control": "select", "selectOptions": ["slide"] },
+    { "name": "animation", "type": "ToastAnimationValue", "typeRef": "ToastAnimationValue", "default": "ToastAnimation.SLIDE", "description": "Library-wide default entry/exit animation.", "control": "select", "selectOptions": ["slide", "fade", "none"] },
     { "name": "maxToasts", "type": "number", "default": "5", "description": "Maximum toasts visible at once (per position, unless overridden via configurePosition()).", "control": "number" },
     { "name": "evictOldest", "type": "boolean", "default": "true", "description": "When maxToasts is exceeded, evict the oldest toast to make room instead of blocking new ones.", "control": "boolean" },
     { "name": "pauseOnHover", "type": "boolean", "default": "true", "description": "Library-wide default for whether hovering a toast pauses its timer.", "control": "boolean" },
@@ -70,10 +70,11 @@
     },
     "ToastAnimationValue": {
       "kind": "enum",
-      "description": "Entry/exit animation. Passing an unimplemented value falls back to slide with a one-time console warning.",
+      "description": "Entry/exit animation. Passing an unimplemented/unregistered value falls back to slide with a one-time console warning. Custom animations can be added via registerToastAnimation().",
       "values": [
-        { "value": "slide", "description": "Slides in/out from its stacking edge. The only animation implemented today." },
-        { "value": "fade", "description": "Reserved for future implementation; currently falls back to slide." }
+        { "value": "slide", "description": "Slides in/out from its stacking edge while fading. The default." },
+        { "value": "fade", "description": "Opacity-only — appears already at its resting position, nothing slides." },
+        { "value": "none", "description": "No transition at all: appears, disappears, and reflows instantly." }
       ]
     },
     "ToastColorValue": {

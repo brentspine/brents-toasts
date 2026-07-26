@@ -1,14 +1,149 @@
 /*
-  How a toast enters/leaves the snackbar. Only SLIDE is implemented today
-  (the existing bottom-offset + opacity transition). FADE is reserved for
-  a future opacity-only variant — see ROADMAP.md.
+  How a toast enters/leaves the snackbar, and how it moves later when a
+  sibling toast is added/removed/resized. Each named animation is a small
+  set of DOM hooks (a `ToastAnimationDefinition`) run by `Toasts.ts` at the
+  right point in a toast's lifecycle — nothing here talks to `Toasts`
+  directly, this module only owns the hook contract, the built-in
+  definitions, and the registry consumers extend via
+  `registerToastAnimation`.
+
+  `containerTransition` is the key piece: it's applied once, inline, to the
+  toast's own `.bt-toast-container` at creation, and stays there for the
+  toast's whole lifetime. `ToastStacking.ts`'s `recalculatePositions` later
+  just mutates that same container's `style[edge]` whenever a sibling
+  changes — so a toast's animation choice governs not only its own
+  entrance/exit but also how smoothly *it itself* glides when the stack
+  reflows around it, with no extra plumbing needed. A stack of `NONE`
+  toasts reflows instantly for exactly this reason: every remaining
+  container's own `transition` is `'none'`, not because of any special case
+  in the stacking math.
 */
+
 export const ToastAnimation = {
     SLIDE: 'slide',
-    // Reserved for future implementation:
     FADE: 'fade',
+    NONE: 'none',
 } as const;
 
-export type ToastAnimationValue = typeof ToastAnimation[keyof typeof ToastAnimation];
+// Widened so a custom name registered via `registerToastAnimation` still
+// type-checks in `ToastOptions`/`ToastBuilder.withAnimation()`/`configure()`
+// without a cast, while `slide`/`fade`/`none` still autocomplete. The
+// `& {}` is what stops TS from collapsing the union down to plain `string`.
+export type ToastAnimationValue = typeof ToastAnimation[keyof typeof ToastAnimation] | (string & {});
 
-export const IMPLEMENTED_ANIMATIONS: ReadonlySet<ToastAnimationValue> = new Set([ToastAnimation.SLIDE]);
+export interface ToastAnimationHookContext {
+    /** The toast's outer positioned element (`.bt-toast-container`) — safe to read/set styles on directly. */
+    container: HTMLElement;
+    /** Which viewport edge this toast's position anchors to — see `POSITION_EDGE` in `ToastPosition.ts`. */
+    edge: 'top' | 'bottom';
+}
+
+export interface ToastAnimationDefinition {
+    /**
+     * Applied once, inline, to `.bt-toast-container` at creation. Governs
+     * the transition speed for `enterFrom` -> `enterTo` AND for any later
+     * reflow (`recalculatePositions`) — a toast's animation choice governs
+     * how it moves for its whole lifetime, not just its first appearance.
+     */
+    containerTransition: string;
+    /**
+     * Called synchronously once the toast's resting stack offset is known,
+     * right before the entrance becomes visible — set the "from" (hidden)
+     * styles here.
+     */
+    enterFrom(ctx: ToastAnimationHookContext, targetOffsetPx: number): void;
+    /**
+     * Called one animation frame later — set the "to" (resting) styles
+     * here. Whatever `containerTransition` is active animates between the
+     * two.
+     */
+    enterTo(ctx: ToastAnimationHookContext, targetOffsetPx: number): void;
+    /** Called once, synchronously, when the toast starts being removed — set its exiting styles here. */
+    exit(ctx: ToastAnimationHookContext): void;
+    /**
+     * How long (ms) the exit visual takes — the toast's DOM node is removed
+     * after this delay. Should match whatever duration `containerTransition`/
+     * `exit()` relies on.
+     */
+    exitDurationMs: number;
+}
+
+const SLIDE_TRANSITION =
+    'opacity 300ms ease-in-out, bottom 0.2s ease-in-out, top 0.2s ease-in-out, transform 300ms ease-in-out';
+
+// Today's original animation: slides in/out from its stacking edge while
+// fading. `transform` is included in the shared transition string (even
+// though slide/fade never set it themselves) so a custom animation that
+// layers a `transform` gets a sensible default transition for free.
+const slideDefinition: ToastAnimationDefinition = {
+    containerTransition: SLIDE_TRANSITION,
+    enterFrom(ctx) {
+        ctx.container.style[ctx.edge] = '0px';
+        ctx.container.style.opacity = '0';
+    },
+    enterTo(ctx, targetOffsetPx) {
+        ctx.container.style[ctx.edge] = `${targetOffsetPx}px`;
+        ctx.container.style.opacity = '1';
+    },
+    exit(ctx) {
+        ctx.container.style.opacity = '0';
+    },
+    exitDurationMs: 300,
+};
+
+// Opacity-only: starts already at its final resting offset (set once,
+// immediately, so nothing slides) and only fades in/out — the "skip the
+// bottom animation" path referenced in ROADMAP.md.
+const fadeDefinition: ToastAnimationDefinition = {
+    containerTransition: SLIDE_TRANSITION,
+    enterFrom(ctx, targetOffsetPx) {
+        ctx.container.style[ctx.edge] = `${targetOffsetPx}px`;
+        ctx.container.style.opacity = '0';
+    },
+    enterTo(ctx) {
+        ctx.container.style.opacity = '1';
+    },
+    exit(ctx) {
+        ctx.container.style.opacity = '0';
+    },
+    exitDurationMs: 300,
+};
+
+// No transition at all: appears/disappears/reflows instantly. Useful for
+// reduced-motion preferences, tests, or a deliberately snappy stack.
+const noneDefinition: ToastAnimationDefinition = {
+    containerTransition: 'none',
+    enterFrom(ctx, targetOffsetPx) {
+        ctx.container.style[ctx.edge] = `${targetOffsetPx}px`;
+        ctx.container.style.opacity = '1';
+    },
+    enterTo() {
+        // Nothing left to animate to — enterFrom already set the resting state.
+    },
+    exit(ctx) {
+        ctx.container.style.opacity = '0';
+    },
+    exitDurationMs: 0,
+};
+
+const registry = new Map<string, ToastAnimationDefinition>([
+    [ToastAnimation.SLIDE, slideDefinition],
+    [ToastAnimation.FADE, fadeDefinition],
+    [ToastAnimation.NONE, noneDefinition],
+]);
+
+/**
+ * Registers a custom named animation, usable anywhere `animation` is
+ * accepted (`ToastOptions`, `configure()`, `ToastBuilder.withAnimation()`)
+ * by passing its `name`. See README.md's "Animations" section for a worked
+ * example. Overwriting a built-in name (e.g. `'slide'`) is allowed, and
+ * replaces its behavior for every toast that requests it afterwards.
+ */
+export function registerToastAnimation(name: string, definition: ToastAnimationDefinition): void {
+    registry.set(name, definition);
+}
+
+/** Looks up a registered animation by name — `undefined` if nothing is registered under it. */
+export function getToastAnimation(name: string): ToastAnimationDefinition | undefined {
+    return registry.get(name);
+}

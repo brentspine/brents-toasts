@@ -16,8 +16,8 @@
     flex-direction: column;
     align-items: center;
     position: fixed !important;
-    /* 300ms must match TOAST_TRANSITION_MS in Toasts.ts */
-    transition: opacity 300ms ease-in-out, bottom 0.2s ease-in-out, top 0.2s ease-in-out;
+    /* transition is set inline per-toast by Toasts.ts from its resolved
+       ToastAnimationDefinition.containerTransition — see ToastAnimation.ts. */
 }
 .bt-toast {
     position: relative;

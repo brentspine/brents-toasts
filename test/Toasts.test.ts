@@ -3,6 +3,11 @@ import { Toasts } from '../src/Toasts';
 import { ToastBuilder } from '../src/ToastBuilder';
 import { ToastColor } from '../src/ToastColor';
 import { ToastPosition } from '../src/ToastPosition';
+import { ToastAnimation, registerToastAnimation, getToastAnimation } from '../src/ToastAnimation';
+
+function nextFrame(): Promise<void> {
+    return new Promise(resolve => requestAnimationFrame(() => resolve()));
+}
 
 function cleanup(): void {
     document.body.innerHTML = '';
@@ -413,6 +418,84 @@ describe('button/detail helpers', () => {
         t.removeToastDetail(id, 0);
         values = Array.from(document.getElementById(id)!.querySelectorAll('.bt-toast-detail-value')).map(v => v.textContent);
         expect(values).toEqual(['second']);
+    });
+});
+
+describe('animations', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+        cleanup();
+    });
+
+    it('slide starts at the anchor edge (0px) and opacity 0 before the entrance frame runs', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, animation: ToastAnimation.SLIDE });
+        const el = document.getElementById(id)!;
+        expect(el.style.bottom).toBe('0px');
+        expect(el.style.opacity).toBe('0');
+    });
+
+    it('fade starts already at its resting offset — only opacity animates, nothing slides', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, animation: ToastAnimation.FADE });
+        const el = document.getElementById(id)!;
+        expect(el.style.bottom).not.toBe('0px');
+        expect(el.style.opacity).toBe('0');
+    });
+
+    it('none has no transition and is fully visible/positioned immediately, with instant removal', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, animation: ToastAnimation.NONE });
+        const el = document.getElementById(id)!;
+        expect(el.style.transition).toBe('none');
+        expect(el.style.opacity).toBe('1');
+        expect(el.style.bottom).not.toBe('0px');
+
+        t.removeToast(id);
+        vi.advanceTimersByTime(0);
+        expect(document.getElementById(id)).toBeNull();
+    });
+
+    it('falls back to slide and warns only once for an unimplemented animation value', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        const slideTransition = getToastAnimation(ToastAnimation.SLIDE)!.containerTransition;
+        const id1 = t.showToast('1', { duration: 0, animation: 'nope' });
+        const id2 = t.showToast('2', { duration: 0, animation: 'nope' });
+        expect(document.getElementById(id1)!.style.transition).toBe(slideTransition);
+        expect(document.getElementById(id2)!.style.transition).toBe(slideTransition);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        warnSpy.mockRestore();
+    });
+
+    it('registerToastAnimation() lets a custom name drive enter/exit and exitDurationMs', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        const enterFrom = vi.fn();
+        const enterTo = vi.fn();
+        const exit = vi.fn();
+        registerToastAnimation('custom-test', {
+            containerTransition: 'opacity 50ms linear',
+            enterFrom,
+            enterTo,
+            exit,
+            exitDurationMs: 50,
+        });
+
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, animation: 'custom-test' });
+        expect(enterFrom).toHaveBeenCalledTimes(1);
+        expect(enterTo).not.toHaveBeenCalled();
+
+        vi.useRealTimers();
+        await nextFrame();
+        expect(enterTo).toHaveBeenCalledTimes(1);
+
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        t.removeToast(id);
+        expect(exit).toHaveBeenCalledTimes(1);
+        vi.advanceTimersByTime(50);
+        expect(document.getElementById(id)).toBeNull();
     });
 });
 

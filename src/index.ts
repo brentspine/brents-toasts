@@ -6,6 +6,6 @@ export { ToastColor } from './ToastColor';
 export type { ToastColorValue } from './ToastColor';
 export { ToastPosition } from './ToastPosition';
 export type { ToastPositionValue } from './ToastPosition';
-export { ToastAnimation } from './ToastAnimation';
-export type { ToastAnimationValue } from './ToastAnimation';
+export { ToastAnimation, registerToastAnimation } from './ToastAnimation';
+export type { ToastAnimationValue, ToastAnimationDefinition, ToastAnimationHookContext } from './ToastAnimation';
 export { ToastBuilder } from './ToastBuilder';
