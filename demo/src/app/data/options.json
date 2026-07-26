@@ -156,7 +156,7 @@
       "id": "step-button",
       "title": "Multi-step buttons",
       "description": "The general-purpose state machine behind confirmButton(), walking through your own custom steps.",
-      "code": "new ToastBuilder(\"Copy the invite link?\")\n  .withDuration(0)\n  .withStepButton([\n    { label: \"Copy link\" },\n    { label: \"Copied!\", revertAfterMs: 2000 },\n  ])\n  .show();"
+      "code": "new ToastBuilder(\"Copy the invite link?\")\n  .withDuration(0)\n  .withStepButton([\n    {\n      label: \"Copy link\",\n      onClick: () => navigator.clipboard.writeText(\"https://brents-toasts.dev/invite/abc123\"),\n    },\n    { label: \"Copied!\", revertAfterMs: 2000 },\n  ])\n  .show();"
     },
     {
       "id": "details",

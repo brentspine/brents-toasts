@@ -15,12 +15,14 @@
         routerLinkActive
         #playgroundLink="routerLinkActive"
         [class.active]="playgroundLink.isActive && section.activeSection() === 'playground'"
+        (click)="scrollToPlaygroundTop($event)"
         >Playground</a
       >
       <a
         routerLink="/playground"
         fragment="examples"
         [class.active]="playgroundLink.isActive && section.activeSection() === 'examples'"
+        (click)="scrollToExamples($event)"
         >Examples</a
       >
       <a routerLink="/changelog" routerLinkActive="active">Changelog</a>

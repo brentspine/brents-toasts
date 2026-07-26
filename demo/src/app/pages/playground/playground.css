@@ -1,5 +1,6 @@
 .playground {
   padding: 40px 20px 60px;
+  scroll-margin-top: 80px;
 }
 
 .intro {
@@ -124,6 +125,7 @@ tr.selected {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
 }
 
 .actions button {
@@ -143,26 +145,39 @@ tr.selected {
   border-color: var(--info);
   color: #05111a;
   font-weight: 600;
-  margin-left: auto;
+}
+
+.actions .spacer {
+  flex: 1;
 }
 
 .color-picker {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 0;
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 4px 8px;
-  cursor: pointer;
+  overflow: hidden;
 }
 
 .color-picker input[type='color'] {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: none;
+  border-right: 1px solid var(--line);
   background: none;
   cursor: pointer;
+}
+
+.color-picker .color-copy {
+  background: var(--input);
+  border: none;
+  border-radius: 0;
+  color: var(--fg);
+  padding: 6px 12px;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
 }
 
 .undo-row {

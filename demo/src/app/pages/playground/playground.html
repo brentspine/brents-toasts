@@ -1,4 +1,4 @@
-<section class="container playground">
+<section class="container playground" id="playground-top">
   <h1>Playground - Try it out</h1>
   <p class="intro">Try clicking on any field.</p>
   <p class="hint">
@@ -56,21 +56,24 @@
     <div class="snippet-header">
       <code class="import-line">{{ importLine }}</code>
       <div class="actions">
-        <button type="button" class="reset" (click)="reset()">Reset</button>
-        <button type="button" (click)="copy()">{{ copied() ? 'Copied!' : 'Copy' }}</button>
         <button type="button" class="surprise" (click)="surpriseMe()" title="Fire a randomized toast">
           🎲 Surprise me
         </button>
         <button type="button" class="run" (click)="run()">Run</button>
-        <label class="color-picker" title="Pick a color to insert into your snippet">
-          <span>🎨</span>
+        <button type="button" class="reset" (click)="reset()">Reset</button>
+        <button type="button" (click)="copy()">{{ copied() ? 'Copied!' : 'Copy' }}</button>
+        <span class="spacer"></span>
+        <div class="color-picker" title="Pick a color and copy its hex code">
           <input
             type="color"
             [value]="colorPickerValue()"
             (input)="onColorPicked($event)"
-            aria-label="Pick a color to insert into the snippet"
+            aria-label="Color picker"
           />
-        </label>
+          <button type="button" class="color-copy" (click)="copyPickedColor()">
+            {{ colorCopied() ? 'Copied!' : colorPickerValue() }}
+          </button>
+        </div>
       </div>
     </div>
     @if (previousCode(); as prev) {
@@ -79,7 +82,12 @@
         <button type="button" class="undo" (click)="undoLastExample()">Undo</button>
       </p>
     }
-    <app-code-editor [(code)]="code" [rows]="8" ariaLabel="Builder code snippet" />
+    <app-code-editor
+      [(code)]="code"
+      [rows]="8"
+      ariaLabel="Builder code snippet"
+      (stable)="editorStable.set(true)"
+    />
     @if (runError()) {
       <p class="run-error">{{ runError() }}</p>
     }

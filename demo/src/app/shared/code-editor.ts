@@ -1,4 +1,15 @@
-import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, effect, input, model, signal, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  afterNextRender,
+  effect,
+  input,
+  model,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 
 /**
  * Minimal ambient types for the Playground's sandboxed run() scope (toasts/ToastBuilder/
@@ -180,6 +191,15 @@ export class CodeEditor {
   readonly rows = input(10);
   readonly ariaLabel = input('Code editor');
 
+  /**
+   * Fires once loading has finished one way or another (Monaco initialized, or the CDN
+   * failed/timed out and the textarea fallback is staying put). Monaco's async CDN load
+   * swaps in a taller element than the textarea it replaces, shifting everything below
+   * this component down - callers that need to scroll to something below the editor
+   * (e.g. Playground's example links) should wait for this instead of guessing at timing.
+   */
+  readonly stable = output<void>();
+
   private readonly monacoHost = viewChild<ElementRef<HTMLDivElement>>('monacoHost');
   protected readonly ready = signal(false);
   private editorInstance: import('monaco-editor').editor.IStandaloneCodeEditor | null = null;
@@ -189,6 +209,7 @@ export class CodeEditor {
     afterNextRender(() => {
       loadMonaco().then((monaco) => {
         if (monaco) this.initEditor(monaco);
+        this.stable.emit();
       });
     });
 

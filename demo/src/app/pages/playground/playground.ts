@@ -58,30 +58,8 @@ function methodPrefix(builderCall: string): string {
   return builderCall.match(/^(\.[a-zA-Z0-9_]+\()/)?.[1] ?? builderCall;
 }
 
-/**
- * Scrolls #id into view once the page has stopped resizing, instead of on a fixed
- * timer. Right after navigating here the CodeEditor's Monaco instance is still loading
- * from its CDN asynchronously, and swaps in a taller element once it's ready, shifting
- * everything below it (including the "Browse examples" section) down. Scrolling before
- * that settles lands short of the target. Debounces on document.body's ResizeObserver,
- * with a hard cutoff so a fragment link can never wait indefinitely.
- */
-function scrollToFragmentWhenStable(id: string, onSettled?: () => void): void {
-  let debounce: ReturnType<typeof setTimeout> | undefined;
-  const cutoff = setTimeout(finish, 2500);
-  const observer = new ResizeObserver(() => {
-    clearTimeout(debounce);
-    debounce = setTimeout(finish, 150);
-  });
-  observer.observe(document.body);
-
-  function finish(): void {
-    clearTimeout(debounce);
-    clearTimeout(cutoff);
-    observer.disconnect();
-    document.getElementById(id)?.scrollIntoView({ behavior: 'auto', block: 'start' });
-    onSettled?.();
-  }
+function scrollToId(id: string): void {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'auto', block: 'start' });
 }
 
 @Component({
@@ -109,6 +87,12 @@ export class Playground {
   readonly previousCode = signal<string | null>(null);
   readonly copiedExampleId = signal<string | null>(null);
   readonly colorPickerValue = signal('#28a6f5');
+  readonly colorCopied = signal(false);
+
+  // Flips once the CodeEditor's Monaco instance has finished loading (or given up and
+  // fallen back to a textarea) - see the fragment effect below for why a fragment scroll
+  // has to wait on this instead of firing immediately.
+  readonly editorStable = signal(false);
 
   private readonly highlightedExamples = loadHighlightedExamples();
 
@@ -140,11 +124,11 @@ export class Playground {
     return ref ? this.optionsData.typeSpecs[ref] : null;
   });
 
-  // ActivatedRoute.fragment, not the router's built-in anchorScrolling: with
-  // withHashLocation() the URL ends up as "#/playground#example-id" (a literal second
-  // "#", since HashLocationStrategy already owns the first one), which the built-in
-  // scroller doesn't reliably parse. Reading the fragment straight from the route and
-  // scrolling manually sidesteps that entirely.
+  // ActivatedRoute.fragment, not the router's built-in anchorScrolling: the CodeEditor's
+  // Monaco instance loads from a CDN asynchronously and swaps in a taller element once
+  // ready, shifting the "Browse examples" section below it - the built-in scroller has
+  // no way to wait for that, so the fragment is read here and scrolled to manually once
+  // editorStable() confirms that shift has already happened (see the effect below).
   private readonly fragment = toSignal(inject(ActivatedRoute).fragment, { initialValue: null });
 
   constructor() {
@@ -157,12 +141,18 @@ export class Playground {
       }
     });
 
+    // Waits on editorStable(), not just the fragment: right after navigating here the
+    // CodeEditor's Monaco instance is still loading from its CDN asynchronously and swaps
+    // in a taller element once it's ready, shifting everything below it (including the
+    // "Browse examples" section) down. Scrolling before that settles lands short/long of
+    // the target - reading editorStable() here subscribes the effect to it, so it
+    // automatically re-runs (and actually scrolls) once loading finishes.
     effect(() => {
       const id = this.fragment();
-      if (!id) return;
-      scrollToFragmentWhenStable(id, () => {
-        if (id.startsWith('example-')) this.flashExampleHighlight(id);
-      });
+      const stable = this.editorStable();
+      if (!id || !stable) return;
+      scrollToId(id);
+      if (id.startsWith('example-')) this.flashExampleHighlight(id);
     });
 
     // Flips the header nav from "Playground" to "Examples" once that section scrolls
@@ -227,7 +217,12 @@ export class Playground {
   }
 
   tryExample(example: PlaygroundExample): void {
-    if (this.code() !== example.code) this.previousCode.set(this.code());
+    // Only captured on the *first* example click of a streak (previousCode still null) -
+    // trying example 2 right after example 1 must not overwrite this with example 1's
+    // code, or Undo would restore example 1 instead of what the user actually had before.
+    if (this.previousCode() === null && this.code() !== example.code) {
+      this.previousCode.set(this.code());
+    }
     this.code.set(example.code);
     this.run();
   }
@@ -253,22 +248,24 @@ export class Playground {
     }
   }
 
-  /** Inserts or updates a .withColor(...) call from a picked hex value, no hand-typed hex required. */
+  /**
+   * A standalone color-picking utility, not tied to the code editor: hex codes are
+   * annoying to guess/hand-type, so this just lets a user pick a color and copy its hex
+   * to paste wherever they need it (e.g. into a .withColor("...") call themselves). It
+   * deliberately never touches the code snippet.
+   */
   onColorPicked(event: Event): void {
-    const hex = (event.target as HTMLInputElement).value;
-    this.colorPickerValue.set(hex);
-    const lines = this.code().split('\n');
-    const colorLine = `  .withColor("${hex}")`;
-    const existingIndex = lines.findIndex((line) => line.trim().startsWith('.withColor('));
+    this.colorPickerValue.set((event.target as HTMLInputElement).value);
+  }
 
-    if (existingIndex !== -1) {
-      lines[existingIndex] = colorLine;
-    } else {
-      const showIndex = lines.findIndex((line) => line.trim() === '.show();');
-      const insertAt = showIndex === -1 ? lines.length : showIndex;
-      lines.splice(insertAt, 0, colorLine);
+  async copyPickedColor(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.colorPickerValue());
+      this.colorCopied.set(true);
+      setTimeout(() => this.colorCopied.set(false), 1500);
+    } catch {
+      // Clipboard API unavailable, no-op, same fallback as the library's own detailsCopyButton().
     }
-    this.code.set(lines.join('\n'));
   }
 
   /** Fires a toast with randomized options, just to show off how much the API can combine. */

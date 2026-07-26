@@ -198,6 +198,24 @@ describe('Playground', () => {
     expect(component.code()).toBe(original);
   });
 
+  it('trying a second example right after the first does not clobber the original user code, undo restores it', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    const original = component.code();
+
+    component.tryExample(component.examples[0]);
+    fixture.detectChanges();
+    component.tryExample(component.examples[1]);
+    fixture.detectChanges();
+
+    expect(component.code()).toBe(component.examples[1].code);
+    expect(component.previousCode()).toBe(original);
+
+    component.undoLastExample();
+    fixture.detectChanges();
+    expect(component.code()).toBe(original);
+  });
+
   it('copyExample() marks that example as copied, then clears it', async () => {
     vi.useFakeTimers();
     const fixture = await createComponent();
@@ -236,18 +254,31 @@ describe('Playground', () => {
     vi.useRealTimers();
   });
 
-  it('onColorPicked() inserts a .withColor(...) call, picking again updates it in place', async () => {
+  it('onColorPicked() only updates the standalone color-picker value, never the code snippet', async () => {
     const fixture = await createComponent();
     const component = fixture.componentInstance;
+    const original = component.code();
 
     component.onColorPicked({ target: { value: '#ff0000' } } as unknown as Event);
     fixture.detectChanges();
-    expect(component.code()).toContain('.withColor("#ff0000")');
 
-    component.onColorPicked({ target: { value: '#00ff00' } } as unknown as Event);
-    fixture.detectChanges();
-    expect(component.code()).toContain('.withColor("#00ff00")');
-    expect(component.code()).not.toContain('#ff0000');
-    expect(component.code().match(/\.withColor\(/g)?.length).toBe(1);
+    expect(component.colorPickerValue()).toBe('#ff0000');
+    expect(component.code()).toBe(original);
+    expect(component.code()).not.toContain('withColor');
+  });
+
+  it('copyPickedColor() copies the picked hex to the clipboard, then clears the copied flag', async () => {
+    vi.useFakeTimers();
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    component.onColorPicked({ target: { value: '#ff0000' } } as unknown as Event);
+
+    await component.copyPickedColor();
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('#ff0000');
+    expect(component.colorCopied()).toBe(true);
+
+    vi.advanceTimersByTime(1500);
+    expect(component.colorCopied()).toBe(false);
+    vi.useRealTimers();
   });
 });

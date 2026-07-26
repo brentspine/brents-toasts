@@ -20,6 +20,10 @@ class MockIntersectionObserver {
 }
 vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
 
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = vi.fn();
+}
+
 Object.defineProperty(window.navigator, 'clipboard', {
   value: { writeText: vi.fn().mockResolvedValue(undefined) },
   writable: true,
