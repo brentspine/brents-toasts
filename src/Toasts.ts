@@ -350,7 +350,8 @@ export class Toasts {
 
         const toastContainer = document.createElement('div');
         toastContainer.className = 'bt-toast-container';
-        toastContainer.style.transition = animationDef.containerTransition;
+        // `containerTransition` is deliberately NOT assigned here yet — see
+        // the `enterFrom`/reflow/transition-assignment sequence below for why.
         toastContainer.id = id;
         this._toastAnimations.set(toastContainer, animationDef);
         toastOwners.set(toastContainer, this);
@@ -412,7 +413,19 @@ export class Toasts {
         this._resizeObservers.set(toastContainer, resizeObserver);
 
         const animCtx = { container: toastContainer, edge };
+        // No transition is active yet (still the browser default of "none"),
+        // so `enterFrom` snaps the container to its hidden state instantly
+        // instead of animating from whatever stale default (e.g. opacity's
+        // initial value of 1) `stackExistingAway`'s layout reads above
+        // already forced the engine to commit. Forcing a reflow makes that
+        // snap its own committed checkpoint — matching the same
+        // freeze-then-reflow-then-transition fix used for the progress bar
+        // in `_syncProgressBar` — so that turning the transition on
+        // afterwards and changing to `enterTo` on the next frame animates
+        // cleanly from this state instead of from the stale one.
         animationDef.enterFrom(animCtx, targetOffset);
+        void toastContainer.offsetHeight;
+        toastContainer.style.transition = animationDef.containerTransition;
         // Minimal delay so the CSS transition set above actually registers
         // the `enterFrom` frame before `enterTo` changes it.
         requestAnimationFrame(() => {
