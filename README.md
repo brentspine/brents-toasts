@@ -176,13 +176,45 @@ becomes `confirmMessage` (default `"Are you sure?"`) and every button on
 the toast is replaced with a `yesLabel`/`noLabel` (default `"Yes"`/`"No"`)
 pair. Clicking "Yes" runs `onConfirm`, optionally flashes `doneMessage`
 (default `"Done"`; pass `null` to skip it) for `doneTimeoutMs` (default
-`2000`), then restores the toast's original message and buttons. Clicking
-"No" restores immediately, without ever running `onConfirm` — no revert
-timer needed, since the explicit "No" *is* the revert. If `onConfirm`
-returns a `Promise` (as above), every button on the toast disables itself
-until it settles, so "Yes" can't be double-fired by an impatient second
-click and "No" can't race a running confirm. Builder equivalent:
-`.withConfirmButton(label, onConfirm, options?)`.
+`2000`), then either restores the toast's original message/buttons
+(`doneAction: 'restore'`, the default) or dismisses the toast entirely
+(`doneAction: 'close'`). Clicking "No" restores immediately, without ever
+running `onConfirm` — no revert timer needed, since the explicit "No" *is*
+the revert. If `onConfirm` returns a `Promise` (as above), every button on
+the toast disables itself until it settles, so "Yes" can't be double-fired
+by an impatient second click and "No" can't race a running confirm.
+
+Each step of the flow can also change the toast's `color`, and the pending
+step can show its own message instead of just disabling the buttons — handy
+for something like a delete confirmation, where reverting to "Delete this
+file?" after the file is already gone doesn't make sense:
+
+```ts
+toasts.showToast('Delete this file?', {
+  color: ToastColor.WARNING,
+  duration: 0,
+  buttons: [
+    toasts.confirmButton('Delete', () => deleteFile(), {
+      confirmMessage: 'Are you sure you want to delete this file?',
+      confirmColor: ToastColor.ERROR,
+      pendingMessage: 'Processing, it might take a while.',
+      pendingColor: ToastColor.INFO,
+      doneMessage: 'File deleted successfully.',
+      doneColor: ToastColor.SUCCESS,
+      doneAction: 'close',
+    }),
+  ],
+});
+```
+
+`pendingMessage`/`pendingColor` only apply while `onConfirm`'s `Promise` is
+pending — left unset, the toast just stays on the confirm step's content
+with every button disabled, same as before. `onConfirm` still receives the
+toast's `id`, so if a static "Processing..." message isn't enough — e.g. a
+real upload — call `toasts.setToastProgress(id, value)` from inside your own
+async work instead; see "Progress bar" below for `mode: 'manual'`. A
+rejected `onConfirm` always restores (never closes), after logging a
+warning. Builder equivalent: `.withConfirmButton(label, onConfirm, options?)`.
 
 For flows `confirmButton()` doesn't cover directly (it doesn't use
 `stepButton()` under the hood — it swaps the toast's own content instead
@@ -425,6 +457,52 @@ toasts.showToast('Payment failed.', {
   ],
 });
 ```
+
+### Progress bar
+
+Pass `progress: true` (or a `ToastProgressOptions` object) for a thin bar on
+the toast card. By default it's synced to the toast's own auto-dismiss
+countdown via the same timer state `getToastTimer`/`pauseToastTimer`/etc.
+use — no extra wiring needed:
+
+```ts
+toasts.showToast('Uploading…', {
+  duration: 6000,
+  progress: { mode: 'drain', color: ToastColor.INFO },
+});
+```
+
+`mode: 'fill'` starts empty and grows to full over the toast's remaining
+lifetime; `mode: 'drain'` (the default) starts full and shrinks to empty.
+`position` (`'top'`/`'bottom'`, default `'bottom'`), `origin`
+(`'left'`/`'right'`/`'center'`, default `'left'`), `color` (defaults to the
+toast's own resolved `color`), `trackColor` (default transparent), and
+`height` (default `3`) round out the styling. No-op on a sticky toast
+(`duration: 0`) — there's no countdown for it to track. Builder equivalent:
+`.withProgress(progress?)`.
+
+For a bar that reflects *real* progress instead of a duration guess — an
+upload's `progress` event, a multi-step job — use `mode: 'manual'` and drive
+it yourself with `toasts.setToastProgress(id, value)` (`value` clamped to
+`0`-`1`). Unlike `'fill'`/`'drain'`, a manual bar ignores the auto-dismiss
+timer entirely, so it stays visible on a sticky toast too:
+
+```ts
+const id = toasts.showToast('Uploading…', {
+  duration: 0,
+  progress: { mode: 'manual' },
+});
+
+await uploadFile(file, {
+  onProgress: (fraction) => toasts.setToastProgress(id, fraction),
+});
+toasts.updateToast(id, { message: 'Upload complete!', color: ToastColor.SUCCESS });
+```
+
+This pairs naturally with `confirmButton()`'s `pendingMessage`/`pendingColor`
+(see "Multi-step buttons" above) — `onConfirm` already receives the toast's
+`id`, so a slow action confirmed via `confirmButton()` can report real
+progress the same way instead of just showing static pending text.
 
 ### Config: project-wide vs. page/section-local
 

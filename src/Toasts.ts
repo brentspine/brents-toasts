@@ -41,8 +41,17 @@ export interface ToastProgressOptions {
     /** 'fill': starts empty, grows to full over the toast's remaining
      *  lifetime. 'drain': starts full, shrinks to empty. For `origin:
      *  'center'`, fill grows outward from a zero-width center sliver;
-     *  drain shrinks inward from both edges toward the center. Default 'drain'. */
-    mode?: 'fill' | 'drain';
+     *  drain shrinks inward from both edges toward the center. 'manual':
+     *  the bar doesn't move on its own at all — call `setToastProgress(id,
+     *  value)` yourself as real work progresses (e.g. an upload's `progress`
+     *  event), instead of a duration guess. Ignores the toast's auto-dismiss
+     *  timer entirely, so unlike `'fill'`/`'drain'` it doesn't hide on a
+     *  sticky (`duration: 0`) toast. Default 'drain'. */
+    mode?: 'fill' | 'drain' | 'manual';
+    /** Initial fill fraction (0-1) when `mode: 'manual'`. Ignored for
+     *  `'fill'`/`'drain'`. Update it later via `setToastProgress(id,
+     *  value)`, not by re-passing `progress` through `updateToast`. Default 0. */
+    value?: number;
     /** Fill color. Defaults to this toast's own resolved `color`, and stays
      *  linked to it — changing the toast's `color` later (via
      *  `updateToast`) re-syncs an unset `progress.color` too. */
@@ -386,8 +395,14 @@ export class Toasts {
         toast.appendChild(toastRow);
         renderActions(toastRow, toast, opts, id, t, (toastId) => this.resetToastTimer(toastId));
         this._setProgressConfig(toastContainer, applyProgress(toast, opts.progress, opts.color));
-        this._syncProgressBar(toastContainer); // no _timers entry yet → starts hidden
         toastContainer.appendChild(toast);
+        // Must run after the append above — `_syncProgressBar` looks up `.bt-toast-progress`
+        // via `toastContainer.querySelector`, which can't find it while it's still only a
+        // child of the (not yet attached) `toast`. For 'fill'/'drain' this call is still a
+        // no-op either way (no `_timers` entry yet → starts hidden, same as the comment used
+        // to say), but `mode: 'manual'` doesn't depend on a timer and needs the DOM in place
+        // to show immediately.
+        this._syncProgressBar(toastContainer);
 
         // `reverseOrder` toasts are prepended instead of appended — DOM order
         // is what `_recalculatePositions`/`_stackExistingAway` stack away from
@@ -770,6 +785,26 @@ export class Toasts {
     }
 
     /**
+     * Sets a manual progress bar's fill fraction (`0`-`1`, clamped) — only meaningful for a
+     * toast whose `progress.mode` is `'manual'` (see `ToastProgressOptions.mode`); a no-op
+     * otherwise, or if `id`/its progress bar don't exist. Mutates the stored config and
+     * re-syncs the bar directly, without the full DOM rebuild `updateToast(id, { progress })`
+     * would do, so it's cheap to call repeatedly from a frequent progress event (e.g. an
+     * upload's `progress` handler, or from inside `confirmButton()`'s `onConfirm` — it already
+     * receives `id`).
+     */
+    setToastProgress(id: string, value: number): void {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const owner = this._ownerOf(el);
+        if (owner !== this) return owner.setToastProgress(id, value);
+        const cfg = this._progressConfig.get(el);
+        if (!cfg || cfg.mode !== 'manual') return;
+        cfg.value = Math.max(0, Math.min(1, value));
+        this._syncProgressBar(el);
+    }
+
+    /**
      * A ready-made "Close" action button (for the `buttons` option / `ToastBuilder.withCloseButton()`)
      * that dismisses the toast it's on, wired to this `Toasts` instance's `removeToast`.
      * `label` is a plain parameter rather than a hardcoded string — like `detailsLabel` — so it can be
@@ -811,38 +846,56 @@ export class Toasts {
 
     /**
      * A ready-made confirm-before-action button. Rather than relabeling just itself to
-     * "Are you sure?", clicking it swaps out the *whole toast's* content: `message` becomes
-     * `confirmMessage` ("Are you sure?" by default) and every button on the toast (this one
-     * included) is replaced with a `yesLabel`/`noLabel` pair. Clicking "Yes" runs `onConfirm`
-     * (the button disables itself while an async `onConfirm` is pending, so it can't be
-     * double-fired), optionally flashes `doneMessage` ("Done" by default; pass `null` to skip
-     * it) for `doneTimeoutMs`, then restores the toast's original message and buttons.
-     * Clicking "No" restores immediately without running anything — no revert timer needed,
-     * since the explicit "No" is the revert. Every click also calls `resetToastTimer(id)` —
-     * see that method — so the toast's own auto-dismiss timer can't fire out from under the
-     * user mid-confirmation; a no-op if the toast is sticky. For flows that don't fit this
-     * shape, build them directly with `updateToast()`/`stepButton()` instead.
+     * "Are you sure?", clicking it swaps out the *whole toast's* content: `message`/`color`
+     * become `confirmMessage`/`confirmColor` and every button on the toast (this one included)
+     * is replaced with a `yesLabel`/`noLabel` pair. Clicking "Yes" runs `onConfirm`; while an
+     * async `onConfirm` is pending, either the toast switches to `pendingMessage`/`pendingColor`
+     * (buttons cleared), or — if `pendingMessage` isn't set — every action just disables in
+     * place, same as before. On success it optionally flashes `doneMessage`/`doneColor` ("Done"
+     * by default; pass `doneMessage: null` to skip it) for `doneTimeoutMs`, then either restores
+     * the toast's original title/message/buttons/color (`doneAction: 'restore'`, the default) or
+     * dismisses the toast entirely (`doneAction: 'close'`) — useful when reverting to the
+     * pre-confirm content wouldn't make sense anymore (e.g. after a delete). Clicking "No"
+     * restores immediately without running anything — no revert timer needed, since the explicit
+     * "No" is the revert. A rejected `onConfirm` always restores (never closes) after logging a
+     * warning. Every click also calls `resetToastTimer(id)` — see that method — so the toast's
+     * own auto-dismiss timer can't fire out from under the user mid-confirmation; a no-op if the
+     * toast is sticky. `onConfirm` still receives the toast's `id`, so a consumer wanting a real
+     * progress bar during the pending step (rather than just `pendingMessage` text) can call
+     * `setToastProgress(id, value)` themselves as their own async work reports progress — see
+     * `ToastProgressOptions.mode: 'manual'`. For flows that don't fit this shape at all, build
+     * them directly with `updateToast()`/`stepButton()` instead.
      */
     confirmButton(
         label: string,
         onConfirm: (event: MouseEvent, id: string) => void | Promise<void>,
         options?: {
             confirmMessage?: string;
+            confirmColor?: string;
             yesLabel?: string;
             noLabel?: string;
+            pendingMessage?: string;
+            pendingColor?: string;
             doneMessage?: string | null;
-            className?: string;
+            doneColor?: string;
             doneTimeoutMs?: number;
+            doneAction?: 'restore' | 'close';
+            className?: string;
         }
     ): ToastButton {
         const t = this._getTranslations();
         const {
             confirmMessage = t.areYouSure,
+            confirmColor,
             yesLabel = t.yes,
             noLabel = t.no,
+            pendingMessage,
+            pendingColor,
             doneMessage = t.done,
-            className,
+            doneColor,
             doneTimeoutMs = 2000,
+            doneAction = 'restore',
+            className,
         } = options ?? {};
 
         return {
@@ -854,7 +907,16 @@ export class Toasts {
                 if (!original) return;
 
                 const restore = (): void => {
-                    this.updateToast(id, { title: original.title, message: original.message, buttons: original.buttons });
+                    this.updateToast(id, {
+                        title: original.title,
+                        message: original.message,
+                        buttons: original.buttons,
+                        color: original.color,
+                    });
+                };
+                const settle = (): void => {
+                    if (doneAction === 'close') this.removeToast(id);
+                    else restore();
                 };
 
                 const yesButton: ToastButton = {
@@ -864,10 +926,12 @@ export class Toasts {
 
                         const finish = (): void => {
                             if (doneMessage) {
-                                this.updateToast(confirmId, { message: doneMessage, buttons: [] });
-                                setTimeout(restore, doneTimeoutMs);
+                                const doneUpdate: ToastUpdateOptions = { message: doneMessage, buttons: [] };
+                                if (doneColor !== undefined) doneUpdate.color = doneColor;
+                                this.updateToast(confirmId, doneUpdate);
+                                setTimeout(settle, doneTimeoutMs);
                             } else {
-                                restore();
+                                settle();
                             }
                         };
                         const fail = (err: unknown): void => {
@@ -883,11 +947,20 @@ export class Toasts {
                             return;
                         }
                         if (result instanceof Promise) {
-                            // Disable every action on the toast (not just this button)
-                            // while onConfirm is pending, so "No" can't race a running confirm.
-                            (event.currentTarget as HTMLButtonElement).closest<HTMLElement>('.bt-toast-actions')
-                                ?.querySelectorAll('button')
-                                .forEach((b) => { b.disabled = true; });
+                            const pendingUpdate: ToastUpdateOptions = {};
+                            if (pendingColor !== undefined) pendingUpdate.color = pendingColor;
+                            if (pendingMessage !== undefined) {
+                                pendingUpdate.message = pendingMessage;
+                                pendingUpdate.buttons = [];
+                            }
+                            if (Object.keys(pendingUpdate).length > 0) this.updateToast(confirmId, pendingUpdate);
+                            if (pendingMessage === undefined) {
+                                // Disable every action on the toast (not just this button)
+                                // while onConfirm is pending, so "No" can't race a running confirm.
+                                (event.currentTarget as HTMLButtonElement).closest<HTMLElement>('.bt-toast-actions')
+                                    ?.querySelectorAll('button')
+                                    .forEach((b) => { b.disabled = true; });
+                            }
                             result.then(finish).catch(fail);
                         } else {
                             finish();
@@ -903,7 +976,9 @@ export class Toasts {
                     },
                 };
 
-                this.updateToast(id, { message: confirmMessage, buttons: [yesButton, noButton] });
+                const confirmUpdate: ToastUpdateOptions = { message: confirmMessage, buttons: [yesButton, noButton] };
+                if (confirmColor !== undefined) confirmUpdate.color = confirmColor;
+                this.updateToast(id, confirmUpdate);
             },
         };
     }
@@ -978,6 +1053,17 @@ export class Toasts {
         const wrap = toastContainer.querySelector<HTMLElement>('.bt-toast-progress');
         const fill = wrap?.querySelector<HTMLElement>('.bt-toast-progress-fill');
         if (!wrap || !fill) return;
+
+        if (cfg.mode === 'manual') {
+            // Entirely decoupled from `_timers` — never hides for lack of a
+            // running countdown (unlike 'fill'/'drain' below), since a manual
+            // bar is meant to reflect the consumer's own `setToastProgress`
+            // calls even on a sticky (`duration: 0`) toast.
+            wrap.style.display = '';
+            fill.style.transition = 'transform 150ms linear';
+            fill.style.transform = `scaleX(${cfg.value})`;
+            return;
+        }
 
         const timer = this._timers.get(toastContainer);
         if (!timer) {

@@ -307,6 +307,41 @@ describe('progress bar sync', () => {
         const scale = parseFloat(fill.style.transform.match(/scaleX\(([\d.]+)\)/)![1]);
         expect(scale).toBeCloseTo(0.5, 1);
     });
+
+    function fillScale(id: string): number {
+        const fill = document.getElementById(id)!.querySelector('.bt-toast-progress-fill') as HTMLElement;
+        return parseFloat(fill.style.transform.match(/scaleX\(([\d.]+)\)/)![1]);
+    }
+
+    it('setToastProgress moves a manual-mode bar to the given (clamped) fraction', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, progress: { mode: 'manual' } });
+
+        expect(fillScale(id)).toBe(0);
+        t.setToastProgress(id, 0.4);
+        expect(fillScale(id)).toBeCloseTo(0.4, 5);
+        t.setToastProgress(id, 5);
+        expect(fillScale(id)).toBe(1);
+        t.setToastProgress(id, -1);
+        expect(fillScale(id)).toBe(0);
+    });
+
+    it('a manual-mode bar stays visible on a sticky toast, unlike fill/drain', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, progress: { mode: 'manual', value: 0.2 } });
+        const wrap = document.getElementById(id)!.querySelector('.bt-toast-progress') as HTMLElement;
+        expect(wrap.style.display).not.toBe('none');
+        expect(fillScale(id)).toBeCloseTo(0.2, 5);
+    });
+
+    it('setToastProgress is a no-op for a fill/drain bar and for a nonexistent toast', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000, progress: true });
+        const before = fillScale(id);
+        t.setToastProgress(id, 0.9);
+        expect(fillScale(id)).toBe(before);
+        expect(() => t.setToastProgress('nonexistent', 0.5)).not.toThrow();
+    });
 });
 
 describe('eviction and stacking', () => {
@@ -789,5 +824,132 @@ describe('confirmButton', () => {
         vi.advanceTimersByTime(4000);
         clickAction(id, 'No');
         expect(t.getToastTimer(id)!.remaining).toBe(5000);
+    });
+
+    function colorOf(id: string): string {
+        return document.getElementById(id)!.querySelector<HTMLElement>('.bt-toast-close')!.style.getPropertyValue('--data-background');
+    }
+
+    it('confirmColor/pendingColor/doneColor swap the toast color per step, "No" restores the original', async () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        let resolveConfirm: () => void;
+        const onConfirm = vi.fn(() => new Promise<void>(resolve => { resolveConfirm = resolve; }));
+        const id = t.showToast('x', {
+            duration: 0,
+            color: ToastColor.WARNING,
+            buttons: [t.confirmButton('Delete', onConfirm, {
+                confirmColor: ToastColor.ERROR,
+                pendingColor: ToastColor.INFO,
+                doneColor: ToastColor.SUCCESS,
+            })],
+        });
+
+        expect(colorOf(id)).toBe(ToastColor.WARNING);
+        clickAction(id, 'Delete');
+        expect(colorOf(id)).toBe(ToastColor.ERROR);
+
+        clickAction(id, 'Yes');
+        expect(colorOf(id)).toBe(ToastColor.INFO);
+
+        resolveConfirm!();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(colorOf(id)).toBe(ToastColor.SUCCESS);
+
+        await vi.advanceTimersByTimeAsync(2000);
+        expect(colorOf(id)).toBe(ToastColor.WARNING);
+    });
+
+    it('"No" restores the original color after a confirmColor step, without ever confirming', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', {
+            duration: 0,
+            color: ToastColor.WARNING,
+            buttons: [t.confirmButton('Delete', () => {}, { confirmColor: ToastColor.ERROR })],
+        });
+
+        clickAction(id, 'Delete');
+        expect(colorOf(id)).toBe(ToastColor.ERROR);
+        clickAction(id, 'No');
+        expect(colorOf(id)).toBe(ToastColor.WARNING);
+    });
+
+    it('pendingMessage replaces the content (and clears buttons) while an async onConfirm is pending', async () => {
+        const t = new Toasts();
+        let resolveConfirm: () => void;
+        const onConfirm = vi.fn(() => new Promise<void>(resolve => { resolveConfirm = resolve; }));
+        const id = t.showToast('x', {
+            duration: 0,
+            buttons: [t.confirmButton('Delete', onConfirm, { pendingMessage: 'Processing...', doneMessage: null })],
+        });
+
+        clickAction(id, 'Delete');
+        clickAction(id, 'Yes');
+
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('Processing...');
+        expect(actionLabels(id)).toEqual([]);
+
+        resolveConfirm!();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('x');
+        expect(actionLabels(id)).toEqual(['Delete']);
+    });
+
+    it('doneAction: "close" removes the toast instead of restoring, after the doneMessage flash', async () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', {
+            duration: 0,
+            buttons: [t.confirmButton('Delete', () => {}, { doneMessage: 'Deleted!', doneTimeoutMs: 500, doneAction: 'close' })],
+        });
+
+        clickAction(id, 'Delete');
+        clickAction(id, 'Yes');
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('Deleted!');
+        expect(document.getElementById(id)).not.toBeNull();
+
+        await vi.advanceTimersByTimeAsync(500);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+        // removeToast() itself still runs the exit animation (300ms for the default
+        // SLIDE animation) before actually detaching the element from the DOM.
+        await vi.advanceTimersByTimeAsync(300);
+        expect(document.getElementById(id)).toBeNull();
+    });
+
+    it('doneAction: "close" with doneMessage: null closes immediately, without a flash', async () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', {
+            duration: 0,
+            buttons: [t.confirmButton('Delete', () => {}, { doneMessage: null, doneAction: 'close' })],
+        });
+
+        clickAction(id, 'Delete');
+        clickAction(id, 'Yes');
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+        await vi.advanceTimersByTimeAsync(300);
+        expect(document.getElementById(id)).toBeNull();
+    });
+
+    it('a rejected onConfirm always restores, even with doneAction: "close"', async () => {
+        const t = new Toasts();
+        const onConfirm = vi.fn(() => Promise.reject(new Error('boom')));
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const id = t.showToast('x', {
+            duration: 0,
+            buttons: [t.confirmButton('Delete', onConfirm, { doneMessage: null, doneAction: 'close' })],
+        });
+
+        clickAction(id, 'Delete');
+        clickAction(id, 'Yes');
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(document.getElementById(id)).not.toBeNull();
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('x');
+        expect(actionLabels(id)).toEqual(['Delete']);
+        warn.mockRestore();
     });
 });

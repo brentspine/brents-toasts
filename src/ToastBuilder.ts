@@ -66,17 +66,22 @@ export class ToastBuilder {
         this._options.buttons.push(this._toasts.closeButton(label, className));
         return this;
     }
-    /** Adds a ready-made confirm-before-action button ("Delete" -> swaps the toast to "Are you sure?" + Yes/No -> runs `onConfirm` -> "Done" -> reverts). See `Toasts.confirmButton()`. */
+    /** Adds a ready-made confirm-before-action button ("Delete" -> swaps the toast to "Are you sure?" + Yes/No -> runs `onConfirm` -> "Done" -> reverts or closes). See `Toasts.confirmButton()`. */
     withConfirmButton(
         label: string,
         onConfirm: (event: MouseEvent, id: string) => void | Promise<void>,
         options?: {
             confirmMessage?: string;
+            confirmColor?: string;
             yesLabel?: string;
             noLabel?: string;
+            pendingMessage?: string;
+            pendingColor?: string;
             doneMessage?: string | null;
-            className?: string;
+            doneColor?: string;
             doneTimeoutMs?: number;
+            doneAction?: 'restore' | 'close';
+            className?: string;
         }
     ): this {
         if (!this._options.buttons) this._options.buttons = [];

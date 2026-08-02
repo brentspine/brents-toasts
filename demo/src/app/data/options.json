@@ -28,7 +28,7 @@
     { "name": "removeOtherToasts", "type": "boolean", "default": "false", "description": "If true, dismisses every other currently-visible toast before showing this one.", "builderCall": ".andRemoveOtherToasts()" },
     { "name": "reverseOrder", "type": "boolean", "default": "false", "description": "If true, inserts this toast at the far end of its position's stack instead of nearest the anchor edge. Creation-time only.", "builderCall": ".andReverseOrder()" },
     { "name": "pauseOnHover", "type": "boolean", "default": "true", "description": "Whether hovering the toast pauses its auto-dismiss timer. No effect on sticky toasts.", "builderCall": ".withPauseOnHover(false)" },
-    { "name": "progress", "type": "boolean | ToastProgressOptions", "typeRef": "ToastProgressOptions", "default": "false", "description": "Adds a thin progress bar synced to the auto-dismiss countdown. true = all defaults.", "builderCall": ".withProgress({ mode: \"fill\", color: \"#4bb543\" })" },
+    { "name": "progress", "type": "boolean | ToastProgressOptions", "typeRef": "ToastProgressOptions", "default": "false", "description": "Adds a thin progress bar. fill/drain sync to the auto-dismiss countdown; manual is driven yourself via setToastProgress(id, value). true = all defaults.", "builderCall": ".withProgress({ mode: \"fill\", color: \"#4bb543\" })" },
     { "name": "data", "type": "unknown", "default": "undefined", "description": "Arbitrary data to associate with the toast, readable later via getToastData(id).", "builderCall": ".withData({ orderId: 1234 })" },
     { "name": "theme", "type": "ToastTheme", "typeRef": "ToastTheme", "default": "undefined", "description": "Extra color knobs beyond color: card background, text, details block, action/close-icon colors.", "builderCall": ".withTheme({ background: \"#1c1c1c\", text: \"#f5f5f5\" })" },
     { "name": "buttons", "type": "ToastButton[]", "typeRef": "ToastButton", "default": "undefined", "description": "Action buttons rendered right of the message. Clicks never trigger closable dismissal.", "builderCall": ".withButton(\"Undo\", (event, id) => console.log(\"undo\", id))" },
@@ -36,7 +36,7 @@
     { "name": "detailsLabel", "type": "string", "default": "\"Details\" (locale)", "description": "Label for the auto-added details toggle button. Set together with details.", "builderCall": ".withDetails([\"Order #1234 shipped\", \"Tracking: 1Z999AA10123456784\"], \"Show details\", \"Hide details\")" },
     { "name": "detailsHideLabel", "type": "string", "default": "\"Hide details\" (locale)", "description": "Label for the toggle button while details are expanded. Set together with details.", "builderCall": ".withDetails([\"Order #1234 shipped\", \"Tracking: 1Z999AA10123456784\"], \"Show details\", \"Hide details\")" },
     { "name": "closeButton()", "type": "(label?, className?) => ToastButton", "typeRef": "ToastButton", "default": "-", "description": "Ready-made button that dismisses the toast it's on.", "builderCall": ".withCloseButton()" },
-    { "name": "confirmButton()", "type": "(label, onConfirm, options?) => ToastButton", "typeRef": "ToastButtonStep", "default": "-", "description": "Ready-made confirm-before-action button: clicking it swaps the toast's message to \"Are you sure?\" and every button to Yes/No, runs onConfirm on Yes, flashes \"Done\", then restores the original content.", "builderCall": ".withConfirmButton(\"Delete\", (event, id) => console.log(\"deleted\", id))" },
+    { "name": "confirmButton()", "type": "(label, onConfirm, options?) => ToastButton", "typeRef": "ToastConfirmButtonOptions", "default": "-", "description": "Ready-made confirm-before-action button: swaps the toast's message/color to a confirm step, then Yes/No, runs onConfirm, optionally a pending step, then a done flash that either restores the original content or closes the toast.", "builderCall": ".withConfirmButton(\"Delete\", (event, id) => console.log(\"deleted\", id))" },
     { "name": "stepButton()", "type": "(steps, className?) => ToastButton", "typeRef": "ToastButtonStep", "default": "-", "description": "The general-purpose primitive behind detailsCopyButton(): a button that walks through custom steps in order.", "builderCall": ".withStepButton([{ label: \"Copy\" }, { label: \"Copied!\", revertAfterMs: 2000 }])" }
   ],
   "configOptions": [
@@ -100,11 +100,12 @@
     },
     "ToastProgressOptions": {
       "kind": "object",
-      "description": "Configures the optional progress bar synced to a toast's auto-dismiss countdown.",
+      "description": "Configures the optional progress bar: synced to a toast's auto-dismiss countdown (fill/drain), or driven yourself (manual).",
       "fields": [
         { "name": "position", "type": "'top' | 'bottom'", "default": "'bottom'", "description": "Which edge of the toast card the bar sits on." },
         { "name": "origin", "type": "'left' | 'right' | 'center'", "default": "'left'", "description": "Anchor point the bar grows from/shrinks toward. Always physical, not RTL-aware." },
-        { "name": "mode", "type": "'fill' | 'drain'", "default": "'drain'", "description": "fill starts empty and grows; drain starts full and shrinks." },
+        { "name": "mode", "type": "'fill' | 'drain' | 'manual'", "default": "'drain'", "description": "fill starts empty and grows; drain starts full and shrinks; manual doesn't move on its own - call setToastProgress(id, value) yourself as real work progresses. Ignores the auto-dismiss timer entirely, so it stays visible on a sticky toast too." },
+        { "name": "value", "type": "number", "default": "0", "description": "Initial fill fraction (0-1) when mode: 'manual'. Ignored otherwise. Update later via setToastProgress(id, value)." },
         { "name": "color", "type": "string", "default": "the toast's resolved color", "description": "Fill color." },
         { "name": "trackColor", "type": "string", "default": "'transparent'", "description": "Color of the unfilled track." },
         { "name": "height", "type": "number", "default": "3", "description": "Bar thickness in px." }
@@ -130,6 +131,23 @@
         { "name": "revertToStep", "type": "number", "default": "0", "description": "Step index revertAfterMs advances to." }
       ]
     },
+    "ToastConfirmButtonOptions": {
+      "kind": "object",
+      "description": "The third argument to confirmButton()/withConfirmButton() - customizes each step of the confirm flow (confirm, pending, done).",
+      "fields": [
+        { "name": "confirmMessage", "type": "string", "default": "\"Are you sure?\" (locale)", "description": "Message shown on the confirm step." },
+        { "name": "confirmColor", "type": "string", "default": "unchanged", "description": "Toast color during the confirm step." },
+        { "name": "yesLabel", "type": "string", "default": "\"Yes\" (locale)", "description": "Confirm step's confirm button label." },
+        { "name": "noLabel", "type": "string", "default": "\"No\" (locale)", "description": "Confirm step's cancel button label." },
+        { "name": "pendingMessage", "type": "string", "default": "undefined", "description": "Message shown while an async onConfirm is pending, replacing the buttons entirely. Unset keeps the confirm step's content and just disables the buttons instead." },
+        { "name": "pendingColor", "type": "string", "default": "unchanged", "description": "Toast color while an async onConfirm is pending." },
+        { "name": "doneMessage", "type": "string | null", "default": "\"Done\" (locale)", "description": "Message flashed after onConfirm succeeds. Pass null to skip the flash entirely." },
+        { "name": "doneColor", "type": "string", "default": "unchanged", "description": "Toast color during the done flash." },
+        { "name": "doneTimeoutMs", "type": "number", "default": "2000", "description": "How long the done flash stays up before doneAction runs." },
+        { "name": "doneAction", "type": "'restore' | 'close'", "default": "'restore'", "description": "What happens after the done flash (or immediately, if doneMessage is null): restore the original title/message/buttons/color, or close (dismiss) the toast." },
+        { "name": "className", "type": "string", "description": "Extra class name(s) on the button itself." }
+      ]
+    },
     "ToastDetailItem": {
       "kind": "object",
       "description": "One line of a toast's expandable details block. A plain string is shorthand for { value }.",
@@ -150,8 +168,14 @@
     {
       "id": "confirm",
       "title": "Confirm before acting",
-      "description": "A ready-made button that asks for confirmation before running its action, then reverts back on its own.",
-      "code": "new ToastBuilder(\"Delete this file?\")\n  .withColor(ToastColor.WARNING)\n  .withDuration(0)\n  .withConfirmButton(\"Delete\", (event, id) => console.log(\"deleted\", id))\n  .show();"
+      "description": "Each step of the confirm flow gets its own color and message: confirm, a pending state while the (simulated) delete runs, then a success flash that closes the toast instead of reverting.",
+      "code": "new ToastBuilder(\"Delete this file?\")\n  .withColor(ToastColor.WARNING)\n  .withDuration(0)\n  .withConfirmButton(\n    \"Delete\",\n    (event, id) => new Promise((resolve) => setTimeout(resolve, 1500)),\n    {\n      confirmMessage: \"Are you sure you want to delete this file?\",\n      confirmColor: ToastColor.ERROR,\n      pendingMessage: \"Processing, it might take a while.\",\n      pendingColor: ToastColor.INFO,\n      doneMessage: \"File deleted successfully.\",\n      doneColor: ToastColor.SUCCESS,\n      doneTimeoutMs: 2000,\n      doneAction: \"close\",\n    }\n  )\n  .show();"
+    },
+    {
+      "id": "confirm-progress",
+      "title": "Confirm + live progress bar",
+      "description": "Combines confirmButton() with progress: { mode: 'manual' } - onConfirm reports real progress via setToastProgress(id, value) instead of the bar just tracking a duration.",
+      "code": "const id = new ToastBuilder(\"Upload this file?\")\n  .withColor(ToastColor.WARNING)\n  .withDuration(0)\n  .withProgress({ mode: \"manual\" })\n  .withConfirmButton(\n    \"Upload\",\n    async (event, confirmId) => {\n      for (let pct = 0; pct <= 1; pct += 0.25) {\n        await new Promise((resolve) => setTimeout(resolve, 400));\n        toasts.setToastProgress(confirmId, pct);\n      }\n    },\n    {\n      confirmColor: ToastColor.INFO,\n      pendingMessage: \"Uploading...\",\n      pendingColor: ToastColor.INFO,\n      doneMessage: \"Upload complete!\",\n      doneColor: ToastColor.SUCCESS,\n      doneAction: \"close\",\n    }\n  )\n  .show();"
     },
     {
       "id": "step-button",

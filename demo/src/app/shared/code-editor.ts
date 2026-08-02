@@ -39,7 +39,8 @@ interface ToastTheme { background?: string; text?: string; detailsBackground?: s
 interface ToastProgressOptions {
   position?: 'top' | 'bottom';
   origin?: 'left' | 'right' | 'center';
-  mode?: 'fill' | 'drain';
+  mode?: 'fill' | 'drain' | 'manual';
+  value?: number;
   color?: string;
   trackColor?: string;
   height?: number;
@@ -73,7 +74,11 @@ declare class ToastBuilder {
   withConfirmButton(
     label: string,
     onConfirm: (event: MouseEvent, id: string) => void | Promise<void>,
-    options?: { confirmMessage?: string; yesLabel?: string; noLabel?: string; doneMessage?: string | null; className?: string; doneTimeoutMs?: number },
+    options?: {
+      confirmMessage?: string; confirmColor?: string; yesLabel?: string; noLabel?: string;
+      pendingMessage?: string; pendingColor?: string; doneMessage?: string | null; doneColor?: string;
+      doneTimeoutMs?: number; doneAction?: 'restore' | 'close'; className?: string;
+    },
   ): this;
   withStepButton(steps: ToastButtonStep[], className?: string): this;
   /** Fires the toast. @returns its id. */
@@ -84,6 +89,8 @@ declare const toasts: {
   showToast(message: string, options?: Record<string, unknown>): string;
   configure(config: Record<string, unknown>): void;
   closeToast(id: string): void;
+  /** Sets a manual progress bar's fill fraction (0-1). See ToastProgressOptions.mode: 'manual'. */
+  setToastProgress(id: string, value: number): void;
 };
 `;
 

@@ -12,7 +12,11 @@ import type { ToastDetailItem, ToastProgressOptions } from './Toasts';
 export interface ResolvedProgress {
     position: 'top' | 'bottom';
     origin: 'left' | 'right' | 'center';
-    mode: 'fill' | 'drain';
+    mode: 'fill' | 'drain' | 'manual';
+    /** Fill fraction (0-1) for `mode: 'manual'`. Unused for `'fill'`/`'drain'`, which derive
+     *  their fill from the toast's timer instead — see `Toasts._syncProgressBar`. Mutated
+     *  directly by `Toasts.setToastProgress` (not just re-set wholesale like the other fields). */
+    value: number;
     color: string;
     trackColor: string;
     height: number;
@@ -92,6 +96,7 @@ export function applyProgress(
         position: p.position ?? 'bottom',
         origin: p.origin ?? 'left',
         mode: p.mode ?? 'drain',
+        value: Math.max(0, Math.min(1, p.value ?? 0)),
         color: p.color ?? toastColor,
         trackColor: p.trackColor ?? 'transparent',
         height: p.height ?? 3,
@@ -109,7 +114,7 @@ export function applyProgress(
     fill.dataset.origin = cfg.origin;
     fill.style.background = cfg.color;
     fill.style.transition = 'none';
-    fill.style.transform = `scaleX(${cfg.mode === 'fill' ? 0 : 1})`;
+    fill.style.transform = `scaleX(${cfg.mode === 'manual' ? cfg.value : cfg.mode === 'fill' ? 0 : 1})`;
 
     wrap.appendChild(fill);
     toast.appendChild(wrap);
