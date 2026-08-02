@@ -72,6 +72,14 @@ textarea {
   font-weight: 600;
 }
 
+.reset {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--fg);
+  padding: 8px 16px;
+}
+
 .try-it-out {
   font-size: 13px;
 }

@@ -89,6 +89,20 @@ export class Config {
     this.form.update((current) => ({ ...current, [key]: value }));
   }
 
+  resetConfig(): void {
+    toasts.showToast('Reset all Playground config to the library defaults?', {
+      color: ToastColor.WARNING,
+      duration: 0,
+      buttons: [
+        toasts.confirmButton('Reset', () => {
+          this.form.set({ ...DEFAULT_FORM_STATE });
+          this.themeError.set(null);
+          this.apply();
+        }),
+      ],
+    });
+  }
+
   apply(): void {
     const state = this.form();
     this.themeError.set(null);

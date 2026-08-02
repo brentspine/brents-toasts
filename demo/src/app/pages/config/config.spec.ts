@@ -82,6 +82,25 @@ describe('Config', () => {
     expect(component.positionOverrideEntries()).toEqual([]);
   });
 
+  it('resetConfig() shows a confirm toast; confirming it resets the form and re-applies defaults', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    component.updateForm('duration', 9000);
+    component.apply();
+    expect(toasts.config.duration).toBe(9000);
+
+    component.resetConfig();
+    const findButton = (label: string) =>
+      Array.from(document.querySelectorAll<HTMLButtonElement>('.bt-toast-actions button')).find((b) => b.textContent === label);
+
+    findButton('Reset')!.click();
+    findButton('Yes')!.click();
+
+    expect(component.form().duration).toBe(3000);
+    expect(toasts.config.duration).toBe(3000);
+    toasts.removeAllToasts();
+  });
+
   it('persists form changes to localStorage and restores them on next load', async () => {
     const fixture = await createComponent();
     const component = fixture.componentInstance;
