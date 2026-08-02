@@ -49,6 +49,11 @@ function loadStoredForm(): ConfigFormState {
   }
 }
 
+/** Whether the persisted config form (see STORAGE_KEY above) differs from the library defaults - used by the Playground to hint that toasts there reflect a customized config, not out-of-the-box behavior. */
+export function hasStoredConfigChanges(): boolean {
+  return JSON.stringify(loadStoredForm()) !== JSON.stringify(DEFAULT_FORM_STATE);
+}
+
 @Component({
   selector: 'app-config',
   changeDetection: ChangeDetectionStrategy.OnPush,

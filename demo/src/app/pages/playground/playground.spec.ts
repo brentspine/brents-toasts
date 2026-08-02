@@ -280,4 +280,15 @@ describe('Playground', () => {
     expect(component.colorCopied()).toBe(false);
     vi.useRealTimers();
   });
+
+  it('hasCustomConfig() is false with no saved config', async () => {
+    const fixture = await createComponent();
+    expect(fixture.componentInstance.hasCustomConfig()).toBe(false);
+  });
+
+  it('hasCustomConfig() is true once the Config page has saved a non-default form', async () => {
+    localStorage.setItem('bt-demo:config-form', JSON.stringify({ duration: 9000 }));
+    const fixture = await createComponent();
+    expect(fixture.componentInstance.hasCustomConfig()).toBe(true);
+  });
 });

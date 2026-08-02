@@ -91,6 +91,12 @@
     @if (runError()) {
       <p class="run-error">{{ runError() }}</p>
     }
+    @if (hasCustomConfig()) {
+      <p class="config-hint">
+        Toasts here reflect your customized <code>configure()</code> defaults, not the library's
+        out-of-the-box behavior. <a routerLink="/config">Review your config &#8594;</a>
+      </p>
+    }
   </div>
 </section>
 

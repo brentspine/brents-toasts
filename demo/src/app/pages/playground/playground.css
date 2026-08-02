@@ -204,6 +204,17 @@ tr.selected {
   margin: 8px 0 0;
 }
 
+.config-hint {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+  margin: 8px 0 0;
+}
+
+.config-hint a {
+  color: inherit;
+}
+
 .examples {
   padding: 20px 20px 80px;
   scroll-margin-top: 80px;

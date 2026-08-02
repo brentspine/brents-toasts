@@ -16,6 +16,7 @@ import { OptionsDataService } from '../../services/options-data';
 import { SectionService } from '../../services/section';
 import { TypeSpecPanel } from '../../shared/type-spec-panel';
 import { CodeEditor } from '../../shared/code-editor';
+import { hasStoredConfigChanges } from '../config/config';
 import type { OptionDescriptor, PlaygroundExample } from '../../data/options.types';
 
 const IMPORT_LINE = "import { ToastBuilder, ToastColor, ToastPosition, ToastAnimation } from 'brents-toasts';";
@@ -74,6 +75,11 @@ export class Playground {
   // fallen back to a textarea) - see the fragment effect below for why a fragment scroll
   // has to wait on this instead of firing immediately.
   readonly editorStable = signal(false);
+
+  // Read once at construction - Angular recreates this component on every navigation into
+  // /playground, so this always reflects whatever was last saved on the Config page, without
+  // needing to watch localStorage while already on this page.
+  readonly hasCustomConfig = signal(hasStoredConfigChanges());
 
   readonly filteredOptions = computed(() => {
     const query = this.search().trim().toLowerCase();
