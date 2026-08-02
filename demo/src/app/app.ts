@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter } from 'rxjs';
 import { GithubStatsService } from './services/github-stats';
 import { SectionService } from './services/section';
 import { VersionService } from './services/version';
@@ -20,6 +22,24 @@ export class App {
 
   protected readonly formatCompactCount = formatCompactCount;
   protected readonly formatRelativeTime = formatRelativeTime;
+
+  constructor() {
+    // Resets scroll on every plain (non-fragment) navigation, so e.g. leaving Playground
+    // scrolled down and clicking "Changelog" doesn't land already scrolled into that
+    // page. Navigations that carry a fragment (in-page "#id" links) are left alone -
+    // those scroll themselves, either via the browser's own anchor handling or, on
+    // Playground, the manual fragment effect in playground.ts.
+    this.router.events
+      .pipe(
+        filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+        takeUntilDestroyed(),
+      )
+      .subscribe((event) => {
+        if (!event.urlAfterRedirects.includes('#')) {
+          window.scrollTo({ top: 0, behavior: 'auto' });
+        }
+      });
+  }
 
   /**
    * routerLink alone falls short for these two: navigating "/playground" with no

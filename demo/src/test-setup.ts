@@ -24,6 +24,10 @@ if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = vi.fn();
 }
 
+// jsdom throws "Not implemented" for window.scrollTo (used by app.ts to reset scroll
+// position on plain route navigations).
+window.scrollTo = vi.fn();
+
 Object.defineProperty(window.navigator, 'clipboard', {
   value: { writeText: vi.fn().mockResolvedValue(undefined) },
   writable: true,
