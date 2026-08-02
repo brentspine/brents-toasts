@@ -9,14 +9,20 @@
 
   `containerTransition` is the key piece: it's applied once, inline, to the
   toast's own `.bt-toast-container` at creation, and stays there for the
-  toast's whole lifetime. `ToastStacking.ts`'s `recalculatePositions` later
-  just mutates that same container's `style[edge]` whenever a sibling
-  changes — so a toast's animation choice governs not only its own
-  entrance/exit but also how smoothly *it itself* glides when the stack
-  reflows around it, with no extra plumbing needed. A stack of `NONE`
-  toasts reflows instantly for exactly this reason: every remaining
-  container's own `transition` is `'none'`, not because of any special case
-  in the stacking math.
+  toast's whole lifetime — this is what governs the toast's own
+  entrance/exit, and any later reflow triggered by *its own* resize (e.g.
+  a details toggle growing it).
+
+  Reflow caused by a SIBLING entering or exiting is different: the toast
+  that's entering/exiting is what's causing that particular reflow, so its
+  `containerTransition` — not each displaced toast's own — governs how the
+  displaced toasts move. `Toasts.ts` passes it through to
+  `ToastStacking.ts`'s `stackExistingAway`/`recalculatePositions` as
+  `causingTransition`, which temporarily overrides each displaced toast's
+  `transition` just long enough to commit that one move (see `applyOffset`
+  in `ToastStacking.ts`), then restores it. This is what fixes a `NONE`
+  toast appearing/disappearing instantly without leaving `SLIDE` siblings
+  visibly still gliding out of its way.
 */
 
 export const ToastAnimation = {
@@ -41,9 +47,11 @@ export interface ToastAnimationHookContext {
 export interface ToastAnimationDefinition {
     /**
      * Applied once, inline, to `.bt-toast-container` at creation. Governs
-     * the transition speed for `enterFrom` -> `enterTo` AND for any later
-     * reflow (`recalculatePositions`) — a toast's animation choice governs
-     * how it moves for its whole lifetime, not just its first appearance.
+     * the transition speed for `enterFrom` -> `enterTo`, this toast's own
+     * exit, and any reflow caused by this toast's own resize. It's also
+     * used (passed through as `causingTransition`) to govern how OTHER
+     * toasts move out of the way when this toast enters or exits — see the
+     * top-of-file comment and `applyOffset` in `ToastStacking.ts`.
      */
     containerTransition: string;
     /**

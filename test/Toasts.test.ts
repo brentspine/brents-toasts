@@ -4,6 +4,7 @@ import { ToastBuilder } from '../src/ToastBuilder';
 import { ToastColor } from '../src/ToastColor';
 import { ToastPosition } from '../src/ToastPosition';
 import { ToastAnimation, registerToastAnimation, getToastAnimation } from '../src/ToastAnimation';
+import { recalculatePositions } from '../src/ToastStacking';
 
 function nextFrame(): Promise<void> {
     return new Promise(resolve => requestAnimationFrame(() => resolve()));
@@ -538,6 +539,57 @@ describe('animations', () => {
         expect(exit).toHaveBeenCalledTimes(1);
         vi.advanceTimersByTime(50);
         expect(document.getElementById(id)).toBeNull();
+    });
+
+    it('an entering NONE toast reflows a SLIDE sibling using its own (none) transition, then restores the sibling\'s SLIDE transition', () => {
+        const slideTransition = getToastAnimation(ToastAnimation.SLIDE)!.containerTransition;
+        const t = new Toasts();
+        const id1 = t.showToast('a', { duration: 0, animation: ToastAnimation.SLIDE });
+        const el1 = document.getElementById(id1)!;
+        const initialBottom = el1.style.bottom;
+
+        t.showToast('b', { duration: 0, animation: ToastAnimation.NONE });
+
+        expect(el1.style.transition).toBe(slideTransition);
+        expect(el1.style.bottom).not.toBe(initialBottom);
+    });
+
+    it('an entering SLIDE toast reflows a NONE sibling using its own (slide) transition, then restores the sibling\'s none transition', () => {
+        const t = new Toasts();
+        const id1 = t.showToast('a', { duration: 0, animation: ToastAnimation.NONE });
+        const el1 = document.getElementById(id1)!;
+        const initialBottom = el1.style.bottom;
+
+        t.showToast('b', { duration: 0, animation: ToastAnimation.SLIDE });
+
+        expect(el1.style.transition).toBe('none');
+        expect(el1.style.bottom).not.toBe(initialBottom);
+    });
+
+    it('removing a NONE toast reflows a SLIDE sibling using the exiting toast\'s transition, restoring the sibling\'s own afterward', () => {
+        vi.useFakeTimers();
+        const slideTransition = getToastAnimation(ToastAnimation.SLIDE)!.containerTransition;
+        const t = new Toasts();
+        const id1 = t.showToast('a', { duration: 0, animation: ToastAnimation.SLIDE });
+        const id2 = t.showToast('b', { duration: 0, animation: ToastAnimation.NONE });
+        const el1 = document.getElementById(id1)!;
+
+        t.removeToast(id2);
+        expect(el1.style.transition).toBe(slideTransition);
+
+        vi.advanceTimersByTime(0);
+        expect(el1.style.transition).toBe(slideTransition);
+    });
+
+    it('recalculatePositions without a causingTransition (the resize path) leaves a toast\'s own transition untouched', () => {
+        const t = new Toasts();
+        const id = t.showToast('a', { duration: 0, animation: ToastAnimation.SLIDE });
+        const el = document.getElementById(id)!;
+        const ownTransition = el.style.transition;
+
+        recalculatePositions(el.parentElement!);
+
+        expect(el.style.transition).toBe(ownTransition);
     });
 });
 

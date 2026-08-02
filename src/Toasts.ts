@@ -401,7 +401,7 @@ export class Toasts {
             targetOffset = TOAST_EDGE_OFFSET + totalStackedExtent(snackbar, toastContainer);
         } else {
             snackbar.appendChild(toastContainer);
-            stackExistingAway(snackbar, toastContainer);
+            stackExistingAway(snackbar, toastContainer, animationDef.containerTransition);
             targetOffset = TOAST_EDGE_OFFSET;
         }
 
@@ -495,14 +495,17 @@ export class Toasts {
         animationDef.exit({ container: toastContainer, edge });
         // Reposition the remaining toasts now, in parallel with the exit
         // animation, instead of waiting for this one to finish disappearing.
-        if (parent) recalculatePositions(parent);
+        // The exiting toast is what's causing this reflow, so its own
+        // transition (not each sibling's) governs how they move out of the
+        // way — see applyOffset in ToastStacking.ts.
+        if (parent) recalculatePositions(parent, animationDef.containerTransition);
 
         setTimeout(() => {
             toastContainer.remove();
             this._resizeObservers.get(toastContainer)?.disconnect();
             this._resizeObservers.delete(toastContainer);
             this._toastAnimations.delete(toastContainer);
-            if (parent) recalculatePositions(parent);
+            if (parent) recalculatePositions(parent, animationDef.containerTransition);
         }, animationDef.exitDurationMs);
     }
 
