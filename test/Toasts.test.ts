@@ -1156,6 +1156,13 @@ describe('titleMode (#27)', () => {
         const content = document.getElementById(id)!.querySelector('.bt-toast-content')!;
         expect(content.querySelector('.bt-toast-message b.bt-toast-title')).not.toBeNull();
     });
+
+    it('ToastBuilder.withTitleMode() sets titleMode independently of withTitle()', () => {
+        const t = new Toasts();
+        const id = new ToastBuilder('body', t).withTitle('Head').withTitleMode('inline').withDuration(0).show();
+        const content = document.getElementById(id)!.querySelector('.bt-toast-content')!;
+        expect(content.querySelector('.bt-toast-message b.bt-toast-title')).not.toBeNull();
+    });
 });
 
 describe('ToastQuickActions (#22)', () => {

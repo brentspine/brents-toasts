@@ -22,10 +22,15 @@ export class ToastBuilder {
         this._options = {};
     }
 
-    /** @param mode Whether `title` stacks above `message` or shares its line as a bold lead-in. Leaves the configured default (`configure()`'s `titleMode`) in place if omitted. See `ToastOptions.titleMode`. */
+    /** @param mode Whether `title` stacks above `message` or shares its line as a bold lead-in. Leaves the configured default (`configure()`'s `titleMode`) in place if omitted. See `ToastOptions.titleMode`. Equivalent to passing the same value to `withTitleMode()`. */
     withTitle(title: string, mode?: 'inline' | 'stacked'): this {
         this._options.title = title;
         if (mode !== undefined) this._options.titleMode = mode;
+        return this;
+    }
+    /** Standalone alternative to `withTitle(title, mode)`'s second argument — set independently since `title` may already be set elsewhere in the chain. No effect when `title` is unset. See `ToastOptions.titleMode`. */
+    withTitleMode(mode: 'inline' | 'stacked'): this {
+        this._options.titleMode = mode;
         return this;
     }
     withColor(color: string): this { this._options.color = color; return this; }

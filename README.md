@@ -114,14 +114,17 @@ shares with `message`).
 
 By default (`titleMode: 'stacked'`), a `title` renders on its own bold line
 above `message` — conceptually `<b>Title</b><br>message`. Set `titleMode:
-'inline'` (per-toast, via `ToastBuilder.withTitle(title, 'inline')`, or as a
-`configure()` default) to have it share the message's own line instead, as a
-bold lead-in — conceptually `<b>Title</b> message`:
+'inline'` (per-toast, via `ToastBuilder.withTitle(title, 'inline')` or the
+standalone `ToastBuilder.withTitleMode('inline')`, or as a `configure()`
+default) to have it share the message's own line instead, as a bold lead-in
+— conceptually `<b>Title</b> message`:
 
 ```ts
 toasts.showToast('has been saved.', { title: 'File', titleMode: 'inline' });
 // or:
 new ToastBuilder('has been saved.').withTitle('File', 'inline').show();
+// or, set independently of withTitle():
+new ToastBuilder('has been saved.').withTitle('File').withTitleMode('inline').show();
 ```
 
 `titleMode` has no effect when `title` is unset, and — like `title` itself —
