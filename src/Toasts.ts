@@ -117,7 +117,7 @@ export interface ToastsConfig {
     /** Library-wide default for `ToastOptions.allowLineBreaks`. See there. */
     allowLineBreaks: boolean;
     position: ToastPositionValue;
-    /** Viewport width (px) at/below which `*-left`/`*-right` positions collapse into their edge's `*-center` equivalent, so they share one container/stack instead of visually overlapping on narrow (mobile) screens. Re-evaluated live on window resize/orientation-change, moving already-shown toasts into the right container. `0` disables collapsing entirely. Defaults to `480`. See `collapsedPosition`. */
+    /** Viewport width (px) at/below which `*-left`/`*-right` positions collapse into their edge's `*-center` equivalent, so they share one container/stack instead of visually overlapping on narrow (mobile) screens. Re-evaluated live on window resize/orientation-change, moving already-shown toasts into the right container. `0` disables collapsing entirely. Defaults to `800`. See `collapsedPosition`. */
     responsiveBreakpoint: number;
     animation: ToastAnimationValue;
     maxToasts: number;
@@ -597,23 +597,30 @@ export class Toasts {
             applyContent(toastContent, state.message, state);
         }
         if ('color' in update || 'theme' in update) applyColor(toastClose, toast, state.color, state.theme);
-        if ('progress' in update || 'color' in update) {
-            // Reacts to `color` too, not just `progress` — progress.color
-            // defaults to "reuse the toast's own color", so changing `color`
-            // alone must re-sync a bar that's using that default.
-            const prevCfg = this._progressConfig.get(toastContainer);
-            const newCfg = applyProgress(toast, state.progress, state.color);
-            // A color-only update must not clobber a manual bar's live
-            // value — setToastProgress mutates _progressConfig directly,
-            // never state.progress, so applyProgress always rebuilds from
-            // the original (possibly stale) value. Carry the live value
-            // forward unless the caller explicitly replaced `progress`
-            // itself, in which case its `value` wins as normal.
-            if (newCfg && newCfg.mode === 'manual' && !('progress' in update) && prevCfg?.mode === 'manual') {
-                newCfg.value = prevCfg.value;
-            }
-            this._setProgressConfig(toastContainer, newCfg);
+        if ('progress' in update) {
+            // An explicit new `progress` config is a real config swap (mode,
+            // position, height, ...), so a full rebuild (same as creation)
+            // is correct here — including resetting `value` to whatever the
+            // new config says.
+            this._setProgressConfig(toastContainer, applyProgress(toast, state.progress, state.color));
             this._syncProgressBar(toastContainer);
+        } else if ('color' in update) {
+            // progress.color defaults to "reuse the toast's own color", so a
+            // color-only update still needs to re-sync a bar using that
+            // default — but by patching the existing fill's background in
+            // place, not by rebuilding the bar's DOM via applyProgress.
+            // A rebuild replaces the fill element itself, which would snap
+            // any in-flight setToastProgress animation straight to its
+            // target instead of animating there (the fresh element starts
+            // already at the target value, so the transition _syncProgressBar
+            // applies right after has nothing to animate from).
+            const cfg = this._progressConfig.get(toastContainer);
+            const p = state.progress === true || !state.progress ? undefined : state.progress;
+            if (cfg && p?.color === undefined) {
+                cfg.color = state.color;
+                const fill = toastContainer.querySelector<HTMLElement>('.bt-toast-progress-fill');
+                if (fill) fill.style.background = cfg.color;
+            }
         }
         if ('buttons' in update || 'details' in update || 'detailsLabel' in update || 'detailsHideLabel' in update || 'allowLineBreaks' in update) {
             renderActions(toastRow, toast, state, id, this._getTranslations(), (toastId) => this.resetToastTimer(toastId));

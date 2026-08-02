@@ -537,7 +537,7 @@ per-toast and library-wide settings (position, animation, `onClose`,
 
 On a wide viewport, `BOTTOM_LEFT`/`BOTTOM_CENTER`/`BOTTOM_RIGHT` (and the
 `TOP_*` equivalents) render as visually distinct stacks. Below
-`responsiveBreakpoint` px wide (default `480`, roughly phone-portrait width),
+`responsiveBreakpoint` px wide (default `800`, roughly tablet-portrait width),
 there's no longer enough room to tell them apart, so `*_LEFT`/`*_RIGHT`
 positions collapse into their edge's `*_CENTER` position and share one
 stack instead of overlapping. This is re-evaluated live on resize/orientation

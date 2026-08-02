@@ -361,6 +361,28 @@ describe('progress bar sync', () => {
         t.updateToast(id, { progress: { mode: 'manual', value: 0.7 } });
         expect(fillScale(id)).toBeCloseTo(0.7, 5);
     });
+
+    it('updateToast({ color }) patches a defaulted progress bar color in place, without replacing the fill element', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { color: '#111111', duration: 0, progress: { mode: 'manual', value: 0.3 } });
+        const fillBefore = document.getElementById(id)!.querySelector('.bt-toast-progress-fill') as HTMLElement;
+        expect(fillBefore.style.background).toContain('17, 17, 17');
+
+        t.updateToast(id, { color: '#222222' });
+        const fillAfter = document.getElementById(id)!.querySelector('.bt-toast-progress-fill') as HTMLElement;
+        expect(fillAfter).toBe(fillBefore); // same node — not rebuilt, so any in-flight transition survives
+        expect(fillAfter.style.background).toContain('34, 34, 34');
+    });
+
+    it('updateToast({ color }) leaves an explicit progress.color untouched', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { color: '#111111', duration: 0, progress: { mode: 'manual', value: 0.3, color: '#abcdef' } });
+        const fillBefore = document.getElementById(id)!.querySelector('.bt-toast-progress-fill') as HTMLElement;
+        const colorBefore = fillBefore.style.background;
+
+        t.updateToast(id, { color: '#222222' });
+        expect(fillBefore.style.background).toBe(colorBefore);
+    });
 });
 
 describe('eviction and stacking', () => {

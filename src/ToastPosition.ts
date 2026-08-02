@@ -52,7 +52,7 @@ export const POSITION_EDGE: Record<ToastPositionValue, 'top' | 'bottom'> = {
   and independently-stacking sibling containers can overlap. Configurable
   via `ToastsConfig.responsiveBreakpoint`; `0` disables collapsing entirely.
 */
-export const DEFAULT_RESPONSIVE_BREAKPOINT = 480;
+export const DEFAULT_RESPONSIVE_BREAKPOINT = 800;
 
 /*
   Maps a `*-left`/`*-right` position to its edge's `*-center` equivalent so
