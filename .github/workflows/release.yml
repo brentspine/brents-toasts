@@ -127,11 +127,23 @@ jobs:
             echo "No changes to deploy"
           else
             git commit -m "Update brents-toasts demo to v${VERSION}"
-            git push
+            # deploy-demo.yml can push to this same repo concurrently (see
+            # RELEASING.md); retry on a non-fast-forward push instead of
+            # failing the job outright.
+            for i in 1 2 3 4 5; do
+              git push && break
+              echo "Push rejected (attempt $i), retrying..."
+              git fetch origin main
+              git rebase origin/main
+              sleep $((RANDOM % 5 + 1))
+            done
           fi
 
       - name: Commit changelog + options snapshot to main
-        if: steps.prerelease.outputs.flag == ''
+        # Runs even if the demo deploy above failed (e.g. lost a push race
+        # with deploy-demo.yml) — the changelog/options commit must not be
+        # skipped just because the demo redeploy didn't land.
+        if: always() && steps.prerelease.outputs.flag == ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

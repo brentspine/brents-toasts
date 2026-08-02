@@ -1,0 +1,74 @@
+name: Deploy Demo
+
+# Redeploys the live demo (brentspine.github.io/brents-toasts/) on its own,
+# independent of the npm release flow in release.yml. Use this for demo-only
+# changes (or previewing unreleased src/ changes in the demo) that don't
+# warrant a version bump/tag. It reuses the current package.json version as
+# the displayed version — it does not touch docs/changelogs, docs/options, or
+# versions/versions.json, since no new release actually happened.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'demo/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-demo
+  cancel-in-progress: true
+
+jobs:
+  deploy-demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Build demo (Angular)
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "{\"version\": \"${VERSION}\"}" > demo/public/version.json
+          npm ci --prefix demo
+          npm --prefix demo run test
+          npm --prefix demo run build -- --base-href /brents-toasts/
+
+      - name: Deploy demo to brentspine.github.io
+        env:
+          GH_TOKEN: ${{ secrets.PAGES_DEPLOY_TOKEN }}
+        run: |
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/Brentspine/brentspine.github.io.git" pages-repo
+
+          # Replace the always-latest build at the root — filenames are
+          # content-hashed and change on every build, so everything except the
+          # permanent per-version archive is pruned before copying the new one in.
+          find pages-repo/brents-toasts -mindepth 1 -maxdepth 1 ! -name versions -exec rm -rf {} +
+          cp -r demo/dist/demo/browser/. pages-repo/brents-toasts/
+
+          cd pages-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add brents-toasts
+          if git diff --cached --quiet; then
+            echo "No changes to deploy"
+          else
+            git commit -m "Update brents-toasts demo (demo-only publish, no release)"
+            # release.yml can push to this same repo concurrently (e.g. when
+            # push.cmd bumps the version and touches demo/ in the same push)
+            # — retry on a non-fast-forward push instead of failing outright.
+            for i in 1 2 3 4 5; do
+              git push && break
+              echo "Push rejected (attempt $i), retrying..."
+              git fetch origin main
+              git rebase origin/main
+              sleep $((RANDOM % 5 + 1))
+            done
+          fi
