@@ -601,7 +601,18 @@ export class Toasts {
             // Reacts to `color` too, not just `progress` — progress.color
             // defaults to "reuse the toast's own color", so changing `color`
             // alone must re-sync a bar that's using that default.
-            this._setProgressConfig(toastContainer, applyProgress(toast, state.progress, state.color));
+            const prevCfg = this._progressConfig.get(toastContainer);
+            const newCfg = applyProgress(toast, state.progress, state.color);
+            // A color-only update must not clobber a manual bar's live
+            // value — setToastProgress mutates _progressConfig directly,
+            // never state.progress, so applyProgress always rebuilds from
+            // the original (possibly stale) value. Carry the live value
+            // forward unless the caller explicitly replaced `progress`
+            // itself, in which case its `value` wins as normal.
+            if (newCfg && newCfg.mode === 'manual' && !('progress' in update) && prevCfg?.mode === 'manual') {
+                newCfg.value = prevCfg.value;
+            }
+            this._setProgressConfig(toastContainer, newCfg);
             this._syncProgressBar(toastContainer);
         }
         if ('buttons' in update || 'details' in update || 'detailsLabel' in update || 'detailsHideLabel' in update || 'allowLineBreaks' in update) {

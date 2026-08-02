@@ -342,6 +342,25 @@ describe('progress bar sync', () => {
         expect(fillScale(id)).toBe(before);
         expect(() => t.setToastProgress('nonexistent', 0.5)).not.toThrow();
     });
+
+    it('updateToast({ color }) alone does not reset a manual bar\'s live setToastProgress value', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, progress: { mode: 'manual', value: 1 } });
+        t.setToastProgress(id, 0.35);
+        expect(fillScale(id)).toBeCloseTo(0.35, 5);
+
+        t.updateToast(id, { color: '#123456' });
+        expect(fillScale(id)).toBeCloseTo(0.35, 5);
+    });
+
+    it('updateToast({ progress }) still lets an explicit new value win over the live one', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, progress: { mode: 'manual', value: 1 } });
+        t.setToastProgress(id, 0.35);
+
+        t.updateToast(id, { progress: { mode: 'manual', value: 0.7 } });
+        expect(fillScale(id)).toBeCloseTo(0.7, 5);
+    });
 });
 
 describe('eviction and stacking', () => {
