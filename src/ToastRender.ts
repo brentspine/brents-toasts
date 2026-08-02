@@ -41,10 +41,17 @@ export function applyColor(toastClose: HTMLElement, toast: HTMLElement, color: s
 
 // Shared by Toasts.showToast and Toasts.updateToast — (re)builds the
 // title/message children of `toastContent` in place, handling title
-// appearing/disappearing between calls.
-export function applyContent(toastContent: HTMLElement, message: string | Node, opts: { title?: string; allowHtml: boolean; allowLineBreaks: boolean }): void {
+// appearing/disappearing between calls, and `titleMode` switching between a
+// stacked title (its own line, above the message — the default) and an
+// inline one (a bold lead-in on the message's own line). 'stacked' keeps the
+// exact DOM shape this had before `titleMode` existed — a `.bt-toast-title`
+// sibling before `.bt-toast-message` — so it's a strict superset, not a
+// behavior change, for anyone not using `titleMode`.
+export function applyContent(toastContent: HTMLElement, message: string | Node, opts: { title?: string; allowHtml: boolean; allowLineBreaks: boolean; titleMode?: 'inline' | 'stacked' }): void {
+    const inline = opts.titleMode === 'inline' && !!opts.title;
+
     let toastTitle = toastContent.querySelector<HTMLElement>('.bt-toast-title');
-    if (opts.title) {
+    if (opts.title && !inline) {
         if (!toastTitle) {
             toastTitle = document.createElement('div');
             toastTitle.className = 'bt-toast-title';
@@ -67,10 +74,31 @@ export function applyContent(toastContent: HTMLElement, message: string | Node, 
         toastContent.appendChild(toastMessage);
     }
     toastMessage.replaceChildren();
+
+    if (inline) {
+        // Same never-parsed-as-HTML rule as the stacked title — just
+        // rendered as a bold lead-in sharing the message's line instead of
+        // a block of its own.
+        const inlineTitle = document.createElement('b');
+        inlineTitle.className = 'bt-toast-title bt-toast-title-inline';
+        renderTextWithBreaks(inlineTitle, opts.title!, opts.allowLineBreaks);
+        toastMessage.appendChild(inlineTitle);
+        toastMessage.appendChild(document.createTextNode(' '));
+    }
+
     if (message instanceof Node) {
         toastMessage.appendChild(message);
     } else if (opts.allowHtml) {
-        toastMessage.innerHTML = message;
+        if (inline) {
+            // Can't assign toastMessage.innerHTML directly here — that would
+            // wipe out the inline title node just appended above. Scoping the
+            // HTML to its own child keeps the title intact.
+            const html = document.createElement('span');
+            html.innerHTML = message ?? '';
+            toastMessage.appendChild(html);
+        } else {
+            toastMessage.innerHTML = message ?? '';
+        }
     } else {
         renderTextWithBreaks(toastMessage, message, opts.allowLineBreaks);
     }

@@ -76,6 +76,8 @@ export interface ToastOptions {
     allowLineBreaks?: boolean;
     /** Optional bold title line rendered above the message. Rendered as plain text (never affected by `allowHtml`), except "\n" and literal "<br>"/"<br/>" are still honored as line breaks — same rule as `message`, and same `allowLineBreaks` opt-out. */
     title?: string;
+    /** Whether `title` renders on its own line above `message` (`'stacked'`, conceptually `<b>Title</b><br>message`) or as a bold lead-in sharing the message's own line (`'inline'`, `<b>Title</b> message`). No effect when `title` is unset. Defaults to `'stacked'` or the configured default. */
+    titleMode?: 'inline' | 'stacked';
     /** See `ToastPosition`. Defaults to `ToastPosition.BOTTOM_CENTER` or the configured default. */
     position?: ToastPositionValue;
     /** See `ToastAnimation`/"Animations" in README.md. `slide` (default), `fade`, `none`, or a name registered via `registerToastAnimation`. */
@@ -116,6 +118,8 @@ export interface ToastsConfig {
     allowHtml: boolean;
     /** Library-wide default for `ToastOptions.allowLineBreaks`. See there. */
     allowLineBreaks: boolean;
+    /** Library-wide default for `ToastOptions.titleMode`. See there. */
+    titleMode: 'inline' | 'stacked';
     position: ToastPositionValue;
     /** Viewport width (px) at/below which `*-left`/`*-right` positions collapse into their edge's `*-center` equivalent, so they share one container/stack instead of visually overlapping on narrow (mobile) screens. Re-evaluated live on window resize/orientation-change, moving already-shown toasts into the right container. `0` disables collapsing entirely. Defaults to `800`. See `collapsedPosition`. */
     responsiveBreakpoint: number;
@@ -143,6 +147,7 @@ interface ResolvedToastOptions {
     position: ToastPositionValue;
     animation: ToastAnimationValue;
     title?: string;
+    titleMode: 'inline' | 'stacked';
     onClose?: () => void;
     removeOtherToasts: boolean;
     reverseOrder: boolean;
@@ -176,6 +181,7 @@ const DEFAULT_CONFIG: ToastsConfig = {
     closable: true,
     allowHtml: false,
     allowLineBreaks: true,
+    titleMode: 'stacked',
     position: ToastPosition.BOTTOM_CENTER,
     responsiveBreakpoint: DEFAULT_RESPONSIVE_BREAKPOINT,
     animation: ToastAnimation.SLIDE,
@@ -593,7 +599,7 @@ export class Toasts {
         const state: ToastState = { ...prev, ...update };
         this._toastState.set(toastContainer, state);
 
-        if ('message' in update || 'title' in update || 'allowHtml' in update || 'allowLineBreaks' in update) {
+        if ('message' in update || 'title' in update || 'titleMode' in update || 'allowHtml' in update || 'allowLineBreaks' in update) {
             applyContent(toastContent, state.message, state);
         }
         if ('color' in update || 'theme' in update) applyColor(toastClose, toast, state.color, state.theme);
@@ -827,6 +833,13 @@ export class Toasts {
      * Attaches (or replaces) arbitrary data on an already-shown toast — the same slot `data` at
      * `showToast()` time fills, for setting or updating it after creation (e.g. once an async step
      * resolves the real payload a button's shared handler should act on).
+     *
+     * Not a good general-purpose state store: reaching into a specific toast by `id` to mutate its
+     * data couples your logic to that one toast surviving on screen, and doesn't compose (nothing
+     * stops two callers from clobbering the same toast's data). Prefer owning the data yourself
+     * (e.g. in a closure or your app's own state) and only using this for the narrow case this was
+     * built for — a payload a shared button handler looks up by the `id` it already receives, like
+     * the "Undo" example in `getToastData`.
      */
     setToastData<T>(id: string, data: T): void {
         const el = document.getElementById(id);
@@ -1167,6 +1180,7 @@ export class Toasts {
             position: this.config.position,
             animation: this.config.animation,
             title: undefined,
+            titleMode: this.config.titleMode,
             onClose: undefined,
             removeOtherToasts: false,
             reverseOrder: false,

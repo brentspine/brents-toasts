@@ -17,6 +17,7 @@
   },
   "toastOptions": [
     { "name": "title", "type": "string", "default": "undefined", "description": "Optional bold title line above the message.", "builderCall": ".withTitle(\"Heads up!\")" },
+    { "name": "titleMode", "type": "'inline' | 'stacked'", "default": "\"stacked\"", "description": "Whether title renders on its own line above message (stacked) or as a bold lead-in sharing its line (inline). No effect when title is unset.", "builderCall": ".withTitle(\"Heads up!\", \"inline\")" },
     { "name": "color", "type": "string", "typeRef": "ToastColorValue", "default": "ToastColor.INFO", "description": "Background color of the indicator bar. Any CSS color string works; ToastColor just bundles presets.", "builderCall": ".withColor(\"#4bb543\")" },
     { "name": "duration", "type": "number", "default": "3000", "description": "Auto-dismiss after this many ms. Use 0 to make the toast sticky (never auto-dismisses).", "builderCall": ".withDuration(5000)" },
     { "name": "closable", "type": "boolean", "default": "true", "description": "Whether clicking the toast dismisses it.", "builderCall": ".withClosable(true)" },
@@ -45,6 +46,7 @@
     { "name": "closable", "type": "boolean", "default": "true", "description": "Library-wide default for whether clicking a toast dismisses it.", "control": "boolean" },
     { "name": "allowHtml", "type": "boolean", "default": "false", "description": "Library-wide default for whether message is rendered as HTML.", "control": "boolean" },
     { "name": "allowLineBreaks", "type": "boolean", "default": "true", "description": "Library-wide default for \\n/<br> rendering as real line breaks.", "control": "boolean" },
+    { "name": "titleMode", "type": "'inline' | 'stacked'", "default": "\"stacked\"", "description": "Library-wide default for whether title stacks above message or shares its line.", "control": "select", "selectOptions": ["stacked", "inline"] },
     { "name": "position", "type": "ToastPositionValue", "typeRef": "ToastPositionValue", "default": "ToastPosition.BOTTOM_CENTER", "description": "Library-wide default stacking position.", "control": "select", "selectOptions": ["bottom-center", "top-center", "top-left", "top-right", "bottom-left", "bottom-right"] },
     { "name": "animation", "type": "ToastAnimationValue", "typeRef": "ToastAnimationValue", "default": "ToastAnimation.SLIDE", "description": "Library-wide default entry/exit animation.", "control": "select", "selectOptions": ["slide", "fade", "none"] },
     { "name": "maxToasts", "type": "number", "default": "5", "description": "Maximum toasts visible at once (per position, unless overridden via configurePosition()).", "control": "number" },

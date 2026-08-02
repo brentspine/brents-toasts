@@ -5,6 +5,7 @@ import { ToastColor } from '../src/ToastColor';
 import { ToastPosition } from '../src/ToastPosition';
 import { ToastAnimation, registerToastAnimation, getToastAnimation } from '../src/ToastAnimation';
 import { recalculatePositions } from '../src/ToastStacking';
+import { ToastQuickActions } from '../src/ToastQuickActions';
 
 function nextFrame(): Promise<void> {
     return new Promise(resolve => requestAnimationFrame(() => resolve()));
@@ -1055,5 +1056,122 @@ describe('confirmButton', () => {
         expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('x');
         expect(actionLabels(id)).toEqual(['Delete']);
         warn.mockRestore();
+    });
+});
+
+describe('title-only / undefined message (#26)', () => {
+    afterEach(cleanup);
+
+    it('ToastBuilder with no message and only a title does not throw', () => {
+        const t = new Toasts();
+        expect(() => new ToastBuilder(undefined, t).withTitle('some title').show()).not.toThrow();
+    });
+
+    it('renders the title with an empty message instead of crashing', () => {
+        const t = new Toasts();
+        const id = new ToastBuilder(undefined, t).withTitle('some title').show();
+        const el = document.getElementById(id)!;
+        expect(el.querySelector('.bt-toast-title')?.textContent).toBe('some title');
+        expect(el.querySelector('.bt-toast-message')?.textContent).toBe('');
+    });
+
+    it('renderTextWithBreaks-backed fields tolerate an undefined value directly via showToast', () => {
+        const t = new Toasts();
+        expect(() => t.showToast(undefined as unknown as string, { duration: 0 })).not.toThrow();
+    });
+});
+
+describe('withX(boolean) builder defaults (#28)', () => {
+    afterEach(cleanup);
+
+    it('withAllowHtml() with no argument enables it, while the library default stays false', () => {
+        const t = new Toasts();
+        expect(t.config.allowHtml).toBe(false);
+        const id = new ToastBuilder('<b>x</b>', t).withAllowHtml().show();
+        expect(document.getElementById(id)!.querySelector('.bt-toast-message b')).not.toBeNull();
+    });
+
+    it('withClosable()/withPauseOnHover()/withAllowLineBreaks() with no argument all default to true', () => {
+        const t = new Toasts();
+        const id = new ToastBuilder('x', t).withClosable().withPauseOnHover().withAllowLineBreaks().withDuration(0).show();
+        const row = document.getElementById(id)!.querySelector('.bt-toast-row')!;
+        expect(row.classList.contains('bt-closable')).toBe(true);
+    });
+});
+
+describe('titleMode (#27)', () => {
+    afterEach(cleanup);
+
+    it('defaults to stacked: title is a sibling block before the message', () => {
+        const t = new Toasts();
+        const id = t.showToast('body', { title: 'Head', duration: 0 });
+        const content = document.getElementById(id)!.querySelector('.bt-toast-content')!;
+        const title = content.querySelector('.bt-toast-title')!;
+        const message = content.querySelector('.bt-toast-message')!;
+        expect(title.tagName).toBe('DIV');
+        expect(message.contains(title)).toBe(false);
+        expect(message.textContent).toBe('body');
+    });
+
+    it('titleMode: "inline" renders the title as a bold lead-in inside the message', () => {
+        const t = new Toasts();
+        const id = t.showToast('body', { title: 'Head', titleMode: 'inline', duration: 0 });
+        const content = document.getElementById(id)!.querySelector('.bt-toast-content')!;
+        const message = content.querySelector('.bt-toast-message')!;
+        const inlineTitle = message.querySelector('b.bt-toast-title')!;
+        expect(inlineTitle).not.toBeNull();
+        expect(inlineTitle.textContent).toBe('Head');
+        expect(message.textContent).toBe('Head body');
+        // No separate stacked title block — the only .bt-toast-title in the
+        // whole content is the inline one nested inside .bt-toast-message.
+        expect(content.querySelectorAll('.bt-toast-title').length).toBe(1);
+        expect(message.contains(content.querySelector('.bt-toast-title')!)).toBe(true);
+    });
+
+    it('titleMode never lets title HTML through, even inline', () => {
+        const t = new Toasts();
+        const id = t.showToast('msg', { title: '<b>bold</b>', titleMode: 'inline', allowHtml: true, duration: 0 });
+        const inlineTitle = document.getElementById(id)!.querySelector('b.bt-toast-title')!;
+        expect(inlineTitle.querySelector('b')).toBeNull();
+        expect(inlineTitle.textContent).toBe('<b>bold</b>');
+    });
+
+    it('configure({ titleMode }) sets the library-wide default; ToastBuilder.withTitle(title, mode) overrides per toast', () => {
+        const t = new Toasts();
+        t.configure({ titleMode: 'inline' });
+        const id1 = t.showToast('body', { title: 'Head', duration: 0 });
+        expect(document.getElementById(id1)!.querySelector('.bt-toast-message b.bt-toast-title')).not.toBeNull();
+
+        const id2 = new ToastBuilder('body', t).withTitle('Head', 'stacked').withDuration(0).show();
+        const el2 = document.getElementById(id2)!;
+        const title2 = el2.querySelector('.bt-toast-title')!;
+        expect(title2).not.toBeNull();
+        expect(el2.querySelector('.bt-toast-message')!.contains(title2)).toBe(false);
+    });
+
+    it('updateToast({ titleMode }) rebuilds the content in the new mode', () => {
+        const t = new Toasts();
+        const id = t.showToast('body', { title: 'Head', duration: 0 });
+        t.updateToast(id, { titleMode: 'inline' });
+        const content = document.getElementById(id)!.querySelector('.bt-toast-content')!;
+        expect(content.querySelector('.bt-toast-message b.bt-toast-title')).not.toBeNull();
+    });
+});
+
+describe('ToastQuickActions (#22)', () => {
+    it('returns pre-translated strings independent of any Toasts instance', () => {
+        expect(ToastQuickActions.yes('en')).toBe('Yes');
+        expect(ToastQuickActions.no('de')).toBe('Nein');
+        expect(ToastQuickActions.cancel('fr')).toBe('Annuler');
+    });
+
+    it('all() returns the full bundled set for a locale', () => {
+        const all = ToastQuickActions.all('es');
+        expect(all.yes).toBe('Sí');
+        expect(all.delete).toBe('Eliminar');
+    });
+
+    it('falls back to en for an unrecognized locale', () => {
+        expect(ToastQuickActions.yes('xx')).toBe('Yes');
     });
 });

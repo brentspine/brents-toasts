@@ -110,6 +110,23 @@ toasts.showToast(content, { closable: true });
 (see "Custom content" above for the `\n`/`<br>` line-break exception it
 shares with `message`).
 
+### Title mode
+
+By default (`titleMode: 'stacked'`), a `title` renders on its own bold line
+above `message` — conceptually `<b>Title</b><br>message`. Set `titleMode:
+'inline'` (per-toast, via `ToastBuilder.withTitle(title, 'inline')`, or as a
+`configure()` default) to have it share the message's own line instead, as a
+bold lead-in — conceptually `<b>Title</b> message`:
+
+```ts
+toasts.showToast('has been saved.', { title: 'File', titleMode: 'inline' });
+// or:
+new ToastBuilder('has been saved.').withTitle('File', 'inline').show();
+```
+
+`titleMode` has no effect when `title` is unset, and — like `title` itself —
+is never affected by `allowHtml`.
+
 ### Buttons
 
 For simple actions (Undo, Dismiss, Expand, ...), use the native `buttons`
@@ -391,6 +408,15 @@ Builder equivalent: `.withData(data)`. See the "More examples" section of the
 demo for this combined with `getToastTimer()` (an "Undo"/"Time left" button
 pair, both built from the same shared-handler pattern).
 
+> **⚠️ Not a good general-purpose state store.** Reaching into a specific
+> toast by `id` to read/write its data from arbitrary code couples that code
+> to the toast still being on screen, and doesn't compose — nothing stops two
+> unrelated callers from clobbering the same toast's data. Keep this to the
+> narrow case above (a payload a *shared* button handler looks up by the
+> `id` it already receives); if you find yourself calling `setToastData`
+> from outside the toast's own click handlers, you probably want your own
+> app-level state instead.
+
 ### Details (expandable extra info)
 
 For information that shouldn't clutter the main message — a status code, a
@@ -621,3 +647,29 @@ same as an unimplemented `position`/`animation` value. Per-call params
 copiedLabel)`, `confirmButton(label, onConfirm, { confirmMessage, yesLabel,
 noLabel, doneMessage })`) still win over the resolved translations, same
 precedence as every other option.
+
+#### Quick action strings
+
+`ToastQuickActions` is a separate, standalone utility for pre-translated
+*common action words* — `"Yes"`, `"Cancel"`, `"Undo"`, ... — for your own
+`title`/`message`/button labels. It's intentionally independent of `toasts`/
+`configure()`: no `Toasts` instance is involved, calling it never reads or
+changes any instance's locale, and it ships its own small bundle of `en`/
+`de`/`es`/`fr` strings (`QuickActionLocales`), separate from `ToastLocales`.
+
+```ts
+import { ToastQuickActions } from 'brents-toasts';
+
+toasts.showToast('Delete this item?', {
+  buttons: [
+    { label: ToastQuickActions.yes(), onClick: (_e, id) => { doDelete(); toasts.removeToast(id); } },
+    { label: ToastQuickActions.no(), onClick: (_e, id) => toasts.removeToast(id) },
+  ],
+});
+```
+
+Every method (`yes`, `no`, `ok`, `cancel`, `confirm`, `dismiss`, `undo`,
+`retry`, `save`, `delete`) takes an optional `locale` override; omitted, it
+auto-detects from `navigator.language`(s) the same way `configure()`'s
+`locale` does, falling back to `en`. `ToastQuickActions.all(locale)` returns
+every string at once as a `QuickActionStrings` object.

@@ -39,6 +39,24 @@ h1 {
   color: #05111a;
 }
 
+.hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 18px auto 0;
+  max-width: 480px;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+.hint-icon {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+}
+
 .features {
   padding: 20px 20px 80px;
 }

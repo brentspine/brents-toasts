@@ -9,3 +9,5 @@ export type { ToastPositionValue } from './ToastPosition';
 export { ToastAnimation, registerToastAnimation } from './ToastAnimation';
 export type { ToastAnimationValue, ToastAnimationDefinition, ToastAnimationHookContext } from './ToastAnimation';
 export { ToastBuilder } from './ToastBuilder';
+export { ToastQuickActions, QuickActionLocales } from './ToastQuickActions';
+export type { QuickActionStrings } from './ToastQuickActions';

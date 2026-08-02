@@ -15,28 +15,36 @@ export class ToastBuilder {
     private _message: string | Node;
     private _options: ToastOptions;
 
-    constructor(message: string | Node, toastsInstance: Toasts = defaultToasts) {
+    /** @param message Defaults to `''` — omit it entirely for a title-only toast (see `withTitle()`). */
+    constructor(message: string | Node = '', toastsInstance: Toasts = defaultToasts) {
         this._toasts = toastsInstance;
         this._message = message;
         this._options = {};
     }
 
-    withTitle(title: string): this { this._options.title = title; return this; }
+    /** @param mode Whether `title` stacks above `message` or shares its line as a bold lead-in. Leaves the configured default (`configure()`'s `titleMode`) in place if omitted. See `ToastOptions.titleMode`. */
+    withTitle(title: string, mode?: 'inline' | 'stacked'): this {
+        this._options.title = title;
+        if (mode !== undefined) this._options.titleMode = mode;
+        return this;
+    }
     withColor(color: string): this { this._options.color = color; return this; }
     asInfo(): this { return this.withColor(ToastColor.INFO); }
     asSuccess(): this { return this.withColor(ToastColor.SUCCESS); }
     asWarning(): this { return this.withColor(ToastColor.WARNING); }
     asError(): this { return this.withColor(ToastColor.ERROR); }
     withDuration(durationMs: number): this { this._options.duration = durationMs; return this; }
-    withClosable(closable: boolean): this { this._options.closable = closable; return this; }
-    withAllowHtml(allowHtml: boolean): this { this._options.allowHtml = allowHtml; return this; }
-    /** Whether "\n"/"<br>" render as real line breaks in `message`, `title`, button labels, and `details`. Defaults to `true`. See `ToastOptions.allowLineBreaks`. */
-    withAllowLineBreaks(allowLineBreaks: boolean): this { this._options.allowLineBreaks = allowLineBreaks; return this; }
+    /** Called with no argument, enables closability (`true`) — the library-wide default stays whatever `configure()` says unless you call this. */
+    withClosable(closable: boolean = true): this { this._options.closable = closable; return this; }
+    /** Called with no argument, enables HTML rendering (`true`) — the library-wide/`ToastOptions` default stays `false` unless you call this. XSS: sanitize input yourself if it may contain user-controlled content. */
+    withAllowHtml(allowHtml: boolean = true): this { this._options.allowHtml = allowHtml; return this; }
+    /** Whether "\n"/"<br>" render as real line breaks in `message`, `title`, button labels, and `details`. Called with no argument, enables it (`true`) — see `ToastOptions.allowLineBreaks`. */
+    withAllowLineBreaks(allowLineBreaks: boolean = true): this { this._options.allowLineBreaks = allowLineBreaks; return this; }
     withPosition(position: ToastPositionValue): this { this._options.position = position; return this; }
     withAnimation(animation: ToastAnimationValue): this { this._options.animation = animation; return this; }
     withOnClose(onClose: () => void): this { this._options.onClose = onClose; return this; }
-    /** Whether hovering this toast pauses its auto-dismiss timer. See `ToastOptions.pauseOnHover`. */
-    withPauseOnHover(pauseOnHover: boolean): this { this._options.pauseOnHover = pauseOnHover; return this; }
+    /** Whether hovering this toast pauses its auto-dismiss timer. Called with no argument, enables it (`true`). See `ToastOptions.pauseOnHover`. */
+    withPauseOnHover(pauseOnHover: boolean = true): this { this._options.pauseOnHover = pauseOnHover; return this; }
     /** Adds a thin progress bar synced to the toast's auto-dismiss countdown.
      *  See `ToastOptions.progress`/`ToastProgressOptions`. */
     withProgress(progress: boolean | ToastProgressOptions = true): this { this._options.progress = progress; return this; }

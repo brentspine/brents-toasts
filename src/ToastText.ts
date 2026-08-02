@@ -12,8 +12,9 @@
   stop being special-cased, same as any other character.
 */
 export function renderTextWithBreaks(container: Element, text: string, allowLineBreaks: boolean = true): void {
+    if (!text) return;
     if (!allowLineBreaks) {
-        if (text) container.appendChild(document.createTextNode(text));
+        container.appendChild(document.createTextNode(text));
         return;
     }
     const parts = text.split(/\r\n|\r|\n|<br\s*\/?>/gi);

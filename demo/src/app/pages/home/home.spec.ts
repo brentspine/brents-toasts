@@ -17,4 +17,12 @@ describe('Home', () => {
     expect(cards.length).toBe(fixture.componentInstance.features.length);
     expect(cards.length).toBeGreaterThan(0);
   });
+
+  it('renders a hint below the CTA buttons', async () => {
+    const fixture = await createComponent();
+    const hint = fixture.nativeElement.querySelector('.hint');
+    expect(hint).not.toBeNull();
+    expect(hint.textContent.trim().length).toBeGreaterThan(0);
+    expect(hint.querySelector('svg.hint-icon')).not.toBeNull();
+  });
 });
