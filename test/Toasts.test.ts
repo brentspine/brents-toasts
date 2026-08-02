@@ -390,6 +390,68 @@ describe('multiple instances sharing a snackbar', () => {
         a.removeAllToasts();
         expect(onClose).toHaveBeenCalledTimes(1);
     });
+
+    it('updateToast via a different instance patches the owning instance\'s state', () => {
+        const a = new Toasts();
+        const b = new Toasts();
+        const id = b.showToast('mine', { duration: 0 });
+        a.updateToast(id, { message: 'changed' });
+        expect(document.getElementById(id)?.querySelector('.bt-toast-content')?.textContent).toBe('changed');
+    });
+
+    it('getToastData/setToastData via a different instance read/write the owning instance\'s data', () => {
+        const a = new Toasts();
+        const b = new Toasts();
+        const id = b.showToast('mine', { duration: 0, data: 'original' });
+        expect(a.getToastData(id)).toBe('original');
+        a.setToastData(id, 'updated');
+        expect(b.getToastData(id)).toBe('updated');
+    });
+
+    it('pause/resume/reset/extend/removeToastTimer via a different instance act on the owning instance\'s timer', () => {
+        vi.useFakeTimers();
+        const a = new Toasts();
+        const b = new Toasts();
+        const id = b.showToast('mine', { duration: 1000 });
+
+        a.pauseToastTimer(id);
+        expect(a.getToastTimer(id)?.paused).toBe(true);
+
+        a.resumeToastTimer(id);
+        expect(a.getToastTimer(id)?.paused).toBe(false);
+
+        a.resetToastTimer(id, 5000);
+        expect(a.getToastTimer(id)?.duration).toBe(5000);
+
+        a.extendToastTimer(id, 1000);
+        expect(a.getToastTimer(id)?.remaining).toBeGreaterThan(5000);
+
+        a.removeToastTimer(id);
+        expect(a.getToastTimer(id)).toBeNull();
+
+        // Since the timer was removed (toast is now sticky), it must not
+        // auto-dismiss even though `b` is the actual owner.
+        vi.advanceTimersByTime(10000);
+        expect(document.getElementById(id)).not.toBeNull();
+    });
+
+    it('addToastButton/removeToastButton/addToastDetail/removeToastDetail via a different instance mutate the owning instance\'s state', () => {
+        const a = new Toasts();
+        const b = new Toasts();
+        const id = b.showToast('mine', { duration: 0 });
+
+        a.addToastButton(id, { label: 'Click me', onClick: () => {} });
+        expect(document.getElementById(id)?.querySelectorAll('.bt-toast-action').length).toBe(1);
+
+        a.removeToastButton(id, 0);
+        expect(document.getElementById(id)?.querySelectorAll('.bt-toast-action').length).toBe(0);
+
+        a.addToastDetail(id, 'detail line');
+        expect(document.getElementById(id)?.querySelector('.bt-toast-details')).not.toBeNull();
+
+        a.removeToastDetail(id, 0);
+        expect(document.getElementById(id)?.querySelector('.bt-toast-details')).toBeNull();
+    });
 });
 
 describe('locale resolution', () => {

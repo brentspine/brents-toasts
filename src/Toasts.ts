@@ -471,8 +471,8 @@ export class Toasts {
         // to a toast this instance never created — delegate to whichever
         // instance actually owns it so its own onClose/timer/animation state
         // (not this instance's, which would simply miss) is what runs.
-        const owner = toastOwners.get(toastContainer);
-        if (owner && owner !== this) {
+        const owner = this._ownerOf(toastContainer);
+        if (owner !== this) {
             owner.removeToast(id);
             return;
         }
@@ -527,6 +527,11 @@ export class Toasts {
     updateToast(id: string, update: ToastUpdateOptions): void {
         const toastContainer = document.getElementById(id);
         if (!toastContainer) return;
+        const owner = this._ownerOf(toastContainer);
+        if (owner !== this) {
+            owner.updateToast(id, update);
+            return;
+        }
         const prev = this._toastState.get(toastContainer);
         if (!prev) return;
 
@@ -625,6 +630,8 @@ export class Toasts {
     pauseToastTimer(id: string): void {
         const el = document.getElementById(id);
         if (!el) return;
+        const owner = this._ownerOf(el);
+        if (owner !== this) return owner.pauseToastTimer(id);
         const state = this._timers.get(el);
         if (!state || state.startedAt === null) return;
         if (state.timeoutId) clearTimeout(state.timeoutId);
@@ -643,6 +650,8 @@ export class Toasts {
     resumeToastTimer(id: string): void {
         const el = document.getElementById(id);
         if (!el) return;
+        const owner = this._ownerOf(el);
+        if (owner !== this) return owner.resumeToastTimer(id);
         const state = this._timers.get(el);
         if (!state || state.startedAt !== null) return;
         state.startedAt = Date.now();
@@ -661,6 +670,8 @@ export class Toasts {
     resetToastTimer(id: string, newDuration?: number): void {
         const el = document.getElementById(id);
         if (!el) return;
+        const owner = this._ownerOf(el);
+        if (owner !== this) return owner.resetToastTimer(id, newDuration);
         const state = this._timers.get(el);
         if (!state) return;
         if (newDuration !== undefined) state.duration = newDuration;
@@ -681,6 +692,8 @@ export class Toasts {
     extendToastTimer(id: string, ms: number): void {
         const el = document.getElementById(id);
         if (!el) return;
+        const owner = this._ownerOf(el);
+        if (owner !== this) return owner.extendToastTimer(id, ms);
         const state = this._timers.get(el);
         if (!state) return;
         state.remaining = Math.max(0, state.remaining + ms);
@@ -700,6 +713,8 @@ export class Toasts {
     removeToastTimer(id: string): void {
         const el = document.getElementById(id);
         if (!el) return;
+        const owner = this._ownerOf(el);
+        if (owner !== this) return owner.removeToastTimer(id);
         const state = this._timers.get(el);
         if (!state) return;
         if (state.timeoutId) clearTimeout(state.timeoutId);
@@ -717,6 +732,8 @@ export class Toasts {
     getToastTimer(id: string): ToastTimerInfo | null {
         const el = document.getElementById(id);
         if (!el) return null;
+        const owner = this._ownerOf(el);
+        if (owner !== this) return owner.getToastTimer(id);
         const state = this._timers.get(el);
         if (!state) return null;
         const { startedAt } = state;
@@ -735,7 +752,8 @@ export class Toasts {
     getToastData<T = unknown>(id: string): T | undefined {
         const el = document.getElementById(id);
         if (!el) return undefined;
-        return this._data.get(el) as T | undefined;
+        const owner = this._ownerOf(el);
+        return owner !== this ? owner.getToastData<T>(id) : (this._data.get(el) as T | undefined);
     }
 
     /**
@@ -746,6 +764,8 @@ export class Toasts {
     setToastData<T>(id: string, data: T): void {
         const el = document.getElementById(id);
         if (!el) return;
+        const owner = this._ownerOf(el);
+        if (owner !== this) return owner.setToastData(id, data);
         this._data.set(el, data);
     }
 
@@ -870,7 +890,22 @@ export class Toasts {
 
     private _getState(id: string): ToastState | undefined {
         const el = document.getElementById(id);
-        return el ? this._toastState.get(el) : undefined;
+        if (!el) return undefined;
+        const owner = this._ownerOf(el);
+        return owner !== this ? owner._getState(id) : this._toastState.get(el);
+    }
+
+    // A same-position instance (BOTTOM_CENTER by default) can share a physical
+    // snackbar with other Toasts instances, so any `id` handed to a public
+    // method may belong to a toast this instance never created — its state
+    // (timers, data, `_toastState`, ...) lives in the owning instance's own
+    // WeakMaps, not this one's. Every method that reads/writes per-toast
+    // state must resolve the true owner via this and delegate if it isn't
+    // `this`, the same way `removeToast` does. Falls back to `this` only for
+    // a toast somehow untracked (shouldn't happen — every toast is recorded
+    // in `toastOwners` at creation in `showToast`).
+    private _ownerOf(el: HTMLElement): Toasts {
+        return toastOwners.get(el) ?? this;
     }
 
     // Stores (or clears) `toastContainer`'s resolved progress config —
