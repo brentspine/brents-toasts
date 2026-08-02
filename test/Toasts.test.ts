@@ -385,6 +385,69 @@ describe('eviction and stacking', () => {
     });
 });
 
+describe('responsive position collapsing', () => {
+    const originalInnerWidth = window.innerWidth;
+
+    function setViewportWidth(width: number): void {
+        Object.defineProperty(window, 'innerWidth', { value: width, configurable: true, writable: true });
+    }
+
+    afterEach(() => {
+        setViewportWidth(originalInnerWidth);
+        cleanup();
+    });
+
+    it('collapses *-left/*-right into *-center on a narrow viewport', () => {
+        setViewportWidth(350);
+        const t = new Toasts();
+        const idLeft = t.showToast('l', { duration: 0, position: ToastPosition.BOTTOM_LEFT });
+        const idCenter = t.showToast('c', { duration: 0, position: ToastPosition.BOTTOM_CENTER });
+        const idRight = t.showToast('r', { duration: 0, position: ToastPosition.BOTTOM_RIGHT });
+        const snackbar = document.getElementById(idLeft)!.parentElement;
+        expect(document.getElementById(idCenter)!.parentElement).toBe(snackbar);
+        expect(document.getElementById(idRight)!.parentElement).toBe(snackbar);
+        expect(snackbar!.dataset.position).toBe(ToastPosition.BOTTOM_CENTER);
+    });
+
+    it('keeps *-left/*-right in separate containers on a wide viewport', () => {
+        setViewportWidth(1024);
+        const t = new Toasts();
+        const idLeft = t.showToast('l', { duration: 0, position: ToastPosition.TOP_LEFT });
+        const idRight = t.showToast('r', { duration: 0, position: ToastPosition.TOP_RIGHT });
+        expect(document.getElementById(idLeft)!.parentElement).not.toBe(document.getElementById(idRight)!.parentElement);
+    });
+
+    it('responsiveBreakpoint: 0 disables collapsing even on a narrow viewport', () => {
+        setViewportWidth(350);
+        const t = new Toasts();
+        t.configure({ responsiveBreakpoint: 0 });
+        const idLeft = t.showToast('l', { duration: 0, position: ToastPosition.BOTTOM_LEFT });
+        const idCenter = t.showToast('c', { duration: 0, position: ToastPosition.BOTTOM_CENTER });
+        expect(document.getElementById(idLeft)!.parentElement).not.toBe(document.getElementById(idCenter)!.parentElement);
+    });
+
+    it('migrates an already-shown toast into the shared container on resize, and back on widen', async () => {
+        setViewportWidth(1024);
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, position: ToastPosition.TOP_LEFT });
+        const wideParent = document.getElementById(id)!.parentElement!;
+        expect(wideParent.dataset.position).toBe(ToastPosition.TOP_LEFT);
+
+        setViewportWidth(350);
+        window.dispatchEvent(new Event('resize'));
+        await nextFrame();
+        const narrowParent = document.getElementById(id)!.parentElement!;
+        expect(narrowParent.dataset.position).toBe(ToastPosition.TOP_CENTER);
+        expect(narrowParent).not.toBe(wideParent);
+        expect(wideParent.children.length).toBe(0);
+
+        setViewportWidth(1024);
+        window.dispatchEvent(new Event('resize'));
+        await nextFrame();
+        expect(document.getElementById(id)!.parentElement).toBe(wideParent);
+    });
+});
+
 describe('multiple instances sharing a snackbar', () => {
     afterEach(() => {
         vi.useRealTimers();

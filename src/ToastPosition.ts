@@ -42,3 +42,35 @@ export const POSITION_EDGE: Record<ToastPositionValue, 'top' | 'bottom'> = {
     [ToastPosition.TOP_LEFT]: 'top',
     [ToastPosition.TOP_RIGHT]: 'top',
 };
+
+/*
+  Below this viewport width (px), `*-left`/`*-right` positions collapse into
+  their edge's `*-center` equivalent (see `collapsedPosition`) — on a narrow
+  screen a toast's own width approaches the full viewport width, so the
+  flexbox alignment that visually separates left/center/right on a wide
+  viewport (`.bt-snackbar`'s `align-items` in toasts.css) no longer does,
+  and independently-stacking sibling containers can overlap. Configurable
+  via `ToastsConfig.responsiveBreakpoint`; `0` disables collapsing entirely.
+*/
+export const DEFAULT_RESPONSIVE_BREAKPOINT = 480;
+
+/*
+  Maps a `*-left`/`*-right` position to its edge's `*-center` equivalent so
+  both share one container/stack on narrow viewports; `*-center` positions
+  (and anything unrecognized) pass through unchanged. Used by
+  `Toasts._effectivePosition` — never applied to the toast's own identity
+  `position` (what `getToastOptions`-style introspection reports), only to
+  which physical container it renders into.
+*/
+export function collapsedPosition(position: ToastPositionValue): ToastPositionValue {
+    switch (position) {
+        case ToastPosition.TOP_LEFT:
+        case ToastPosition.TOP_RIGHT:
+            return ToastPosition.TOP_CENTER;
+        case ToastPosition.BOTTOM_LEFT:
+        case ToastPosition.BOTTOM_RIGHT:
+            return ToastPosition.BOTTOM_CENTER;
+        default:
+            return position;
+    }
+}

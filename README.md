@@ -533,6 +533,22 @@ per-toast and library-wide settings (position, animation, `onClose`,
 `removeOtherToasts`, `buttons`, `details`, `pauseOnHover`, `data`,
 `maxToasts`, `evictOldest`, `locale`, `translations`, ...).
 
+#### Positions on narrow screens
+
+On a wide viewport, `BOTTOM_LEFT`/`BOTTOM_CENTER`/`BOTTOM_RIGHT` (and the
+`TOP_*` equivalents) render as visually distinct stacks. Below
+`responsiveBreakpoint` px wide (default `480`, roughly phone-portrait width),
+there's no longer enough room to tell them apart, so `*_LEFT`/`*_RIGHT`
+positions collapse into their edge's `*_CENTER` position and share one
+stack instead of overlapping. This is re-evaluated live on resize/orientation
+change, so toasts already on screen move into (or back out of) the shared
+container as the breakpoint is crossed. Set `responsiveBreakpoint: 0` to
+disable collapsing entirely:
+
+```ts
+toasts.configure({ responsiveBreakpoint: 0 }); // always keep positions distinct
+```
+
 ### Theming
 
 `color` sets the accent bar/indicator, same as always. For the rest of a

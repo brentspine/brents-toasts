@@ -6,7 +6,7 @@
 */
 
 import { ToastColor } from './ToastColor';
-import { ToastPosition, IMPLEMENTED_POSITIONS, POSITION_EDGE, type ToastPositionValue } from './ToastPosition';
+import { ToastPosition, IMPLEMENTED_POSITIONS, POSITION_EDGE, collapsedPosition, DEFAULT_RESPONSIVE_BREAKPOINT, type ToastPositionValue } from './ToastPosition';
 import { ToastAnimation, getToastAnimation, type ToastAnimationValue, type ToastAnimationDefinition } from './ToastAnimation';
 import { createStepButton, type ToastButton, type ToastButtonStep } from './ToastButton';
 import { ToastLocales, matchToastLocale, detectBrowserLocales, type ToastTranslations } from './ToastLocale';
@@ -117,6 +117,8 @@ export interface ToastsConfig {
     /** Library-wide default for `ToastOptions.allowLineBreaks`. See there. */
     allowLineBreaks: boolean;
     position: ToastPositionValue;
+    /** Viewport width (px) at/below which `*-left`/`*-right` positions collapse into their edge's `*-center` equivalent, so they share one container/stack instead of visually overlapping on narrow (mobile) screens. Re-evaluated live on window resize/orientation-change, moving already-shown toasts into the right container. `0` disables collapsing entirely. Defaults to `480`. See `collapsedPosition`. */
+    responsiveBreakpoint: number;
     animation: ToastAnimationValue;
     maxToasts: number;
     evictOldest: boolean;
@@ -175,6 +177,7 @@ const DEFAULT_CONFIG: ToastsConfig = {
     allowHtml: false,
     allowLineBreaks: true,
     position: ToastPosition.BOTTOM_CENTER,
+    responsiveBreakpoint: DEFAULT_RESPONSIVE_BREAKPOINT,
     animation: ToastAnimation.SLIDE,
     maxToasts: MAX_TOASTS,
     evictOldest: true,
@@ -226,6 +229,32 @@ const toastSeq = new WeakMap<HTMLElement, number>();
 let seqCounter = 0;
 
 export class Toasts {
+    // A single page-wide resize listener (bound once from `_init`, regardless
+    // of how many `Toasts` instances exist — hence `static`) re-evaluates
+    // every currently-shown toast's container against the current viewport
+    // width, so `*-left`/`*-right` toasts already on screen migrate into (or
+    // back out of) their edge's `*-center` container as
+    // `config.responsiveBreakpoint` is crossed — not just newly-spawned
+    // toasts. rAF-coalesced so a drag-resize firing dozens of `resize` events
+    // only re-evaluates once per frame. Kept as private statics (rather than
+    // module-level) so `_scheduleReconcile` can reach each toast's owning
+    // instance's private `_reconcilePosition` — TS `private` is only
+    // accessible from code lexically inside the class, which a module-level
+    // function isn't.
+    private static _resizeListenerBound = false;
+    private static _resizeRaf: number | null = null;
+
+    private static _scheduleReconcile(): void {
+        if (Toasts._resizeRaf !== null) return;
+        Toasts._resizeRaf = requestAnimationFrame(() => {
+            Toasts._resizeRaf = null;
+            document.querySelectorAll<HTMLElement>('.bt-toast-container').forEach((el) => {
+                if (el.classList.contains('bt-hiding')) return;
+                toastOwners.get(el)?._reconcilePosition(el);
+            });
+        });
+    }
+
     public config: ToastsConfig;
     public snackbars: Map<ToastPositionValue, HTMLElement>;
     /** Per-position `maxToasts`/`evictOldest` overrides set via `configurePosition()`. A position absent here (or a key left `undefined` within its entry) falls back to `config`. */
@@ -284,6 +313,10 @@ export class Toasts {
         if (this._initialized) return;
         this._initialized = true;
         this._appendStyle();
+        if (!Toasts._resizeListenerBound) {
+            Toasts._resizeListenerBound = true;
+            window.addEventListener('resize', () => Toasts._scheduleReconcile());
+        }
     }
 
     /**
@@ -327,12 +360,13 @@ export class Toasts {
         }
 
         const position = this._resolvePosition(opts.position);
+        const containerPosition = this._effectivePosition(position);
         const animationName = this._resolveAnimation(opts.animation);
         const animationDef = getToastAnimation(animationName)!;
-        const snackbar = this._getSnackbar(position, t);
-        const edge = POSITION_EDGE[position];
+        const snackbar = this._getSnackbar(containerPosition, t);
+        const edge = POSITION_EDGE[containerPosition];
 
-        const positionOverride = this.positionConfig.get(position);
+        const positionOverride = this.positionConfig.get(containerPosition);
         const maxToasts = positionOverride?.maxToasts ?? this.config.maxToasts;
         const evictOldest = positionOverride?.evictOldest ?? this.config.evictOldest;
 
@@ -1153,6 +1187,20 @@ export class Toasts {
         return ToastPosition.BOTTOM_CENTER;
     }
 
+    /**
+     * Which container a toast with the given identity `position` should
+     * actually render into right now — collapsed to the edge's `*-center`
+     * equivalent below `config.responsiveBreakpoint`. Never mutates the
+     * toast's stored identity `position` (see `_toastState`); only the
+     * container/edge/positionConfig lookups in `showToast`/`_reconcilePosition`
+     * consume this.
+     */
+    private _effectivePosition(position: ToastPositionValue): ToastPositionValue {
+        const bp = this.config.responsiveBreakpoint;
+        if (!bp || window.innerWidth > bp) return position;
+        return collapsedPosition(position);
+    }
+
     private _resolveAnimation(animation: ToastAnimationValue): ToastAnimationValue {
         if (getToastAnimation(animation)) return animation;
         this._warnUnimplemented('animation', animation, ToastAnimation.SLIDE);
@@ -1247,6 +1295,27 @@ export class Toasts {
         root.insertBefore(document.createComment(`brents-toasts v${VERSION} snackbar container`), snackbar);
         this.snackbars.set(position, snackbar);
         return snackbar;
+    }
+
+    /**
+     * Called for every live toast on window resize (see `scheduleReconcile`)
+     * to move it into whichever container `_effectivePosition` currently
+     * resolves its identity `position` to, if that's changed since it was
+     * shown (or last reconciled). A plain DOM reparent — listeners, WeakMap
+     * state, and the per-toast `ResizeObserver` are all keyed off `toastEl`
+     * itself, so they survive unchanged across the move. Instant, not
+     * animated — acceptable for a resize/rotate edge case.
+     */
+    private _reconcilePosition(toastEl: HTMLElement): void {
+        const state = this._toastState.get(toastEl);
+        if (!state) return; // mid-removal — removeToast deletes this first
+        const target = this._effectivePosition(state.position);
+        const source = toastEl.parentElement;
+        if (source?.dataset.position === target) return;
+        const targetSnackbar = this._getSnackbar(target, this._getTranslations());
+        targetSnackbar.appendChild(toastEl);
+        if (source) recalculatePositions(source);
+        recalculatePositions(targetSnackbar);
     }
 }
 
