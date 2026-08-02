@@ -11,6 +11,8 @@ export interface ToastTranslations {
     copied: string;
     areYouSure: string;
     done: string;
+    yes: string;
+    no: string;
     notificationsRegion: string;
 }
 
@@ -23,6 +25,8 @@ export const ToastLocales: Record<string, ToastTranslations> = {
         copied: 'Copied!',
         areYouSure: 'Are you sure?',
         done: 'Done',
+        yes: 'Yes',
+        no: 'No',
         notificationsRegion: 'Notifications',
     },
     de: {
@@ -33,6 +37,8 @@ export const ToastLocales: Record<string, ToastTranslations> = {
         copied: 'Kopiert!',
         areYouSure: 'Bist du sicher?',
         done: 'Fertig',
+        yes: 'Ja',
+        no: 'Nein',
         notificationsRegion: 'Benachrichtigungen',
     },
     es: {
@@ -43,6 +49,8 @@ export const ToastLocales: Record<string, ToastTranslations> = {
         copied: '¡Copiado!',
         areYouSure: '¿Estás seguro?',
         done: 'Hecho',
+        yes: 'Sí',
+        no: 'No',
         notificationsRegion: 'Notificaciones',
     },
     fr: {
@@ -53,6 +61,8 @@ export const ToastLocales: Record<string, ToastTranslations> = {
         copied: 'Copié !',
         areYouSure: 'Êtes-vous sûr ?',
         done: 'Terminé',
+        yes: 'Oui',
+        no: 'Non',
         notificationsRegion: 'Notifications',
     },
 };

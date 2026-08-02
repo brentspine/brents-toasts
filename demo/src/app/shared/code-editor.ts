@@ -73,7 +73,7 @@ declare class ToastBuilder {
   withConfirmButton(
     label: string,
     onConfirm: (event: MouseEvent, id: string) => void | Promise<void>,
-    options?: { confirmLabel?: string; doneLabel?: string; className?: string; confirmTimeoutMs?: number; doneTimeoutMs?: number },
+    options?: { confirmMessage?: string; yesLabel?: string; noLabel?: string; doneMessage?: string | null; className?: string; doneTimeoutMs?: number },
   ): this;
   withStepButton(steps: ToastButtonStep[], className?: string): this;
   /** Fires the toast. @returns its id. */

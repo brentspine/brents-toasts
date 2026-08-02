@@ -66,15 +66,16 @@ export class ToastBuilder {
         this._options.buttons.push(this._toasts.closeButton(label, className));
         return this;
     }
-    /** Adds a ready-made confirm-before-action button ("Delete" -> "Are you sure?" -> runs `onConfirm` -> "Done" -> reverts). See `Toasts.confirmButton()`. */
+    /** Adds a ready-made confirm-before-action button ("Delete" -> swaps the toast to "Are you sure?" + Yes/No -> runs `onConfirm` -> "Done" -> reverts). See `Toasts.confirmButton()`. */
     withConfirmButton(
         label: string,
         onConfirm: (event: MouseEvent, id: string) => void | Promise<void>,
         options?: {
-            confirmLabel?: string;
-            doneLabel?: string;
+            confirmMessage?: string;
+            yesLabel?: string;
+            noLabel?: string;
+            doneMessage?: string | null;
             className?: string;
-            confirmTimeoutMs?: number;
             doneTimeoutMs?: number;
         }
     ): this {
@@ -82,7 +83,7 @@ export class ToastBuilder {
         this._options.buttons.push(this._toasts.confirmButton(label, onConfirm, options));
         return this;
     }
-    /** Adds a button whose `onClick` walks through `steps` in order — the general-purpose primitive behind `withConfirmButton()`. See `Toasts.stepButton()`/`ToastButtonStep`. */
+    /** Adds a button whose `onClick` walks through `steps` in order — the general-purpose primitive behind `Toasts.detailsCopyButton()`. See `Toasts.stepButton()`/`ToastButtonStep`. */
     withStepButton(steps: ToastButtonStep[], className?: string): this {
         if (!this._options.buttons) this._options.buttons = [];
         this._options.buttons.push(this._toasts.stepButton(steps, className));

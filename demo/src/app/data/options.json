@@ -36,8 +36,8 @@
     { "name": "detailsLabel", "type": "string", "default": "\"Details\" (locale)", "description": "Label for the auto-added details toggle button. Set together with details.", "builderCall": ".withDetails([\"Order #1234 shipped\", \"Tracking: 1Z999AA10123456784\"], \"Show details\", \"Hide details\")" },
     { "name": "detailsHideLabel", "type": "string", "default": "\"Hide details\" (locale)", "description": "Label for the toggle button while details are expanded. Set together with details.", "builderCall": ".withDetails([\"Order #1234 shipped\", \"Tracking: 1Z999AA10123456784\"], \"Show details\", \"Hide details\")" },
     { "name": "closeButton()", "type": "(label?, className?) => ToastButton", "typeRef": "ToastButton", "default": "-", "description": "Ready-made button that dismisses the toast it's on.", "builderCall": ".withCloseButton()" },
-    { "name": "confirmButton()", "type": "(label, onConfirm, options?) => ToastButton", "typeRef": "ToastButtonStep", "default": "-", "description": "Ready-made confirm-before-action button: label -> \"Are you sure?\" -> runs onConfirm -> \"Done\".", "builderCall": ".withConfirmButton(\"Delete\", (event, id) => console.log(\"deleted\", id))" },
-    { "name": "stepButton()", "type": "(steps, className?) => ToastButton", "typeRef": "ToastButtonStep", "default": "-", "description": "The general-purpose primitive behind confirmButton(): a button that walks through custom steps in order.", "builderCall": ".withStepButton([{ label: \"Copy\" }, { label: \"Copied!\", revertAfterMs: 2000 }])" }
+    { "name": "confirmButton()", "type": "(label, onConfirm, options?) => ToastButton", "typeRef": "ToastButtonStep", "default": "-", "description": "Ready-made confirm-before-action button: clicking it swaps the toast's message to \"Are you sure?\" and every button to Yes/No, runs onConfirm on Yes, flashes \"Done\", then restores the original content.", "builderCall": ".withConfirmButton(\"Delete\", (event, id) => console.log(\"deleted\", id))" },
+    { "name": "stepButton()", "type": "(steps, className?) => ToastButton", "typeRef": "ToastButtonStep", "default": "-", "description": "The general-purpose primitive behind detailsCopyButton(): a button that walks through custom steps in order.", "builderCall": ".withStepButton([{ label: \"Copy\" }, { label: \"Copied!\", revertAfterMs: 2000 }])" }
   ],
   "configOptions": [
     { "name": "color", "type": "string", "typeRef": "ToastColorValue", "default": "ToastColor.INFO", "description": "Library-wide default background color for the indicator bar.", "control": "color" },
@@ -121,7 +121,7 @@
     },
     "ToastButtonStep": {
       "kind": "object",
-      "description": "One step of a multi-step button's state machine (the primitive behind confirmButton()/stepButton()).",
+      "description": "One step of a multi-step button's state machine (the primitive behind stepButton()/detailsCopyButton()).",
       "fields": [
         { "name": "label", "type": "string", "description": "Text shown while this step is active." },
         { "name": "onClick", "type": "(event, id) => void | false | Promise<void | false>", "description": "Runs on click. Return false to stay on this step instead of advancing." },
@@ -156,7 +156,7 @@
     {
       "id": "step-button",
       "title": "Multi-step buttons",
-      "description": "The general-purpose state machine behind confirmButton(), walking through your own custom steps.",
+      "description": "The general-purpose state machine behind detailsCopyButton(), walking through your own custom steps.",
       "code": "new ToastBuilder(\"Copy the invite link?\")\n  .withDuration(0)\n  .withStepButton([\n    {\n      label: \"Copy link\",\n      onClick: () => navigator.clipboard.writeText(\"https://brentspine.de/r/topsecretrr\"),\n    },\n    { label: \"Copied!\", revertAfterMs: 2000 },\n  ])\n  .show();"
     },
     {

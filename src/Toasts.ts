@@ -791,9 +791,9 @@ export class Toasts {
      * that item in, same opt-in pattern as `closeButton()`. No-ops if the Clipboard API is unavailable
      * (e.g. insecure context). `label`/`copiedLabel` are plain parameters, not hardcoded — same
      * locale-defaulting as `closeButton()`'s `label`. Also calls `resetToastTimer(id)` on click, same
-     * reasoning as `confirmButton()` — the "Copied!" flash shouldn't get cut short by the toast
-     * auto-dismissing underneath it. Built on `stepButton()` — see that for the underlying multi-step
-     * mechanics.
+     * reasoning as `confirmButton()`'s clicks — the "Copied!" flash shouldn't get cut short by the
+     * toast auto-dismissing underneath it. Built on `stepButton()` — see that for the underlying
+     * multi-step mechanics.
      */
     detailsCopyButton(text: string, label?: string, copiedLabel?: string, className?: string): ToastButton {
         const t = this._getTranslations();
@@ -810,65 +810,112 @@ export class Toasts {
     }
 
     /**
-     * A ready-made confirm-before-action button: shows `label`, then on click advances to `confirmLabel`
-     * ("Are you sure?" by default) without running anything yet. A second click runs `onConfirm` (the
-     * button is disabled while an async `onConfirm` is pending, so it can't be double-fired), then shows
-     * `doneLabel` for `doneTimeoutMs` before reverting back to `label`. If the confirm step is left
-     * untouched for `confirmTimeoutMs`, it reverts to `label` on its own without ever running `onConfirm`.
-     * Every click also calls `resetToastTimer(id)` — see that method — so the toast's own auto-dismiss
-     * timer can't fire out from under the user while they're mid-confirmation; a no-op if the toast is
-     * sticky or `pauseOnHover`/duration weren't in play to begin with. Built on `stepButton()` — use
-     * that directly for flows with more/different steps.
+     * A ready-made confirm-before-action button. Rather than relabeling just itself to
+     * "Are you sure?", clicking it swaps out the *whole toast's* content: `message` becomes
+     * `confirmMessage` ("Are you sure?" by default) and every button on the toast (this one
+     * included) is replaced with a `yesLabel`/`noLabel` pair. Clicking "Yes" runs `onConfirm`
+     * (the button disables itself while an async `onConfirm` is pending, so it can't be
+     * double-fired), optionally flashes `doneMessage` ("Done" by default; pass `null` to skip
+     * it) for `doneTimeoutMs`, then restores the toast's original message and buttons.
+     * Clicking "No" restores immediately without running anything — no revert timer needed,
+     * since the explicit "No" is the revert. Every click also calls `resetToastTimer(id)` —
+     * see that method — so the toast's own auto-dismiss timer can't fire out from under the
+     * user mid-confirmation; a no-op if the toast is sticky. For flows that don't fit this
+     * shape, build them directly with `updateToast()`/`stepButton()` instead.
      */
     confirmButton(
         label: string,
         onConfirm: (event: MouseEvent, id: string) => void | Promise<void>,
         options?: {
-            confirmLabel?: string;
-            doneLabel?: string;
+            confirmMessage?: string;
+            yesLabel?: string;
+            noLabel?: string;
+            doneMessage?: string | null;
             className?: string;
-            confirmTimeoutMs?: number;
             doneTimeoutMs?: number;
         }
     ): ToastButton {
         const t = this._getTranslations();
         const {
-            confirmLabel = t.areYouSure,
-            doneLabel = t.done,
+            confirmMessage = t.areYouSure,
+            yesLabel = t.yes,
+            noLabel = t.no,
+            doneMessage = t.done,
             className,
-            confirmTimeoutMs = 4000,
             doneTimeoutMs = 2000,
         } = options ?? {};
 
-        return this.stepButton([
-            {
-                label,
-                // step[0]'s onClick isn't for guarding advancement (it always
-                // advances) — it exists purely to re-arm the toast's timer the
-                // moment the user starts a confirmation, same as the confirm
-                // step below.
-                onClick: (_event, id) => { this.resetToastTimer(id); },
+        return {
+            label,
+            className,
+            onClick: (_event, id) => {
+                this.resetToastTimer(id);
+                const original = this._getState(id);
+                if (!original) return;
+
+                const restore = (): void => {
+                    this.updateToast(id, { title: original.title, message: original.message, buttons: original.buttons });
+                };
+
+                const yesButton: ToastButton = {
+                    label: yesLabel,
+                    onClick: (event, confirmId) => {
+                        this.resetToastTimer(confirmId);
+
+                        const finish = (): void => {
+                            if (doneMessage) {
+                                this.updateToast(confirmId, { message: doneMessage, buttons: [] });
+                                setTimeout(restore, doneTimeoutMs);
+                            } else {
+                                restore();
+                            }
+                        };
+                        const fail = (err: unknown): void => {
+                            console.warn('[brents-toasts] confirmButton\'s onConfirm rejected:', err);
+                            restore();
+                        };
+
+                        let result: void | Promise<void>;
+                        try {
+                            result = onConfirm(event, confirmId);
+                        } catch (err) {
+                            fail(err);
+                            return;
+                        }
+                        if (result instanceof Promise) {
+                            // Disable every action on the toast (not just this button)
+                            // while onConfirm is pending, so "No" can't race a running confirm.
+                            (event.currentTarget as HTMLButtonElement).closest<HTMLElement>('.bt-toast-actions')
+                                ?.querySelectorAll('button')
+                                .forEach((b) => { b.disabled = true; });
+                            result.then(finish).catch(fail);
+                        } else {
+                            finish();
+                        }
+                    },
+                };
+
+                const noButton: ToastButton = {
+                    label: noLabel,
+                    onClick: (_event, cancelId) => {
+                        this.resetToastTimer(cancelId);
+                        restore();
+                    },
+                };
+
+                this.updateToast(id, { message: confirmMessage, buttons: [yesButton, noButton] });
             },
-            {
-                label: confirmLabel,
-                onClick: (event, id) => {
-                    this.resetToastTimer(id);
-                    return onConfirm(event, id);
-                },
-                revertAfterMs: confirmTimeoutMs,
-                revertToStep: 0,
-            },
-            { label: doneLabel, revertAfterMs: doneTimeoutMs, revertToStep: 0 },
-        ], className);
+        };
     }
 
     /**
-     * The general-purpose primitive behind `confirmButton()`/`detailsCopyButton()` — builds a button
-     * whose `onClick` walks through `steps` in order (each with its own label, optional `onClick`, and
-     * optional auto-revert), for custom multi-step flows (temporary feedback, confirm-before-action,
-     * or anything else with more than one click-driven state). See `ToastButtonStep` for the per-step
-     * options. Lives on `Toasts` (not a free function) for discoverability/symmetry with `closeButton()`,
-     * even though — unlike `closeButton()` — it doesn't need this instance.
+     * The general-purpose primitive behind `detailsCopyButton()` — builds a button whose `onClick`
+     * walks through `steps` in order (each with its own label, optional `onClick`, and optional
+     * auto-revert), for custom multi-step flows (temporary feedback, a guarded action, or anything
+     * else with more than one click-driven state) that don't need the whole-toast content swap
+     * `confirmButton()` does. See `ToastButtonStep` for the per-step options. Lives on `Toasts` (not
+     * a free function) for discoverability/symmetry with `closeButton()`, even though — unlike
+     * `closeButton()` — it doesn't need this instance.
      */
     stepButton(steps: ToastButtonStep[], className?: string): ToastButton {
         return createStepButton(steps, className);

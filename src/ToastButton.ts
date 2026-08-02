@@ -105,12 +105,13 @@ function applyStep(el: HTMLButtonElement, steps: ToastButtonStep[], fromIndex: n
 
 /**
  * Builds a plain `ToastButton` whose `onClick` walks through `steps` in order —
- * the primitive behind `Toasts.confirmButton()`/`detailsCopyButton()`, also
- * usable directly (via `Toasts.stepButton()`/`ToastBuilder.withStepButton()`)
- * for custom multi-step flows (temporary feedback, confirm-before-action, ...).
- * Safe to reuse the same returned `ToastButton` across multiple
- * simultaneously-rendered toasts — state lives per rendered `<button>` element,
- * not in this call's closure.
+ * the primitive behind `Toasts.detailsCopyButton()`, also usable directly (via
+ * `Toasts.stepButton()`/`ToastBuilder.withStepButton()`) for custom multi-step
+ * flows (temporary feedback, a guarded action, ...). `Toasts.confirmButton()`
+ * doesn't use this — it swaps the whole toast's content instead of just this
+ * button's label, see there. Safe to reuse the same returned `ToastButton`
+ * across multiple simultaneously-rendered toasts — state lives per rendered
+ * `<button>` element, not in this call's closure.
  */
 export function createStepButton(steps: ToastButtonStep[], className?: string): ToastButton {
     const first = steps[0];

@@ -673,3 +673,121 @@ describe('toast data', () => {
         expect(t.getToastData('nope')).toBeUndefined();
     });
 });
+
+describe('confirmButton', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+        cleanup();
+    });
+
+    function actionLabels(id: string): (string | null)[] {
+        return Array.from(document.getElementById(id)!.querySelectorAll('.bt-toast-actions button')).map(b => b.textContent);
+    }
+
+    function clickAction(id: string, label: string): void {
+        const btn = Array.from(document.getElementById(id)!.querySelectorAll<HTMLButtonElement>('.bt-toast-actions button'))
+            .find(b => b.textContent === label);
+        btn!.click();
+    }
+
+    it('clicking it swaps the whole toast (message + every button), not just its own label', () => {
+        const t = new Toasts();
+        const onConfirm = vi.fn();
+        const id = t.showToast('3 items selected.', { duration: 0, buttons: [t.confirmButton('Delete', onConfirm)] });
+
+        expect(actionLabels(id)).toEqual(['Delete']);
+        clickAction(id, 'Delete');
+
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('Are you sure?');
+        expect(actionLabels(id)).toEqual(['Yes', 'No']);
+        expect(onConfirm).not.toHaveBeenCalled();
+    });
+
+    it('"No" restores the original message and buttons without running onConfirm', () => {
+        const t = new Toasts();
+        const onConfirm = vi.fn();
+        const id = t.showToast('3 items selected.', { duration: 0, buttons: [t.confirmButton('Delete', onConfirm)] });
+
+        clickAction(id, 'Delete');
+        clickAction(id, 'No');
+
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('3 items selected.');
+        expect(actionLabels(id)).toEqual(['Delete']);
+        expect(onConfirm).not.toHaveBeenCalled();
+    });
+
+    it('"Yes" runs onConfirm, flashes the done message, then restores the original content', async () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const onConfirm = vi.fn();
+        const id = t.showToast('3 items selected.', { duration: 0, buttons: [t.confirmButton('Delete', onConfirm)] });
+
+        clickAction(id, 'Delete');
+        clickAction(id, 'Yes');
+
+        expect(onConfirm).toHaveBeenCalledTimes(1);
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('Done');
+        expect(actionLabels(id)).toEqual([]);
+
+        await vi.advanceTimersByTimeAsync(2000);
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('3 items selected.');
+        expect(actionLabels(id)).toEqual(['Delete']);
+    });
+
+    it('disables every action while an async onConfirm is pending, then restores after it resolves', async () => {
+        const t = new Toasts();
+        let resolveConfirm: () => void;
+        const onConfirm = vi.fn(() => new Promise<void>(resolve => { resolveConfirm = resolve; }));
+        const id = t.showToast('x', { duration: 0, buttons: [t.confirmButton('Delete', onConfirm, { doneMessage: null })] });
+
+        clickAction(id, 'Delete');
+        clickAction(id, 'Yes');
+
+        const buttons = Array.from(document.getElementById(id)!.querySelectorAll<HTMLButtonElement>('.bt-toast-actions button'));
+        expect(buttons.every(b => b.disabled)).toBe(true);
+
+        resolveConfirm!();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('x');
+        expect(actionLabels(id)).toEqual(['Delete']);
+    });
+
+    it('doneMessage: null skips the "Done" flash and restores immediately', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, buttons: [t.confirmButton('Delete', () => {}, { doneMessage: null })] });
+
+        clickAction(id, 'Delete');
+        clickAction(id, 'Yes');
+
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('x');
+        expect(actionLabels(id)).toEqual(['Delete']);
+    });
+
+    it('honors custom confirmMessage/yesLabel/noLabel', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', {
+            duration: 0,
+            buttons: [t.confirmButton('Delete', () => {}, { confirmMessage: 'Really delete?', yesLabel: 'Confirm', noLabel: 'Cancel' })],
+        });
+
+        clickAction(id, 'Delete');
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('Really delete?');
+        expect(actionLabels(id)).toEqual(['Confirm', 'Cancel']);
+    });
+
+    it('resets the toast timer on every click of the flow', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 5000, buttons: [t.confirmButton('Delete', () => {}, { doneMessage: null })] });
+
+        vi.advanceTimersByTime(4000);
+        clickAction(id, 'Delete');
+        expect(t.getToastTimer(id)!.remaining).toBe(5000);
+
+        vi.advanceTimersByTime(4000);
+        clickAction(id, 'No');
+        expect(t.getToastTimer(id)!.remaining).toBe(5000);
+    });
+});

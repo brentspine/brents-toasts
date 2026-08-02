@@ -171,23 +171,27 @@ toasts.showToast('3 items selected.', {
 });
 ```
 
-Clicking it once swaps the label to `confirmLabel` (default
-`"Are you sure?"`) without running anything yet — a second click runs
-`onConfirm`, then shows `doneLabel` (default `"Done"`) for `doneTimeoutMs`
-(default `2000`) before reverting back to `label`. If the confirm step is
-left untouched for `confirmTimeoutMs` (default `4000`), it reverts back to
-`label` on its own without ever running `onConfirm` — an ignored
-confirmation doesn't stay armed forever. If `onConfirm` returns a
-`Promise` (as above), the button disables itself until it settles, so a
-slow action can't be double-fired by an impatient second click. Builder
-equivalent: `.withConfirmButton(label, onConfirm, options?)`.
+Clicking it swaps out the *whole toast*, not just this button: `message`
+becomes `confirmMessage` (default `"Are you sure?"`) and every button on
+the toast is replaced with a `yesLabel`/`noLabel` (default `"Yes"`/`"No"`)
+pair. Clicking "Yes" runs `onConfirm`, optionally flashes `doneMessage`
+(default `"Done"`; pass `null` to skip it) for `doneTimeoutMs` (default
+`2000`), then restores the toast's original message and buttons. Clicking
+"No" restores immediately, without ever running `onConfirm` — no revert
+timer needed, since the explicit "No" *is* the revert. If `onConfirm`
+returns a `Promise` (as above), every button on the toast disables itself
+until it settles, so "Yes" can't be double-fired by an impatient second
+click and "No" can't race a running confirm. Builder equivalent:
+`.withConfirmButton(label, onConfirm, options?)`.
 
-`confirmButton()` is built on the same general-purpose primitive as
-`detailsCopyButton()` below: `toasts.stepButton(steps, className?)`, for
-flows `confirmButton()` doesn't cover directly. Each `ToastButtonStep` has
-its own `label` and optional `onClick`; a step's `onClick` can return (or
-resolve to) `false` to stay on that step instead of advancing to the next
-one — e.g. a guard that isn't met, or an action that failed:
+For flows `confirmButton()` doesn't cover directly (it doesn't use
+`stepButton()` under the hood — it swaps the toast's own content instead
+of a single button's label), build them with `toasts.stepButton(steps,
+className?)`, the same general-purpose primitive `detailsCopyButton()`
+below is built on. Each `ToastButtonStep` has its own `label` and optional
+`onClick`; a step's `onClick` can return (or resolve to) `false` to stay
+on that step instead of advancing to the next one — e.g. a guard that
+isn't met, or an action that failed:
 
 ```ts
 toasts.showToast('Draft ready.', {
@@ -393,9 +397,8 @@ toasts.showToast('Account settings could not be updated.', {
 ```
 
 It copies `text` via the Clipboard API (no-op if unavailable) and flashes its
-own label to `copiedLabel` (default `"Copied!"`) for 2s — built on the same
-`stepButton()` primitive as `confirmButton()` (see "Multi-step buttons"
-above). Toggling details
+own label to `copiedLabel` (default `"Copied!"`) for 2s — built on the
+`stepButton()` primitive (see "Multi-step buttons" above). Toggling details
 open/closed (or mutating a toast's own content some other way) automatically
 repositions the whole stack, so an expanded toast never overlaps the ones
 above it. Customize the toggle button text with `detailsLabel`/
@@ -495,8 +498,9 @@ color instead. Builder equivalent: `.withTheme(theme)`.
 
 The library's own text — `closeButton()`'s `"Close"`, `detailsLabel`
 (`"Details"`) / `detailsHideLabel` (`"Hide details"`), `detailsCopyButton()`'s
-`"Copy"`/`"Copied!"`, `confirmButton()`'s `confirmLabel` (`"Are you sure?"`) /
-`doneLabel` (`"Done"`), and the snackbar region's `aria-label`
+`"Copy"`/`"Copied!"`, `confirmButton()`'s `confirmMessage` (`"Are you
+sure?"`) / `yesLabel`/`noLabel` (`"Yes"`/`"No"`) / `doneMessage` (`"Done"`),
+and the snackbar region's `aria-label`
 (`"Notifications"`) — is auto-translated based on the browser's
 `navigator.language`(s), no config required. Bundled packs today: `en`
 (default/fallback), `de`, `es`, `fr` (see `ToastLocales` in
@@ -520,6 +524,6 @@ toasts.configure({ translations: { close: 'Schließen', done: 'Erledigt' } });
 An unrecognized `locale` falls back to `en` with a one-time console warning,
 same as an unimplemented `position`/`animation` value. Per-call params
 (`detailsLabel`, `closeButton(label)`, `detailsCopyButton(text, label,
-copiedLabel)`, `confirmButton(label, onConfirm, { confirmLabel, doneLabel })`)
-still win over the resolved translations, same precedence as every other
-option.
+copiedLabel)`, `confirmButton(label, onConfirm, { confirmMessage, yesLabel,
+noLabel, doneMessage })`) still win over the resolved translations, same
+precedence as every other option.
