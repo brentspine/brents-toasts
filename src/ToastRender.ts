@@ -149,6 +149,37 @@ export function applyProgress(
     return cfg;
 }
 
+// Duration (ms) of each half of the crossfade `transitionToastVisuals` drives —
+// deliberately not exposed as an option, same reasoning as the animation
+// module's hardcoded timings (SLIDE/FADE's 300ms): one sensible default beats
+// a knob nobody asked to tune.
+const CONTENT_TRANSITION_MS = 150;
+
+// Used by Toasts.updateToast when the caller opts in via `transition: true` —
+// crossfades `toast` (the `.bt-toast` card, not its `.bt-toast-container`
+// wrapper, which is what enter/exit animations already animate — see
+// ToastAnimation.ts) around a DOM mutation instead of applying it instantly:
+// fades opacity to 0, runs `mutate` (whatever combination of
+// applyContent/applyColor/applyProgress/renderActions the update touches)
+// once fully invisible, then fades back to 1. `mutate` runs all-at-once at
+// the midpoint rather than each piece fading independently, so e.g. a
+// promise() loading->success patch (message AND color changing together)
+// reads as one clean crossfade instead of mismatched pieces settling at
+// different times.
+export function transitionToastVisuals(toast: HTMLElement, mutate: () => void): void {
+    const previousTransition = toast.style.transition;
+    toast.style.transition = `opacity ${CONTENT_TRANSITION_MS}ms ease-in-out`;
+    toast.style.opacity = '0';
+    window.setTimeout(() => {
+        mutate();
+        void toast.offsetHeight; // force reflow so the fade-in below animates from the opacity:0 just set, not a no-op
+        toast.style.opacity = '1';
+        window.setTimeout(() => {
+            toast.style.transition = previousTransition;
+        }, CONTENT_TRANSITION_MS);
+    }, CONTENT_TRANSITION_MS);
+}
+
 interface RenderActionsOptions {
     buttons?: ToastButton[];
     details?: (string | ToastDetailItem)[];

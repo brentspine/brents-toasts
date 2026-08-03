@@ -1165,6 +1165,54 @@ describe('titleMode (#27)', () => {
     });
 });
 
+describe('transition', () => {
+    afterEach(() => { vi.useRealTimers(); cleanup(); });
+
+    function toastOf(id: string): HTMLElement {
+        return document.getElementById(id)!.querySelector('.bt-toast') as HTMLElement;
+    }
+
+    it('defers the DOM update behind a fade when transition: true, instead of applying it instantly', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('Original', { duration: 0 });
+        const toast = toastOf(id);
+
+        t.updateToast(id, { message: 'Updated', transition: true });
+
+        // Not applied yet — still mid fade-out.
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('Original');
+        expect(toast.style.opacity).toBe('0');
+
+        vi.advanceTimersByTime(150);
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('Updated');
+        expect(toast.style.opacity).toBe('1');
+    });
+
+    it('applies instantly, with no opacity change, when transition is omitted', () => {
+        const t = new Toasts();
+        const id = t.showToast('Original', { duration: 0 });
+        const toast = toastOf(id);
+
+        t.updateToast(id, { message: 'Updated' });
+
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('Updated');
+        expect(toast.style.opacity).toBe('');
+    });
+
+    it('does not fade when transition: true but the patch has no visual keys', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('Original', { duration: 0 });
+        const toast = toastOf(id);
+
+        t.updateToast(id, { data: { foo: 1 }, transition: true });
+
+        expect(toast.style.opacity).toBe('');
+        expect(t.getToastData(id)).toEqual({ foo: 1 });
+    });
+});
+
 describe('promise', () => {
     afterEach(cleanup);
 
@@ -1247,6 +1295,26 @@ describe('promise', () => {
         await Promise.resolve();
         expect(colorOf(toastId)).toBe(ToastColor.WARNING);
         expect(document.getElementById(toastId)!.querySelector('.bt-toast-row')?.classList.contains('bt-closable')).toBe(false);
+    });
+
+    it('crossfades the loading -> success patch when transition: true is set on the outcome', async () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const p = Promise.resolve('x');
+        t.promise(p, { loading: 'Loading...', success: { message: 'Done!', transition: true } });
+        const toastId = document.querySelector('.bt-toast-container')!.id;
+        const toast = document.getElementById(toastId)!.querySelector('.bt-toast') as HTMLElement;
+
+        await vi.advanceTimersByTimeAsync(0); // flush the promise's .then microtask
+
+        // Mid-fade: opacity dropped, but the DOM swap hasn't happened yet.
+        expect(toast.style.opacity).toBe('0');
+        expect(messageOf(toastId)).toBe('Loading...');
+
+        await vi.advanceTimersByTimeAsync(150);
+        expect(messageOf(toastId)).toBe('Done!');
+        expect(toast.style.opacity).toBe('1');
+        vi.useRealTimers();
     });
 });
 

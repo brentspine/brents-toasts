@@ -334,6 +334,22 @@ a timer outright, if the toast was sticky or vice versa) — see the timer
 controls below for finer-grained alternatives like `extendToastTimer`, which
 adjust the countdown without also touching the toast's content.
 
+Pass `transition: true` alongside a visual change (`message`, `color`,
+`title`, `buttons`, `progress`, ...) to crossfade into it instead of
+swapping instantly — the toast fades out, the update applies, then it fades
+back in:
+
+```ts
+toasts.updateToast(id, {
+  message: 'Upload complete!',
+  color: ToastColor.SUCCESS,
+  transition: true,
+});
+```
+
+It's a no-op passed to `showToast`/`ToastBuilder` — there's nothing to
+transition from on a toast's first render.
+
 ### Promise-based toasts
 
 `toasts.promise(promise, messages, options?)` ties a toast to a `Promise`'s
@@ -379,6 +395,18 @@ toasts.promise(
   savePost(post),
   { loading: 'Saving...', success: 'Saved!', error: 'Could not save.' },
   { position: ToastPosition.TOP_RIGHT }
+);
+```
+
+Set `transition: true` (on `options`, or per-outcome in `messages`) to
+crossfade the loading→success/error swap instead of an instant jump — see
+`transition` under "Updating a toast" above:
+
+```ts
+toasts.promise(
+  savePost(post),
+  { loading: 'Saving...', success: 'Saved!', error: 'Could not save.' },
+  { transition: true }
 );
 ```
 

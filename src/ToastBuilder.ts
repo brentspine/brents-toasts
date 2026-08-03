@@ -57,6 +57,8 @@ export class ToastBuilder {
     withData(data: unknown): this { this._options.data = data; return this; }
     /** Extra color knobs beyond `withColor()` — merges key-by-key over `configure()`'s `theme` at `.show()` time. See `ToastOptions.theme`/`ToastTheme`. */
     withTheme(theme: ToastTheme): this { this._options.theme = theme; return this; }
+    /** No-op via `.show()` — there's nothing to transition from on a toast's first render, so this only takes effect if the built options object later reaches `updateToast`/`promise()` some other way. Included for shape-compatibility with `ToastOptions`. See `ToastOptions.transition`. */
+    withTransition(transition: boolean = true): this { this._options.transition = transition; return this; }
     andRemoveOtherToasts(): this { this._options.removeOtherToasts = true; return this; }
     /** Inserts this toast at the far end of its position's stack instead of nearest the anchor edge. See `ToastOptions.reverseOrder`. */
     andReverseOrder(): this { this._options.reverseOrder = true; return this; }

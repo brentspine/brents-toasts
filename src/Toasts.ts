@@ -11,7 +11,7 @@ import { ToastAnimation, getToastAnimation, type ToastAnimationValue, type Toast
 import { createStepButton, type ToastButton, type ToastButtonStep } from './ToastButton';
 import { ToastLocales, matchToastLocale, detectBrowserLocales, type ToastTranslations } from './ToastLocale';
 import type { ToastTheme } from './ToastTheme';
-import { applyColor, applyContent, applyProgress, renderActions, type ResolvedProgress } from './ToastRender';
+import { applyColor, applyContent, applyProgress, renderActions, transitionToastVisuals, type ResolvedProgress } from './ToastRender';
 import { TOAST_EDGE_OFFSET, recalculatePositions, stackExistingAway, totalStackedExtent, edgeFor } from './ToastStacking';
 import toastsCss from './toasts.css';
 import VERSION from 'virtual:version';
@@ -109,6 +109,8 @@ export interface ToastOptions {
     data?: unknown;
     /** Extra color knobs (background, text, close icon, ...) beyond `color`. Merges key-by-key over `configure()`'s `theme` — only the fields you set here change, the rest still come from the configured default (or the built-in look, if neither sets them). See `ToastTheme`. */
     theme?: ToastTheme;
+    /** Only meaningful passed to `updateToast` (directly, or via `promise()`'s `messages`/shared `options`) — crossfades the whole toast card (fade out, apply the patch, fade in) instead of an instant swap, e.g. for a `promise()` loading→success/error transition. No-op passed to `showToast`/`ToastBuilder` — there's nothing to transition from on a toast's first render. Defaults to `false`. */
+    transition?: boolean;
 }
 
 export interface ToastsConfig {
@@ -599,38 +601,52 @@ export class Toasts {
         const state: ToastState = { ...prev, ...update };
         this._toastState.set(toastContainer, state);
 
-        if ('message' in update || 'title' in update || 'titleMode' in update || 'allowHtml' in update || 'allowLineBreaks' in update) {
-            applyContent(toastContent, state.message, state);
-        }
-        if ('color' in update || 'theme' in update) applyColor(toastClose, toast, state.color, state.theme);
-        if ('progress' in update) {
-            // An explicit new `progress` config is a real config swap (mode,
-            // position, height, ...), so a full rebuild (same as creation)
-            // is correct here — including resetting `value` to whatever the
-            // new config says.
-            this._setProgressConfig(toastContainer, applyProgress(toast, state.progress, state.color));
-            this._syncProgressBar(toastContainer);
-        } else if ('color' in update) {
-            // progress.color defaults to "reuse the toast's own color", so a
-            // color-only update still needs to re-sync a bar using that
-            // default — but by patching the existing fill's background in
-            // place, not by rebuilding the bar's DOM via applyProgress.
-            // A rebuild replaces the fill element itself, which would snap
-            // any in-flight setToastProgress animation straight to its
-            // target instead of animating there (the fresh element starts
-            // already at the target value, so the transition _syncProgressBar
-            // applies right after has nothing to animate from).
-            const cfg = this._progressConfig.get(toastContainer);
-            const p = state.progress === true || !state.progress ? undefined : state.progress;
-            if (cfg && p?.color === undefined) {
-                cfg.color = state.color;
-                const fill = toastContainer.querySelector<HTMLElement>('.bt-toast-progress-fill');
-                if (fill) fill.style.background = cfg.color;
+        const hasVisualChange =
+            'message' in update || 'title' in update || 'titleMode' in update || 'allowHtml' in update || 'allowLineBreaks' in update ||
+            'color' in update || 'theme' in update || 'progress' in update ||
+            'buttons' in update || 'details' in update || 'detailsLabel' in update || 'detailsHideLabel' in update;
+
+        const applyVisuals = () => {
+            if ('message' in update || 'title' in update || 'titleMode' in update || 'allowHtml' in update || 'allowLineBreaks' in update) {
+                applyContent(toastContent, state.message, state);
             }
+            if ('color' in update || 'theme' in update) applyColor(toastClose, toast, state.color, state.theme);
+            if ('progress' in update) {
+                // An explicit new `progress` config is a real config swap (mode,
+                // position, height, ...), so a full rebuild (same as creation)
+                // is correct here — including resetting `value` to whatever the
+                // new config says.
+                this._setProgressConfig(toastContainer, applyProgress(toast, state.progress, state.color));
+                this._syncProgressBar(toastContainer);
+            } else if ('color' in update) {
+                // progress.color defaults to "reuse the toast's own color", so a
+                // color-only update still needs to re-sync a bar using that
+                // default — but by patching the existing fill's background in
+                // place, not by rebuilding the bar's DOM via applyProgress.
+                // A rebuild replaces the fill element itself, which would snap
+                // any in-flight setToastProgress animation straight to its
+                // target instead of animating there (the fresh element starts
+                // already at the target value, so the transition _syncProgressBar
+                // applies right after has nothing to animate from).
+                const cfg = this._progressConfig.get(toastContainer);
+                const p = state.progress === true || !state.progress ? undefined : state.progress;
+                if (cfg && p?.color === undefined) {
+                    cfg.color = state.color;
+                    const fill = toastContainer.querySelector<HTMLElement>('.bt-toast-progress-fill');
+                    if (fill) fill.style.background = cfg.color;
+                }
+            }
+            if ('buttons' in update || 'details' in update || 'detailsLabel' in update || 'detailsHideLabel' in update || 'allowLineBreaks' in update) {
+                renderActions(toastRow, toast, state, id, this._getTranslations(), (toastId) => this.resetToastTimer(toastId));
+            }
+        };
+
+        if (update.transition && hasVisualChange) {
+            transitionToastVisuals(toast, applyVisuals);
+        } else {
+            applyVisuals();
         }
-        if ('buttons' in update || 'details' in update || 'detailsLabel' in update || 'detailsHideLabel' in update || 'allowLineBreaks' in update) {
-            renderActions(toastRow, toast, state, id, this._getTranslations(), (toastId) => this.resetToastTimer(toastId));
-        }
+
         if ('data' in update) this.setToastData(id, update.data);
         if ('onClose' in update) {
             if (update.onClose) this._onCloseCallbacks.set(toastContainer, update.onClose);
@@ -1073,7 +1089,10 @@ export class Toasts {
      * that depend on the result (e.g. echoing the error). Omit `success`/`error` to just
      * dismiss the toast on that outcome instead of showing one. `options` is shared
      * `ToastOptions` applied under the loading toast and both outcomes alike (`position`,
-     * `closable`, `theme`, ...); per-state entries in `messages` win over it. Returns
+     * `closable`, `theme`, ...); per-state entries in `messages` win over it. Set `transition:
+     * true` (on `options`, or per-outcome in `messages.success`/`error`) to crossfade the
+     * loading→success/error swap instead of an instant jump — see `ToastOptions.transition`.
+     * Returns
      * `promise` itself, unchanged, so it still resolves/rejects and can be `await`ed/chained
      * normally — turning a rejection into an `error` toast here doesn't count as handling it
      * for `promise` itself, so callers still need their own `.catch`/try-catch around it to

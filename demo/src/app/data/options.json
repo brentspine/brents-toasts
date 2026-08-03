@@ -33,6 +33,7 @@
     { "name": "progress", "type": "boolean | ToastProgressOptions", "typeRef": "ToastProgressOptions", "default": "false", "description": "Adds a thin progress bar. fill/drain sync to the auto-dismiss countdown; manual is driven yourself via setToastProgress(id, value). true = all defaults.", "builderCall": ".withProgress({ mode: \"fill\", color: \"#4bb543\" })" },
     { "name": "data", "type": "unknown", "default": "undefined", "description": "Arbitrary data to associate with the toast, readable later via getToastData(id).", "builderCall": ".withData({ orderId: 1234 })" },
     { "name": "theme", "type": "ToastTheme", "typeRef": "ToastTheme", "default": "undefined", "description": "Extra color knobs beyond color: card background, text, details block, action/close-icon colors.", "builderCall": ".withTheme({ background: \"#1c1c1c\", text: \"#f5f5f5\" })" },
+    { "name": "transition", "type": "boolean", "default": "false", "description": "Only meaningful passed to updateToast (directly, or via promise()) - crossfades the whole toast card instead of swapping instantly. No-op at creation, since there's nothing to transition from yet.", "builderCall": ".withTransition()" },
     { "name": "buttons", "type": "ToastButton[]", "typeRef": "ToastButton", "default": "undefined", "description": "Action buttons rendered right of the message. Clicks never trigger closable dismissal.", "builderCall": ".withButton(\"Undo\", (event, id) => console.log(\"undo\", id))" },
     { "name": "details", "type": "(string | ToastDetailItem)[]", "typeRef": "ToastDetailItem", "default": "undefined", "description": "Extra lines revealed by an auto-added Details toggle, rendered outside the dismissable row.", "builderCall": ".withDetails([\"Order #1234 shipped\", \"Tracking: 1Z999AA10123456784\"], \"Show details\", \"Hide details\")" },
     { "name": "detailsLabel", "type": "string", "default": "\"Details\" (locale)", "description": "Label for the auto-added details toggle button. Set together with details.", "builderCall": ".withDetails([\"Order #1234 shipped\", \"Tracking: 1Z999AA10123456784\"], \"Show details\", \"Hide details\")" },
@@ -201,8 +202,8 @@
     {
       "id": "promise",
       "title": "Promise-based toast",
-      "description": "toasts.promise() shows a sticky loading toast, then patches it to a success or error message (and color) once the promise settles - no manual updateToast() bookkeeping needed.",
-      "code": "const fetchPosts = () =>\n  new Promise((resolve, reject) => {\n    setTimeout(() => {\n      Math.random() > 0.3\n        ? resolve({ count: 12 })\n        : reject(new Error(\"Network error\"));\n    }, 1500);\n  });\n\ntoasts.promise(fetchPosts(), {\n  loading: \"Fetching posts...\",\n  success: (data) => `Fetched ${data.count} posts`,\n  error: (err) => `Failed to fetch posts: ${err.message}`,\n});"
+      "description": "toasts.promise() shows a sticky loading toast, then patches it to a success or error message (and color) once the promise settles - no manual updateToast() bookkeeping needed. transition: true crossfades that swap instead of an instant jump.",
+      "code": "const fetchPosts = () =>\n  new Promise((resolve, reject) => {\n    setTimeout(() => {\n      Math.random() > 0.3\n        ? resolve({ count: 12 })\n        : reject(new Error(\"Network error\"));\n    }, 1500);\n  });\n\ntoasts.promise(\n  fetchPosts(),\n  {\n    loading: \"Fetching posts...\",\n    success: (data) => `Fetched ${data.count} posts`,\n    error: (err) => `Failed to fetch posts: ${err.message}`,\n  },\n  { transition: true }\n);"
     },
     {
       "id": "reverse-order",

@@ -17,7 +17,8 @@ const HINTS: string[] = [
   'Brentspine + Toast Library = \'brents-toasts\'',
   'You can use the Playground to generate a snippet for your own project.',
   'Most of this demo is built via a central options.json file (except these tips)',
-  'This project is open source, take a peek!'
+  'This project is open source, take a peek!',
+  'Feel like somethings missing? Open a issue or pr!'
 ];
 
 @Component({
