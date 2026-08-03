@@ -334,6 +334,59 @@ a timer outright, if the toast was sticky or vice versa) — see the timer
 controls below for finer-grained alternatives like `extendToastTimer`, which
 adjust the countdown without also touching the toast's content.
 
+### Promise-based toasts
+
+`toasts.promise(promise, messages, options?)` ties a toast to a `Promise`'s
+lifecycle — this is the built-in version of the "show a pending toast, then
+patch it to success/error" pattern from the previous section, for the common
+case of wrapping a single `fetch`/async call:
+
+```ts
+toasts.promise(
+  fetch('/api/posts').then(r => r.json()),
+  {
+    loading: 'Fetching posts...',
+    success: (posts) => `Fetched ${posts.length} posts`,
+    error: (err) => `Failed to fetch posts: ${err.message}`,
+  }
+);
+```
+
+It shows `loading` right away as a sticky toast (there's nothing sensible to
+auto-dismiss into while the promise is still pending), then — once `promise`
+settles — patches that same toast via `updateToast` to `success` or `error`,
+defaulting the toast's `color` to `ToastColor.SUCCESS`/`ToastColor.ERROR`
+unless overridden. `loading`/`success`/`error` each accept a plain message
+(shorthand for `{ message }`), a full `updateToast`-shaped options object, or
+— for `success`/`error` — a function of the resolved value/rejection reason
+returning either, for outcome messages that depend on the result:
+
+```ts
+toasts.promise(uploadFile(file), {
+  loading: { message: 'Uploading…', closable: false },
+  success: { message: 'Uploaded!', duration: 4000 },
+  error: { message: 'Upload failed.', duration: 6000 },
+});
+```
+
+Omit `success` or `error` to just dismiss the toast on that outcome instead
+of showing one. A third `options` argument is shared `ToastOptions` applied
+under the loading toast and both outcomes alike (`position`, `theme`, ...);
+per-state entries in `messages` win over it:
+
+```ts
+toasts.promise(
+  savePost(post),
+  { loading: 'Saving...', success: 'Saved!', error: 'Could not save.' },
+  { position: ToastPosition.TOP_RIGHT }
+);
+```
+
+`promise()` returns `promise` itself, unchanged, so it still resolves/rejects
+and can be `await`ed/chained normally — turning a rejection into an `error`
+toast here doesn't count as handling it for `promise` itself, so you still
+need your own `.catch`/try-catch around it to avoid an unhandled rejection.
+
 ### Controlling the auto-dismiss timer
 
 A timed toast (`duration > 0`) pauses its own countdown while hovered and

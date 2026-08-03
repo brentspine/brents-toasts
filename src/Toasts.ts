@@ -1062,6 +1062,52 @@ export class Toasts {
     }
 
     /**
+     * Ties a toast to a `Promise`'s lifecycle — shows `messages.loading` right away (forced
+     * sticky, `duration: 0`, since there's nothing sensible to auto-dismiss into while the
+     * promise is still pending), then patches that same toast to `messages.success`/
+     * `messages.error` via `updateToast` once `promise` settles, defaulting the outcome's
+     * `color` to `ToastColor.SUCCESS`/`ToastColor.ERROR` unless overridden. Each of
+     * `loading`/`success`/`error` is a plain message (`string`/`Node`, shorthand for
+     * `{ message }`), a full `ToastUpdateOptions` patch, or — for `success`/`error` — a
+     * function of the resolved value/rejection reason returning either, for outcome messages
+     * that depend on the result (e.g. echoing the error). Omit `success`/`error` to just
+     * dismiss the toast on that outcome instead of showing one. `options` is shared
+     * `ToastOptions` applied under the loading toast and both outcomes alike (`position`,
+     * `closable`, `theme`, ...); per-state entries in `messages` win over it. Returns
+     * `promise` itself, unchanged, so it still resolves/rejects and can be `await`ed/chained
+     * normally — turning a rejection into an `error` toast here doesn't count as handling it
+     * for `promise` itself, so callers still need their own `.catch`/try-catch around it to
+     * avoid an unhandled rejection.
+     */
+    promise<T>(
+        promise: Promise<T>,
+        messages: {
+            loading: string | Node | ToastUpdateOptions;
+            success?: string | Node | ToastUpdateOptions | ((data: T) => string | Node | ToastUpdateOptions);
+            error?: string | Node | ToastUpdateOptions | ((err: unknown) => string | Node | ToastUpdateOptions);
+        },
+        options?: ToastOptions
+    ): Promise<T> {
+        const loading = this._resolvePromiseMessage<void>(messages.loading);
+        const id = this.showToast(loading.message ?? '', { ...options, ...loading, duration: 0 });
+
+        promise.then(
+            (data) => {
+                if (messages.success === undefined) { this.removeToast(id); return; }
+                const update = this._resolvePromiseMessage(messages.success, data);
+                this.updateToast(id, { color: ToastColor.SUCCESS, duration: this.config.duration, ...options, ...update });
+            },
+            (err) => {
+                if (messages.error === undefined) { this.removeToast(id); return; }
+                const update = this._resolvePromiseMessage(messages.error, err);
+                this.updateToast(id, { color: ToastColor.ERROR, duration: this.config.duration, ...options, ...update });
+            }
+        );
+
+        return promise;
+    }
+
+    /**
      * Dismisses every currently visible toast, across all positions/snackbars —
      * each one animates out via `removeToast` rather than vanishing instantly.
      * Queries the DOM directly rather than iterating `this.snackbars`, since a
@@ -1073,6 +1119,17 @@ export class Toasts {
         document.querySelectorAll<HTMLElement>('.bt-snackbar').forEach(snackbar => {
             Array.from(snackbar.children).forEach(child => this.removeToast(child.id));
         });
+    }
+
+    // Shared by `promise()` for `loading`/`success`/`error` — each of which accepts a bare
+    // message, a full `ToastUpdateOptions` patch, or (for success/error) a function of the
+    // settled value/reason. Normalizes all three shapes down to a patch object.
+    private _resolvePromiseMessage<T>(
+        value: string | Node | ToastUpdateOptions | ((arg: T) => string | Node | ToastUpdateOptions),
+        arg?: T
+    ): ToastUpdateOptions {
+        const resolved = typeof value === 'function' ? value(arg as T) : value;
+        return typeof resolved === 'string' || resolved instanceof Node ? { message: resolved } : resolved;
     }
 
     private _getState(id: string): ToastState | undefined {

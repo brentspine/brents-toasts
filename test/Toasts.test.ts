@@ -1165,6 +1165,91 @@ describe('titleMode (#27)', () => {
     });
 });
 
+describe('promise', () => {
+    afterEach(cleanup);
+
+    function messageOf(id: string): string | null {
+        return document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent;
+    }
+    function colorOf(id: string): string {
+        return document.getElementById(id)!.querySelector<HTMLElement>('.bt-toast-close')!.style.getPropertyValue('--data-background');
+    }
+
+    it('shows the loading message as a sticky toast, then patches it to success on resolve', async () => {
+        const t = new Toasts();
+        let resolve!: (v: string) => void;
+        const p = new Promise<string>(r => { resolve = r; });
+
+        const returned = t.promise(p, { loading: 'Loading...', success: (data) => `Got ${data}` });
+        expect(returned).toBe(p);
+
+        const toastId = document.querySelector('.bt-toast-container')!.id;
+        expect(messageOf(toastId)).toBe('Loading...');
+        expect(t.getToastTimer(toastId)).toBeNull(); // sticky while pending
+
+        resolve('posts');
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(messageOf(toastId)).toBe('Got posts');
+        expect(colorOf(toastId)).toBe(ToastColor.SUCCESS);
+    });
+
+    it('patches to an error message and color on rejection', async () => {
+        const t = new Toasts();
+        let reject!: (e: unknown) => void;
+        const p = new Promise<string>((_res, rej) => { reject = rej; });
+        p.catch(() => {}); // the returned promise is the caller's to handle
+
+        t.promise(p, { loading: 'Loading...', error: (err) => `Failed: ${(err as Error).message}` });
+        const toastId = document.querySelector('.bt-toast-container')!.id;
+
+        reject(new Error('boom'));
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(messageOf(toastId)).toBe('Failed: boom');
+        expect(colorOf(toastId)).toBe(ToastColor.ERROR);
+    });
+
+    it('dismisses the toast on an outcome with no matching message', async () => {
+        const t = new Toasts();
+        const p = Promise.resolve('x');
+        t.promise(p, { loading: 'Loading...' });
+        const toastId = document.querySelector('.bt-toast-container')!.id;
+
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(document.getElementById(toastId)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('accepts a plain string/object for loading and success/error alike', async () => {
+        const t = new Toasts();
+        const p = Promise.resolve('x');
+        t.promise(p, { loading: { message: 'Loading...', closable: false }, success: 'Done!' });
+        const toastId = document.querySelector('.bt-toast-container')!.id;
+        expect(document.getElementById(toastId)!.querySelector('.bt-toast-row')?.classList.contains('bt-closable')).toBe(false);
+
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(messageOf(toastId)).toBe('Done!');
+    });
+
+    it('shared options apply to loading and outcome toasts, with per-state message overrides winning', async () => {
+        const t = new Toasts();
+        const p = Promise.resolve('x');
+        t.promise(p, { loading: 'Loading...', success: { message: 'Done!', color: ToastColor.WARNING } }, { closable: false });
+        const toastId = document.querySelector('.bt-toast-container')!.id;
+        expect(document.getElementById(toastId)!.querySelector('.bt-toast-row')?.classList.contains('bt-closable')).toBe(false);
+
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(colorOf(toastId)).toBe(ToastColor.WARNING);
+        expect(document.getElementById(toastId)!.querySelector('.bt-toast-row')?.classList.contains('bt-closable')).toBe(false);
+    });
+});
+
 describe('ToastQuickActions (#22)', () => {
     it('returns pre-translated strings independent of any Toasts instance', () => {
         expect(ToastQuickActions.yes('en')).toBe('Yes');

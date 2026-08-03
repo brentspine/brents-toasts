@@ -9,6 +9,7 @@
     { "title": "Multi-step & confirm buttons", "description": "Built-in confirm-before-action, copy-to-clipboard, and general multi-step button state machines.", "exampleId": "confirm" },
     { "title": "Expandable details", "description": "Attach extra collapsible detail lines to any toast without cluttering the main message.", "exampleId": "details" },
     { "title": "Progress bars", "description": "An optional thin progress bar synced to a toast's auto-dismiss countdown, fill or drain, any edge.", "exampleId": "progress" },
+    { "title": "Promise-based toasts", "description": "toasts.promise() ties a toast to a fetch/async call's lifecycle: a loading state that patches itself to success or error once the promise settles.", "exampleId": "promise" },
     { "title": "TypeScript-first", "description": "Full .d.ts types ship with every build, with every option documented via JSDoc." }
   ],
   "install": {
@@ -196,6 +197,12 @@
       "title": "Progress bar",
       "description": "A thin progress bar synced to the toast's auto-dismiss countdown.",
       "code": "new ToastBuilder(\"Uploading...\")\n  .withDuration(6000)\n  .withProgress({ mode: \"drain\", color: \"#28a6f5\" })\n  .withOnClose(() => {\n    new ToastBuilder(\"Upload complete!\")\n      .withColor(ToastColor.SUCCESS)\n      .show();\n  })\n  .show();"
+    },
+    {
+      "id": "promise",
+      "title": "Promise-based toast",
+      "description": "toasts.promise() shows a sticky loading toast, then patches it to a success or error message (and color) once the promise settles - no manual updateToast() bookkeeping needed.",
+      "code": "const fetchPosts = () =>\n  new Promise((resolve, reject) => {\n    setTimeout(() => {\n      Math.random() > 0.3\n        ? resolve({ count: 12 })\n        : reject(new Error(\"Network error\"));\n    }, 1500);\n  });\n\ntoasts.promise(fetchPosts(), {\n  loading: \"Fetching posts...\",\n  success: (data) => `Fetched ${data.count} posts`,\n  error: (err) => `Failed to fetch posts: ${err.message}`,\n});"
     },
     {
       "id": "reverse-order",
