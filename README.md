@@ -28,7 +28,7 @@ Or drop it straight into a page with no build step, no module system required:
 
 `BrentsToasts` mirrors the npm named exports exactly: `BrentsToasts.toasts`
 (the ready-to-use instance), `BrentsToasts.Toasts` (the class), plus
-`ToastColor`, `ToastPosition`, `ToastAnimation`, `ToastBuilder`.
+`ToastColor`, `ToastPosition`, `ToastAnimation`, `ToastTransition`, `ToastBuilder`.
 
 ## Usage
 
@@ -334,18 +334,29 @@ a timer outright, if the toast was sticky or vice versa) — see the timer
 controls below for finer-grained alternatives like `extendToastTimer`, which
 adjust the countdown without also touching the toast's content.
 
-Pass `transition: true` alongside a visual change (`message`, `color`,
-`title`, `buttons`, `progress`, ...) to crossfade into it instead of
-swapping instantly — the toast fades out, the update applies, then it fades
-back in:
+Pass `transition` alongside a visual change (`message`, `color`, `title`,
+`buttons`, `progress`, ...) to animate into it instead of swapping
+instantly:
 
 ```ts
 toasts.updateToast(id, {
   message: 'Upload complete!',
   color: ToastColor.SUCCESS,
-  transition: true,
+  transition: ToastTransition.FADE,
 });
 ```
+
+- `ToastTransition.FADE` — the toast fades out, the update applies, then it
+  fades back in.
+- `ToastTransition.SHAKE_LR` — the update applies immediately and the toast
+  shakes left-right over it, to draw attention to the change rather than
+  hide it.
+- `ToastTransition.NONE`, or omitting `transition` entirely, applies
+  instantly (the default).
+
+Register a custom one with `registerToastTransition(name, { run(toast, mutate) { ... } })`
+— call `mutate()` whenever the new content should appear — and pass its
+`name` anywhere `transition` is accepted.
 
 It's a no-op passed to `showToast`/`ToastBuilder` — there's nothing to
 transition from on a toast's first render.
@@ -398,15 +409,19 @@ toasts.promise(
 );
 ```
 
-Set `transition: true` (on `options`, or per-outcome in `messages`) to
-crossfade the loading→success/error swap instead of an instant jump — see
-`transition` under "Updating a toast" above:
+Set `transition` (on `options`, or per-outcome in `messages`) to animate the
+loading→success/error swap instead of an instant jump — see `transition`
+under "Updating a toast" above. Different outcomes can use different
+transitions, e.g. fading in on success but shaking on error:
 
 ```ts
 toasts.promise(
   savePost(post),
-  { loading: 'Saving...', success: 'Saved!', error: 'Could not save.' },
-  { transition: true }
+  {
+    loading: 'Saving...',
+    success: { message: 'Saved!', transition: ToastTransition.FADE },
+    error: { message: 'Could not save.', transition: ToastTransition.SHAKE_LR },
+  }
 );
 ```
 

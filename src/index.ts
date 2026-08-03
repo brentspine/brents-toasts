@@ -8,6 +8,8 @@ export { ToastPosition } from './ToastPosition';
 export type { ToastPositionValue } from './ToastPosition';
 export { ToastAnimation, registerToastAnimation } from './ToastAnimation';
 export type { ToastAnimationValue, ToastAnimationDefinition, ToastAnimationHookContext } from './ToastAnimation';
+export { ToastTransition, registerToastTransition } from './ToastTransition';
+export type { ToastTransitionValue, ToastTransitionDefinition } from './ToastTransition';
 export { ToastBuilder } from './ToastBuilder';
 export { ToastQuickActions, QuickActionLocales } from './ToastQuickActions';
 export type { QuickActionStrings } from './ToastQuickActions';

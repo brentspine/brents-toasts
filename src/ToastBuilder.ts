@@ -3,6 +3,7 @@ import { ToastColor } from './ToastColor';
 import type { ToastTheme } from './ToastTheme';
 import type { ToastPositionValue } from './ToastPosition';
 import type { ToastAnimationValue } from './ToastAnimation';
+import { ToastTransition, type ToastTransitionValue } from './ToastTransition';
 
 /*
   Fluent alternative to showToast(message, options). Builds the exact same
@@ -58,7 +59,7 @@ export class ToastBuilder {
     /** Extra color knobs beyond `withColor()` — merges key-by-key over `configure()`'s `theme` at `.show()` time. See `ToastOptions.theme`/`ToastTheme`. */
     withTheme(theme: ToastTheme): this { this._options.theme = theme; return this; }
     /** No-op via `.show()` — there's nothing to transition from on a toast's first render, so this only takes effect if the built options object later reaches `updateToast`/`promise()` some other way. Included for shape-compatibility with `ToastOptions`. See `ToastOptions.transition`. */
-    withTransition(transition: boolean = true): this { this._options.transition = transition; return this; }
+    withTransition(transition: ToastTransitionValue = ToastTransition.FADE): this { this._options.transition = transition; return this; }
     andRemoveOtherToasts(): this { this._options.removeOtherToasts = true; return this; }
     /** Inserts this toast at the far end of its position's stack instead of nearest the anchor edge. See `ToastOptions.reverseOrder`. */
     andReverseOrder(): this { this._options.reverseOrder = true; return this; }

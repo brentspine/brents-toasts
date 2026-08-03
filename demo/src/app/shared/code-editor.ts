@@ -13,7 +13,7 @@ import {
 
 /**
  * Minimal ambient types for the Playground's sandboxed run() scope (toasts/ToastBuilder/
- * ToastColor/ToastPosition/ToastAnimation), fed to Monaco's JS language service via
+ * ToastColor/ToastPosition/ToastAnimation/ToastTransition), fed to Monaco's JS language service via
  * addExtraLib so typing a `.` after a builder call actually suggests real methods.
  * Kept intentionally small: it mirrors src/ToastBuilder.ts's public surface, not the
  * full library.
@@ -25,6 +25,7 @@ declare const ToastPosition: {
   TOP_RIGHT: string; BOTTOM_LEFT: string; BOTTOM_RIGHT: string;
 };
 declare const ToastAnimation: { SLIDE: string; FADE: string; NONE: string };
+declare const ToastTransition: { NONE: string; FADE: string; SHAKE_LR: string };
 
 interface ToastButton { label: string; onClick?: (event: MouseEvent, id: string) => void; className?: string }
 interface ToastButtonStep {

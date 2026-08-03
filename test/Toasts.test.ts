@@ -4,6 +4,7 @@ import { ToastBuilder } from '../src/ToastBuilder';
 import { ToastColor } from '../src/ToastColor';
 import { ToastPosition } from '../src/ToastPosition';
 import { ToastAnimation, registerToastAnimation, getToastAnimation } from '../src/ToastAnimation';
+import { ToastTransition, registerToastTransition } from '../src/ToastTransition';
 import { recalculatePositions } from '../src/ToastStacking';
 import { ToastQuickActions } from '../src/ToastQuickActions';
 
@@ -1172,13 +1173,13 @@ describe('transition', () => {
         return document.getElementById(id)!.querySelector('.bt-toast') as HTMLElement;
     }
 
-    it('defers the DOM update behind a fade when transition: true, instead of applying it instantly', () => {
+    it('defers the DOM update behind a fade when transition: FADE, instead of applying it instantly', () => {
         vi.useFakeTimers();
         const t = new Toasts();
         const id = t.showToast('Original', { duration: 0 });
         const toast = toastOf(id);
 
-        t.updateToast(id, { message: 'Updated', transition: true });
+        t.updateToast(id, { message: 'Updated', transition: ToastTransition.FADE });
 
         // Not applied yet — still mid fade-out.
         expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('Original');
@@ -1200,16 +1201,69 @@ describe('transition', () => {
         expect(toast.style.opacity).toBe('');
     });
 
-    it('does not fade when transition: true but the patch has no visual keys', () => {
+    it('applies instantly, with no opacity change, when transition: NONE', () => {
+        const t = new Toasts();
+        const id = t.showToast('Original', { duration: 0 });
+        const toast = toastOf(id);
+
+        t.updateToast(id, { message: 'Updated', transition: ToastTransition.NONE });
+
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('Updated');
+        expect(toast.style.opacity).toBe('');
+    });
+
+    it('does not fade when transition: FADE but the patch has no visual keys', () => {
         vi.useFakeTimers();
         const t = new Toasts();
         const id = t.showToast('Original', { duration: 0 });
         const toast = toastOf(id);
 
-        t.updateToast(id, { data: { foo: 1 }, transition: true });
+        t.updateToast(id, { data: { foo: 1 }, transition: ToastTransition.FADE });
 
         expect(toast.style.opacity).toBe('');
         expect(t.getToastData(id)).toEqual({ foo: 1 });
+    });
+
+    it('shakes left-right and applies the mutation immediately when transition: SHAKE_LR', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('Original', { duration: 0 });
+        const toast = toastOf(id);
+
+        t.updateToast(id, { message: 'Updated', transition: ToastTransition.SHAKE_LR });
+
+        // Applied right away — shake plays over the new content, doesn't hide it first.
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('Updated');
+        expect(toast.style.transform).toBe('translateX(-8px)');
+
+        vi.advanceTimersByTime(7 * 60);
+        expect(toast.style.transform).toBe('');
+    });
+
+    it('falls back to FADE with a one-time warning for an unregistered transition name', () => {
+        vi.useFakeTimers();
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        const id = t.showToast('Original', { duration: 0 });
+        const toast = toastOf(id);
+
+        t.updateToast(id, { message: 'Updated', transition: 'nope' });
+        expect(toast.style.opacity).toBe('0'); // fell back to the fade
+        vi.advanceTimersByTime(150);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        warnSpy.mockRestore();
+    });
+
+    it('runs a custom transition registered via registerToastTransition', () => {
+        const runSpy = vi.fn((toast: HTMLElement, mutate: () => void) => mutate());
+        registerToastTransition('custom-test', { run: runSpy });
+        const t = new Toasts();
+        const id = t.showToast('Original', { duration: 0 });
+
+        t.updateToast(id, { message: 'Updated', transition: 'custom-test' });
+
+        expect(runSpy).toHaveBeenCalledTimes(1);
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('Updated');
     });
 });
 
@@ -1297,11 +1351,11 @@ describe('promise', () => {
         expect(document.getElementById(toastId)!.querySelector('.bt-toast-row')?.classList.contains('bt-closable')).toBe(false);
     });
 
-    it('crossfades the loading -> success patch when transition: true is set on the outcome', async () => {
+    it('crossfades the loading -> success patch when transition: FADE is set on the outcome', async () => {
         vi.useFakeTimers();
         const t = new Toasts();
         const p = Promise.resolve('x');
-        t.promise(p, { loading: 'Loading...', success: { message: 'Done!', transition: true } });
+        t.promise(p, { loading: 'Loading...', success: { message: 'Done!', transition: ToastTransition.FADE } });
         const toastId = document.querySelector('.bt-toast-container')!.id;
         const toast = document.getElementById(toastId)!.querySelector('.bt-toast') as HTMLElement;
 

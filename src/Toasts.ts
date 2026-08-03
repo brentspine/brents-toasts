@@ -8,10 +8,11 @@
 import { ToastColor } from './ToastColor';
 import { ToastPosition, IMPLEMENTED_POSITIONS, POSITION_EDGE, collapsedPosition, DEFAULT_RESPONSIVE_BREAKPOINT, type ToastPositionValue } from './ToastPosition';
 import { ToastAnimation, getToastAnimation, type ToastAnimationValue, type ToastAnimationDefinition } from './ToastAnimation';
+import { ToastTransition, getToastTransition, type ToastTransitionValue } from './ToastTransition';
 import { createStepButton, type ToastButton, type ToastButtonStep } from './ToastButton';
 import { ToastLocales, matchToastLocale, detectBrowserLocales, type ToastTranslations } from './ToastLocale';
 import type { ToastTheme } from './ToastTheme';
-import { applyColor, applyContent, applyProgress, renderActions, transitionToastVisuals, type ResolvedProgress } from './ToastRender';
+import { applyColor, applyContent, applyProgress, renderActions, type ResolvedProgress } from './ToastRender';
 import { TOAST_EDGE_OFFSET, recalculatePositions, stackExistingAway, totalStackedExtent, edgeFor } from './ToastStacking';
 import toastsCss from './toasts.css';
 import VERSION from 'virtual:version';
@@ -109,8 +110,8 @@ export interface ToastOptions {
     data?: unknown;
     /** Extra color knobs (background, text, close icon, ...) beyond `color`. Merges key-by-key over `configure()`'s `theme` — only the fields you set here change, the rest still come from the configured default (or the built-in look, if neither sets them). See `ToastTheme`. */
     theme?: ToastTheme;
-    /** Only meaningful passed to `updateToast` (directly, or via `promise()`'s `messages`/shared `options`) — crossfades the whole toast card (fade out, apply the patch, fade in) instead of an instant swap, e.g. for a `promise()` loading→success/error transition. No-op passed to `showToast`/`ToastBuilder` — there's nothing to transition from on a toast's first render. Defaults to `false`. */
-    transition?: boolean;
+    /** Only meaningful passed to `updateToast` (directly, or via `promise()`'s `messages`/shared `options`) — animates the whole toast card's transition to the patched content instead of an instant swap, e.g. for a `promise()` loading→success/error transition. `ToastTransition.FADE` (crossfade), `ToastTransition.SHAKE_LR` (shake left-right to draw attention, then apply), or a name registered via `registerToastTransition()`. `ToastTransition.NONE`/omitted applies instantly. No-op passed to `showToast`/`ToastBuilder` — there's nothing to transition from on a toast's first render. */
+    transition?: ToastTransitionValue;
 }
 
 export interface ToastsConfig {
@@ -642,7 +643,8 @@ export class Toasts {
         };
 
         if (update.transition && hasVisualChange) {
-            transitionToastVisuals(toast, applyVisuals);
+            const transitionDef = getToastTransition(this._resolveTransition(update.transition))!;
+            transitionDef.run(toast, applyVisuals);
         } else {
             applyVisuals();
         }
@@ -1090,8 +1092,9 @@ export class Toasts {
      * dismiss the toast on that outcome instead of showing one. `options` is shared
      * `ToastOptions` applied under the loading toast and both outcomes alike (`position`,
      * `closable`, `theme`, ...); per-state entries in `messages` win over it. Set `transition:
-     * true` (on `options`, or per-outcome in `messages.success`/`error`) to crossfade the
-     * loading→success/error swap instead of an instant jump — see `ToastOptions.transition`.
+     * ToastTransition.FADE`/`SHAKE_LR` (on `options`, or per-outcome in `messages.success`/
+     * `error` — e.g. fade on success but shake on error) to animate the loading→success/error
+     * swap instead of an instant jump — see `ToastOptions.transition`.
      * Returns
      * `promise` itself, unchanged, so it still resolves/rejects and can be `await`ed/chained
      * normally — turning a rejection into an `error` toast here doesn't count as handling it
@@ -1313,6 +1316,12 @@ export class Toasts {
         if (getToastAnimation(animation)) return animation;
         this._warnUnimplemented('animation', animation, ToastAnimation.SLIDE);
         return ToastAnimation.SLIDE;
+    }
+
+    private _resolveTransition(transition: ToastTransitionValue): ToastTransitionValue {
+        if (getToastTransition(transition)) return transition;
+        this._warnUnimplemented('transition', transition, ToastTransition.FADE);
+        return ToastTransition.FADE;
     }
 
     private _resolveLocaleKey(): string {
