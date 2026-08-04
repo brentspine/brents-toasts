@@ -2,13 +2,32 @@
     "name": "brents-toasts",
     "version": "2.4.5",
     "description": "Lightweight, plug-and-play toast/snackbar system",
+    "homepage": "https://brentspine.github.io/brents-toasts/",
+    "bugs": {
+        "url": "https://github.com/brentspine/brents-toasts/issues"
+    },
+    "author": {
+        "name": "Brentspine",
+        "email": "me@brentspine.de",
+        "url": "https://brentspine.de"
+    },
+    "funding": {
+        "type": "individual",
+        "url": "https://brentspine.de/r/funding"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/brentspine/brents-toasts.git"
+    },
     "type": "module",
     "main": "dist/index.cjs",
     "module": "dist/index.esm.js",
     "browser": "dist/index.umd.js",
     "types": "dist/index.d.ts",
+    "man": "./man/brents-toasts.1",
     "files": [
-        "dist"
+        "dist",
+        "man"
     ],
     "exports": {
         ".": {

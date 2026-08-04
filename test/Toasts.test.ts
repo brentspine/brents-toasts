@@ -1267,6 +1267,71 @@ describe('transition', () => {
     });
 });
 
+describe('playToastTransition', () => {
+    afterEach(() => { vi.useRealTimers(); cleanup(); });
+
+    function toastOf(id: string): HTMLElement {
+        return document.getElementById(id)!.querySelector('.bt-toast') as HTMLElement;
+    }
+
+    it('plays SHAKE_LR on the toast card with no content change', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('Original', { duration: 0 });
+        const toast = toastOf(id);
+
+        t.playToastTransition(id, ToastTransition.SHAKE_LR);
+
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('Original');
+        expect(toast.style.transform).toBe('translateX(-8px)');
+
+        vi.advanceTimersByTime(7 * 60);
+        expect(toast.style.transform).toBe('');
+    });
+
+    it('plays FADE on the toast card with no content change', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('Original', { duration: 0 });
+        const toast = toastOf(id);
+
+        t.playToastTransition(id, ToastTransition.FADE);
+        expect(toast.style.opacity).toBe('0');
+
+        vi.advanceTimersByTime(150);
+        expect(toast.style.opacity).toBe('1');
+        expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('Original');
+    });
+
+    it('is a no-op for a nonexistent id', () => {
+        const t = new Toasts();
+        expect(() => t.playToastTransition('nope', ToastTransition.SHAKE_LR)).not.toThrow();
+    });
+
+    it('runs a custom transition registered via registerToastTransition', () => {
+        const runSpy = vi.fn((_toast: HTMLElement, mutate: () => void) => mutate());
+        registerToastTransition('custom-play-test', { run: runSpy });
+        const t = new Toasts();
+        const id = t.showToast('Original', { duration: 0 });
+
+        t.playToastTransition(id, 'custom-play-test');
+
+        expect(runSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('delegates to the owning instance for a toast created by another same-position instance', () => {
+        vi.useFakeTimers();
+        const t1 = new Toasts();
+        const t2 = new Toasts();
+        const id = t1.showToast('Original', { duration: 0 });
+        const toast = toastOf(id);
+
+        t2.playToastTransition(id, ToastTransition.SHAKE_LR);
+
+        expect(toast.style.transform).toBe('translateX(-8px)');
+    });
+});
+
 describe('promise', () => {
     afterEach(cleanup);
 

@@ -361,6 +361,14 @@ Register a custom one with `registerToastTransition(name, { run(toast, mutate) {
 It's a no-op passed to `showToast`/`ToastBuilder` — there's nothing to
 transition from on a toast's first render.
 
+Call `toasts.playToastTransition(id, transition)` to play a transition by
+itself, with no content change — e.g. to shake a toast that's still waiting
+on the user, without patching it via `updateToast`:
+
+```ts
+toasts.playToastTransition(id, ToastTransition.SHAKE_LR);
+```
+
 ### Promise-based toasts
 
 `toasts.promise(promise, messages, options?)` ties a toast to a `Promise`'s

@@ -673,6 +673,25 @@ export class Toasts {
         // mouseenter/mouseleave, so updating the stored state above is enough.
     }
 
+    /**
+     * Plays a transition animation on `id`'s toast card in place, without changing any
+     * content — e.g. to draw attention back to a toast that's still waiting on the user
+     * (a `SHAKE_LR`) independent of any `updateToast` patch. Same named transitions as
+     * `ToastOptions.transition`/`updateToast` (`ToastTransition.FADE`, `SHAKE_LR`, or a
+     * name registered via `registerToastTransition`) — `NONE` is a no-op, same as
+     * `updateToast`. No-op if `id` doesn't exist.
+     */
+    playToastTransition(id: string, transition: ToastTransitionValue): void {
+        const toastContainer = document.getElementById(id);
+        if (!toastContainer) return;
+        const owner = this._ownerOf(toastContainer);
+        if (owner !== this) return owner.playToastTransition(id, transition);
+        const toast = toastContainer.querySelector<HTMLElement>('.bt-toast');
+        if (!toast) return;
+        const transitionDef = getToastTransition(this._resolveTransition(transition))!;
+        transitionDef.run(toast, () => {});
+    }
+
     /** Appends (or, with `index`, inserts) one button into `id`'s `buttons` — same as passing a
      *  full new array to `updateToast(id, { buttons })`, but without needing the current array. */
     addToastButton(id: string, button: ToastButton, index?: number): void {
