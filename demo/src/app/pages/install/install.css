@@ -38,6 +38,11 @@
   padding: 2px 8px;
 }
 
+.badge.available {
+  color: var(--success);
+  border-color: var(--success);
+}
+
 .method p {
   color: var(--muted);
   margin-top: 0;

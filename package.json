@@ -47,7 +47,8 @@
         "dev": "rollup -c --watch",
         "typecheck": "tsc --noEmit",
         "test": "vitest run",
-        "test:watch": "vitest"
+        "test:watch": "vitest",
+        "test:coverage": "vitest run --coverage"
     },
     "license": "Apache-2.0",
     "sideEffects": false,

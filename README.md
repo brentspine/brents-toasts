@@ -1,4 +1,9 @@
 # brents-toasts
+
+[![npm version](https://img.shields.io/npm/v/brents-toasts.svg?style=for-the-badge)](https://www.npmjs.com/package/brents-toasts)
+[![npm downloads](https://img.shields.io/npm/dm/brents-toasts.svg?label=%E2%8F%ACdownloads&style=for-the-badge)](https://www.npmjs.com/package/brents-toasts)
+[![coverage](https://img.shields.io/codecov/c/github/brentspine/brents-toasts.svg?style=for-the-badge)](https://codecov.io/gh/brentspine/brents-toasts)
+
 A simple drop-in vanilla and beginner friendly toast system
 
 Demo live under: https://brentspine.github.io/brents-toasts/<br>

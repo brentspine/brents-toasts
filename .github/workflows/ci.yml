@@ -13,6 +13,12 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Lets codecov-action authenticate via OIDC instead of a stored
+      # CODECOV_TOKEN secret — Codecov allows this for public repos pushing
+      # to an unprotected branch (see README's coverage badge).
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -22,8 +28,15 @@ jobs:
 
       - run: npm ci
       - run: npm run typecheck
-      - run: npm run test
+      - run: npm run test:coverage
       - run: npm run build
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          use_oidc: true
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
 
       - name: Test demo
         run: |
