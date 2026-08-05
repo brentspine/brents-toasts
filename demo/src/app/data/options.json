@@ -56,6 +56,7 @@
     { "name": "evictOldest", "type": "boolean", "default": "true", "description": "When maxToasts is exceeded, evict the oldest toast to make room instead of blocking new ones.", "control": "boolean" },
     { "name": "pauseOnHover", "type": "boolean", "default": "true", "description": "Library-wide default for whether hovering a toast pauses its timer.", "control": "boolean" },
     { "name": "progress", "type": "boolean | ToastProgressOptions", "typeRef": "ToastProgressOptions", "default": "false", "description": "Library-wide default progress-bar behavior.", "control": "boolean" },
+    { "name": "promiseTimeout", "type": "number", "default": "0", "description": "Library-wide default for promise()'s timeout (ms). If a promise hasn't settled within this long, its loading toast is patched to messages.timeout instead. 0 disables the timeout.", "control": "number" },
     { "name": "locale", "type": "string | undefined", "default": "undefined (auto-detect)", "description": "Force a specific bundled locale (e.g. \"de\"). Omit to auto-detect from the browser, falling back to \"en\".", "control": "select", "selectOptions": ["auto", "en", "de", "es", "fr"] },
     { "name": "translations", "type": "Partial<ToastTranslations> | undefined", "default": "undefined", "description": "Partial string overrides layered on top of the resolved locale pack.", "control": "text" },
     { "name": "theme", "type": "ToastTheme", "typeRef": "ToastTheme", "default": "undefined", "description": "Library-wide default color overrides: card background, text, details block, action/close-icon colors.", "control": "text" }
@@ -78,7 +79,7 @@
       "description": "Entry/exit animation. Passing an unimplemented/unregistered value falls back to slide with a one-time console warning. Custom animations can be added via registerToastAnimation().",
       "values": [
         { "value": "slide", "description": "Slides in/out from its stacking edge while fading. The default." },
-        { "value": "fade", "description": "Opacity-only — appears already at its resting position, nothing slides." },
+        { "value": "fade", "description": "Opacity-only - appears already at its resting position, nothing slides." },
         { "value": "none", "description": "No transition at all: appears, disappears, and reflows instantly." }
       ]
     },
@@ -122,7 +123,8 @@
         { "name": "value", "type": "number", "default": "0", "description": "Initial fill fraction (0-1) when mode: 'manual'. Ignored otherwise. Update later via setToastProgress(id, value)." },
         { "name": "color", "type": "string", "default": "the toast's resolved color", "description": "Fill color." },
         { "name": "trackColor", "type": "string", "default": "'transparent'", "description": "Color of the unfilled track." },
-        { "name": "height", "type": "number", "default": "3", "description": "Bar thickness in px." }
+        { "name": "height", "type": "number", "default": "3", "description": "Bar thickness in px." },
+        { "name": "label", "type": "string", "default": "resolved locale's \"Progress\"", "description": "Accessible name for the bar (role=\"progressbar\", with aria-valuemin/max/now kept in sync), e.g. \"Uploading file\"." }
       ]
     },
     "ToastButton": {

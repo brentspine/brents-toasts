@@ -30,6 +30,7 @@ whatever `configure()` set.
 | `evictOldest` | `true` | |
 | `pauseOnHover` | `true` | see [Timers](timers.md) |
 | `progress` | `false` | see [Progress bar](progress.md) |
+| `promiseTimeout` | `0` (disabled) | ms; see "Timeout" in [Lifecycle](lifecycle.md) |
 | `locale` | `undefined` (auto-detect) | see [Localization](localization.md) |
 | `translations` | `undefined` | see [Localization](localization.md) |
 | `theme` | `undefined` | see [Theming](theming.md) |

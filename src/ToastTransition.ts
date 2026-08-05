@@ -1,16 +1,16 @@
 /*
   How `Toasts.updateToast` visually applies a patch to an already-rendered
-  toast: the whole `.bt-toast` card (content + color + actions — not just the
+  toast: the whole `.bt-toast` card (content + color + actions - not just the
   message) rebuilt all-at-once mid-transition, e.g. for a `promise()`
   loading->success/error swap. Mirrors `ToastAnimation.ts`'s shape (a plain
   registry keyed by name, extensible via `registerToastTransition`) rather
-  than inventing a second convention — `NONE`/`FADE`/`SHAKE_LR` are just the
+  than inventing a second convention - `NONE`/`FADE`/`SHAKE_LR` are just the
   built-in entries.
 
   Unlike `ToastAnimation`'s `containerTransition`, which is set once at
   creation and lives for the toast's whole lifetime, a transition here is a
   one-shot directive: passed per `updateToast`/`promise()` call, never stored
-  as persistent toast state — see `ToastOptions.transition` in `Toasts.ts`.
+  as persistent toast state - see `ToastOptions.transition` in `Toasts.ts`.
 */
 
 export const ToastTransition = {
@@ -21,14 +21,14 @@ export const ToastTransition = {
 
 // Widened so a custom name registered via `registerToastTransition` still
 // type-checks in `ToastOptions`/`ToastBuilder.withTransition()` without a
-// cast, while `none`/`fade`/`shake-lr` still autocomplete — same trick as
+// cast, while `none`/`fade`/`shake-lr` still autocomplete - same trick as
 // `ToastAnimationValue`.
 export type ToastTransitionValue = typeof ToastTransition[keyof typeof ToastTransition] | (string & {});
 
 export interface ToastTransitionDefinition {
     /**
      * Runs the transition against `toast` (the `.bt-toast` card), calling
-     * `mutate` at whatever point the new content should actually appear —
+     * `mutate` at whatever point the new content should actually appear -
      * once, synchronously or later (e.g. after a fade-out completes).
      * `mutate` applies every visual field the update touched
      * (content/color/progress/actions) in one go, so multi-field patches
@@ -40,7 +40,7 @@ export interface ToastTransitionDefinition {
 
 // No transition at all: applies the patch instantly. Registered (rather
 // than short-circuited before reaching the registry) so it behaves exactly
-// like any other named transition — including being overridable via
+// like any other named transition - including being overridable via
 // `registerToastTransition('none', ...)` if a consumer really wants that.
 const noneDefinition: ToastTransitionDefinition = {
     run(_toast, mutate) {
@@ -48,14 +48,14 @@ const noneDefinition: ToastTransitionDefinition = {
     },
 };
 
-// Duration (ms) of each half of the crossfade — deliberately not exposed as
+// Duration (ms) of each half of the crossfade - deliberately not exposed as
 // an option, same reasoning as the animation module's hardcoded timings
 // (SLIDE/FADE's 300ms): one sensible default beats a knob nobody asked to
 // tune.
 const FADE_DURATION_MS = 150;
 
 // Fades `toast`'s opacity to 0, runs `mutate` once fully invisible, then
-// fades back to 1 — a crossfade of the whole card rather than the message
+// fades back to 1 - a crossfade of the whole card rather than the message
 // alone, so e.g. a promise() loading->success patch (message AND color
 // changing together) doesn't look mismatched.
 const fadeDefinition: ToastTransitionDefinition = {
@@ -74,7 +74,7 @@ const fadeDefinition: ToastTransitionDefinition = {
     },
 };
 
-// Left-right shake to draw attention to an update, rather than hiding it —
+// Left-right shake to draw attention to an update, rather than hiding it -
 // `mutate` runs immediately (there's nothing to hide first) and the shake
 // plays over the new content. Offsets end back at 0 so the card is never
 // left visually displaced.
@@ -120,7 +120,7 @@ export function registerToastTransition(name: string, definition: ToastTransitio
     registry.set(name, definition);
 }
 
-/** Looks up a registered transition by name — `undefined` if nothing is registered under it. */
+/** Looks up a registered transition by name - `undefined` if nothing is registered under it. */
 export function getToastTransition(name: string): ToastTransitionDefinition | undefined {
     return registry.get(name);
 }

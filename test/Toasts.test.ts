@@ -372,7 +372,7 @@ describe('progress bar sync', () => {
 
         t.updateToast(id, { color: '#222222' });
         const fillAfter = document.getElementById(id)!.querySelector('.bt-toast-progress-fill') as HTMLElement;
-        expect(fillAfter).toBe(fillBefore); // same node — not rebuilt, so any in-flight transition survives
+        expect(fillAfter).toBe(fillBefore); // same node - not rebuilt, so any in-flight transition survives
         expect(fillAfter.style.background).toContain('34, 34, 34');
     });
 
@@ -384,6 +384,37 @@ describe('progress bar sync', () => {
 
         t.updateToast(id, { color: '#222222' });
         expect(fillBefore.style.background).toBe(colorBefore);
+    });
+
+    it('exposes role=progressbar with a valuemin/valuemax/valuenow/label reflecting the manual value', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, progress: { mode: 'manual', value: 0.4 } });
+        const wrap = document.getElementById(id)!.querySelector('.bt-toast-progress') as HTMLElement;
+        expect(wrap.getAttribute('role')).toBe('progressbar');
+        expect(wrap.getAttribute('aria-valuemin')).toBe('0');
+        expect(wrap.getAttribute('aria-valuemax')).toBe('100');
+        expect(wrap.getAttribute('aria-valuenow')).toBe('40');
+        expect(wrap.getAttribute('aria-label')).toBe('Progress');
+
+        t.setToastProgress(id, 0.75);
+        expect(wrap.getAttribute('aria-valuenow')).toBe('75');
+    });
+
+    it('progress.label overrides the default accessible name', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, progress: { mode: 'manual', label: 'Uploading file' } });
+        const wrap = document.getElementById(id)!.querySelector('.bt-toast-progress') as HTMLElement;
+        expect(wrap.getAttribute('aria-label')).toBe('Uploading file');
+    });
+
+    it('keeps aria-valuenow in sync with a fill/drain bar on pause', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000, progress: { mode: 'drain' } });
+        vi.advanceTimersByTime(500);
+        t.pauseToastTimer(id);
+        const wrap = document.getElementById(id)!.querySelector('.bt-toast-progress') as HTMLElement;
+        expect(Number(wrap.getAttribute('aria-valuenow'))).toBeCloseTo(50, 0);
     });
 });
 
@@ -505,7 +536,7 @@ describe('multiple instances sharing a snackbar', () => {
         const id = b.showToast('x', { duration: 0, animation: ToastAnimation.NONE, onClose });
         a.removeToast(id); // cross-instance removal, both default to BOTTOM_CENTER
         vi.advanceTimersByTime(0);
-        // NONE's exitDurationMs is 0 (instant removal) — if `a`'s own
+        // NONE's exitDurationMs is 0 (instant removal) - if `a`'s own
         // fallback (SLIDE) animation had been used instead, the element
         // would still be mid-exit-transition here.
         expect(document.getElementById(id)).toBeNull();
@@ -681,7 +712,7 @@ describe('animations', () => {
         expect(el.style.opacity).toBe('0');
     });
 
-    it('fade starts already at its resting offset — only opacity animates, nothing slides', () => {
+    it('fade starts already at its resting offset - only opacity animates, nothing slides', () => {
         const t = new Toasts();
         const id = t.showToast('x', { duration: 0, animation: ToastAnimation.FADE });
         const el = document.getElementById(id)!;
@@ -1123,7 +1154,7 @@ describe('titleMode (#27)', () => {
         expect(inlineTitle).not.toBeNull();
         expect(inlineTitle.textContent).toBe('Head');
         expect(message.textContent).toBe('Head body');
-        // No separate stacked title block — the only .bt-toast-title in the
+        // No separate stacked title block - the only .bt-toast-title in the
         // whole content is the inline one nested inside .bt-toast-message.
         expect(content.querySelectorAll('.bt-toast-title').length).toBe(1);
         expect(message.contains(content.querySelector('.bt-toast-title')!)).toBe(true);
@@ -1181,7 +1212,7 @@ describe('transition', () => {
 
         t.updateToast(id, { message: 'Updated', transition: ToastTransition.FADE });
 
-        // Not applied yet — still mid fade-out.
+        // Not applied yet - still mid fade-out.
         expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('Original');
         expect(toast.style.opacity).toBe('0');
 
@@ -1232,7 +1263,7 @@ describe('transition', () => {
 
         t.updateToast(id, { message: 'Updated', transition: ToastTransition.SHAKE_LR });
 
-        // Applied right away — shake plays over the new content, doesn't hide it first.
+        // Applied right away - shake plays over the new content, doesn't hide it first.
         expect(document.getElementById(id)!.querySelector('.bt-toast-content')!.textContent).toBe('Updated');
         expect(toast.style.transform).toBe('translateX(-8px)');
 
@@ -1434,6 +1465,88 @@ describe('promise', () => {
         expect(messageOf(toastId)).toBe('Done!');
         expect(toast.style.opacity).toBe('1');
         vi.useRealTimers();
+    });
+
+    describe('timeout', () => {
+        afterEach(() => vi.useRealTimers());
+
+        it('is disabled by default - the loading toast waits indefinitely', async () => {
+            vi.useFakeTimers();
+            const t = new Toasts();
+            const p = new Promise<string>(() => {}); // never settles
+            t.promise(p, { loading: 'Loading...', timeout: 'Timed out' });
+            const toastId = document.querySelector('.bt-toast-container')!.id;
+
+            await vi.advanceTimersByTimeAsync(1_000_000);
+            expect(messageOf(toastId)).toBe('Loading...');
+        });
+
+        it('patches the toast to messages.timeout if the promise has not settled within options.timeout', async () => {
+            vi.useFakeTimers();
+            const t = new Toasts();
+            const p = new Promise<string>(() => {}); // never settles
+            t.promise(p, { loading: 'Loading...', timeout: () => 'Taking too long' }, { timeout: 5000 });
+            const toastId = document.querySelector('.bt-toast-container')!.id;
+
+            await vi.advanceTimersByTimeAsync(5000);
+            expect(messageOf(toastId)).toBe('Taking too long');
+            expect(colorOf(toastId)).toBe(ToastColor.WARNING);
+        });
+
+        it('dismisses the toast on timeout when messages.timeout is omitted', async () => {
+            vi.useFakeTimers();
+            const t = new Toasts();
+            const p = new Promise<string>(() => {});
+            t.promise(p, { loading: 'Loading...' }, { timeout: 5000 });
+            const toastId = document.querySelector('.bt-toast-container')!.id;
+
+            await vi.advanceTimersByTimeAsync(5000);
+            expect(document.getElementById(toastId)?.classList.contains('bt-hiding')).toBe(true);
+        });
+
+        it('falls back to configure()\'s promiseTimeout when options.timeout is unset', async () => {
+            vi.useFakeTimers();
+            const t = new Toasts();
+            t.configure({ promiseTimeout: 3000 });
+            const p = new Promise<string>(() => {});
+            t.promise(p, { loading: 'Loading...', timeout: 'Timed out' });
+            const toastId = document.querySelector('.bt-toast-container')!.id;
+
+            await vi.advanceTimersByTimeAsync(3000);
+            expect(messageOf(toastId)).toBe('Timed out');
+        });
+
+        it('does not fire the timeout if the promise settles first', async () => {
+            vi.useFakeTimers();
+            const t = new Toasts();
+            const p = Promise.resolve('x');
+            // duration: 0 keeps the success toast sticky so this test can advance past the
+            // (now-cleared) timeout without the default auto-dismiss timer removing it first.
+            t.promise(p, { loading: 'Loading...', success: { message: 'Done!', duration: 0 }, timeout: 'Timed out' }, { timeout: 5000 });
+            const toastId = document.querySelector('.bt-toast-container')!.id;
+
+            await vi.advanceTimersByTimeAsync(0);
+            expect(messageOf(toastId)).toBe('Done!');
+
+            await vi.advanceTimersByTimeAsync(5000);
+            expect(messageOf(toastId)).toBe('Done!'); // unaffected by the now-cleared timeout
+        });
+
+        it('ignores a late success/error settle after the toast has already timed out', async () => {
+            vi.useFakeTimers();
+            const t = new Toasts();
+            let resolve!: (v: string) => void;
+            const p = new Promise<string>(r => { resolve = r; });
+            t.promise(p, { loading: 'Loading...', success: 'Done!', timeout: 'Timed out' }, { timeout: 5000 });
+            const toastId = document.querySelector('.bt-toast-container')!.id;
+
+            await vi.advanceTimersByTimeAsync(5000);
+            expect(messageOf(toastId)).toBe('Timed out');
+
+            resolve('late');
+            await vi.advanceTimersByTimeAsync(0);
+            expect(messageOf(toastId)).toBe('Timed out'); // the late resolve no longer touches the toast
+        });
     });
 });
 

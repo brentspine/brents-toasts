@@ -2,20 +2,20 @@
   How a toast enters/leaves the snackbar, and how it moves later when a
   sibling toast is added/removed/resized. Each named animation is a small
   set of DOM hooks (a `ToastAnimationDefinition`) run by `Toasts.ts` at the
-  right point in a toast's lifecycle — nothing here talks to `Toasts`
+  right point in a toast's lifecycle - nothing here talks to `Toasts`
   directly, this module only owns the hook contract, the built-in
   definitions, and the registry consumers extend via
   `registerToastAnimation`.
 
   `containerTransition` is the key piece: it's applied once, inline, to the
   toast's own `.bt-toast-container` at creation, and stays there for the
-  toast's whole lifetime — this is what governs the toast's own
+  toast's whole lifetime - this is what governs the toast's own
   entrance/exit, and any later reflow triggered by *its own* resize (e.g.
   a details toggle growing it).
 
   Reflow caused by a SIBLING entering or exiting is different: the toast
   that's entering/exiting is what's causing that particular reflow, so its
-  `containerTransition` — not each displaced toast's own — governs how the
+  `containerTransition` - not each displaced toast's own - governs how the
   displaced toasts move. `Toasts.ts` passes it through to
   `ToastStacking.ts`'s `stackExistingAway`/`recalculatePositions` as
   `causingTransition`, which temporarily overrides each displaced toast's
@@ -38,9 +38,9 @@ export const ToastAnimation = {
 export type ToastAnimationValue = typeof ToastAnimation[keyof typeof ToastAnimation] | (string & {});
 
 export interface ToastAnimationHookContext {
-    /** The toast's outer positioned element (`.bt-toast-container`) — safe to read/set styles on directly. */
+    /** The toast's outer positioned element (`.bt-toast-container`) - safe to read/set styles on directly. */
     container: HTMLElement;
-    /** Which viewport edge this toast's position anchors to — see `POSITION_EDGE` in `ToastPosition.ts`. */
+    /** Which viewport edge this toast's position anchors to - see `POSITION_EDGE` in `ToastPosition.ts`. */
     edge: 'top' | 'bottom';
 }
 
@@ -50,26 +50,26 @@ export interface ToastAnimationDefinition {
      * the transition speed for `enterFrom` -> `enterTo`, this toast's own
      * exit, and any reflow caused by this toast's own resize. It's also
      * used (passed through as `causingTransition`) to govern how OTHER
-     * toasts move out of the way when this toast enters or exits — see the
+     * toasts move out of the way when this toast enters or exits - see the
      * top-of-file comment and `applyOffset` in `ToastStacking.ts`.
      */
     containerTransition: string;
     /**
      * Called synchronously once the toast's resting stack offset is known,
-     * right before the entrance becomes visible — set the "from" (hidden)
+     * right before the entrance becomes visible - set the "from" (hidden)
      * styles here.
      */
     enterFrom(ctx: ToastAnimationHookContext, targetOffsetPx: number): void;
     /**
-     * Called one animation frame later — set the "to" (resting) styles
+     * Called one animation frame later - set the "to" (resting) styles
      * here. Whatever `containerTransition` is active animates between the
      * two.
      */
     enterTo(ctx: ToastAnimationHookContext, targetOffsetPx: number): void;
-    /** Called once, synchronously, when the toast starts being removed — set its exiting styles here. */
+    /** Called once, synchronously, when the toast starts being removed - set its exiting styles here. */
     exit(ctx: ToastAnimationHookContext): void;
     /**
-     * How long (ms) the exit visual takes — the toast's DOM node is removed
+     * How long (ms) the exit visual takes - the toast's DOM node is removed
      * after this delay. Should match whatever duration `containerTransition`/
      * `exit()` relies on.
      */
@@ -100,7 +100,7 @@ const slideDefinition: ToastAnimationDefinition = {
 };
 
 // Opacity-only: starts already at its final resting offset (set once,
-// immediately, so nothing slides) and only fades in/out — the "skip the
+// immediately, so nothing slides) and only fades in/out - the "skip the
 // bottom animation" path referenced in ROADMAP.md.
 const fadeDefinition: ToastAnimationDefinition = {
     containerTransition: SLIDE_TRANSITION,
@@ -126,7 +126,7 @@ const noneDefinition: ToastAnimationDefinition = {
         ctx.container.style.opacity = '1';
     },
     enterTo() {
-        // Nothing left to animate to — enterFrom already set the resting state.
+        // Nothing left to animate to - enterFrom already set the resting state.
     },
     exit(ctx) {
         ctx.container.style.opacity = '0';
@@ -151,7 +151,7 @@ export function registerToastAnimation(name: string, definition: ToastAnimationD
     registry.set(name, definition);
 }
 
-/** Looks up a registered animation by name — `undefined` if nothing is registered under it. */
+/** Looks up a registered animation by name - `undefined` if nothing is registered under it. */
 export function getToastAnimation(name: string): ToastAnimationDefinition | undefined {
     return registry.get(name);
 }

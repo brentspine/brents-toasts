@@ -37,7 +37,9 @@ noLabel, doneMessage })`) still win over the resolved translations, same
 precedence as every other option.
 
 The full `ToastTranslations` shape: `close`, `details`, `hideDetails`,
-`copy`, `copied`, `areYouSure`, `done`, `yes`, `no`, `notificationsRegion`.
+`copy`, `copied`, `areYouSure`, `done`, `yes`, `no`, `notificationsRegion`,
+`progress` (default accessible name for a progress bar - see
+[`ToastProgressOptions.label`](progress.md)).
 
 ## Quick action strings
 

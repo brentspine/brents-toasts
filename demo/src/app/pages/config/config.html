@@ -39,7 +39,7 @@
         [ngModel]="form().maxToasts"
         (ngModelChange)="updateForm('maxToasts', $event)"
         [disabled]="!form().evictOldest"
-        [title]="!form().evictOldest ? 'maxToasts has no effect while evictOldest is off — the stack is never capped' : ''"
+        [title]="!form().evictOldest ? 'maxToasts has no effect while evictOldest is off - the stack is never capped' : ''"
       />
     </div>
 
@@ -149,7 +149,7 @@
       [ngModel]="overrideMaxToasts()"
       (ngModelChange)="overrideMaxToasts.set($event)"
       [disabled]="!overrideEvictOldest()"
-      [title]="!overrideEvictOldest() ? 'maxToasts has no effect while evictOldest is off — the stack is never capped' : ''"
+      [title]="!overrideEvictOldest() ? 'maxToasts has no effect while evictOldest is off - the stack is never capped' : ''"
     />
     <label>
       <input
@@ -169,7 +169,7 @@
           <code>{{ entry[0] }}</code>:
           <span
             [class.irrelevant]="!entry[1].evictOldest"
-            [title]="!entry[1].evictOldest ? 'maxToasts has no effect while evictOldest is off — the stack is never capped' : ''"
+            [title]="!entry[1].evictOldest ? 'maxToasts has no effect while evictOldest is off - the stack is never capped' : ''"
           >maxToasts={{ entry[1].maxToasts }}</span>, evictOldest={{ entry[1].evictOldest }}
           <button type="button" class="clear" (click)="clearPositionOverride(entry[0])">Clear</button>
         </li>

@@ -5,7 +5,7 @@ import fr from './locales/toast/fr.json';
 
 /*
   Library-owned translatable strings (button labels, the snackbar region's
-  aria-label, ...) — everything else (title, message, per-button/detail
+  aria-label, ...) - everything else (title, message, per-button/detail
   text) is caller-supplied and out of scope for this module.
 */
 export interface ToastTranslations {
@@ -19,6 +19,8 @@ export interface ToastTranslations {
     yes: string;
     no: string;
     notificationsRegion: string;
+    /** Default accessible name for a progress bar with no explicit `ToastProgressOptions.label`. */
+    progress: string;
 }
 
 export const ToastLocales: Record<string, ToastTranslations> = { en, de, es, fr };
@@ -37,7 +39,7 @@ export function matchToastLocale(code: string): string | undefined {
 
 /**
  * The user's preferred languages, most-preferred first. Empty outside a
- * browser (SSR-safe — mirrors the lazy-init "sicher für SSR" pattern
+ * browser (SSR-safe - mirrors the lazy-init "sicher für SSR" pattern
  * elsewhere in this library, so importing this module never touches `navigator`
  * at load time).
  */

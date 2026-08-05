@@ -30,7 +30,7 @@ export const IMPLEMENTED_POSITIONS: ReadonlySet<ToastPositionValue> = new Set([
 /*
   Which viewport edge a position's snackbar stacks away from. Populated for
   all six positions (not just the implemented one) so the stacking math in
-  Toasts.ts is edge-agnostic ahead of time — implementing a new position
+  Toasts.ts is edge-agnostic ahead of time - implementing a new position
   later is then "add CSS + register it in IMPLEMENTED_POSITIONS," not also a
   rewrite of the positioning engine.
 */
@@ -45,7 +45,7 @@ export const POSITION_EDGE: Record<ToastPositionValue, 'top' | 'bottom'> = {
 
 /*
   Below this viewport width (px), `*-left`/`*-right` positions collapse into
-  their edge's `*-center` equivalent (see `collapsedPosition`) — on a narrow
+  their edge's `*-center` equivalent (see `collapsedPosition`) - on a narrow
   screen a toast's own width approaches the full viewport width, so the
   flexbox alignment that visually separates left/center/right on a wide
   viewport (`.bt-snackbar`'s `align-items` in toasts.css) no longer does,
@@ -58,7 +58,7 @@ export const DEFAULT_RESPONSIVE_BREAKPOINT = 800;
   Maps a `*-left`/`*-right` position to its edge's `*-center` equivalent so
   both share one container/stack on narrow viewports; `*-center` positions
   (and anything unrecognized) pass through unchanged. Used by
-  `Toasts._effectivePosition` — never applied to the toast's own identity
+  `Toasts._effectivePosition` - never applied to the toast's own identity
   `position` (what `getToastOptions`-style introspection reports), only to
   which physical container it renders into.
 */

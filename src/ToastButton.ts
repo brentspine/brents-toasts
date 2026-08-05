@@ -1,7 +1,7 @@
 import { renderTextWithBreaks } from './ToastText';
 
 export interface ToastButton {
-    /** Rendered as plain text, like `title`, except "\n" and literal "<br>"/"<br/>" are still honored as line breaks — same rule as `message`/`title`, and same `allowLineBreaks` opt-out. */
+    /** Rendered as plain text, like `title`, except "\n" and literal "<br>"/"<br/>" are still honored as line breaks - same rule as `message`/`title`, and same `allowLineBreaks` opt-out. */
     label: string;
     /** Receives the click/keyboard-activation event and this toast's id (e.g. to call `removeToast(id)` yourself, or `document.getElementById(id)` to update the toast's own content in place). */
     onClick?: (event: MouseEvent, id: string) => void;
@@ -14,17 +14,17 @@ export interface ToastButtonStep {
     label: string;
     /**
      * Runs on click while this step is active. Return (or resolve to) `false` to
-     * stay on this step instead of advancing — e.g. a guard that isn't met, or an
+     * stay on this step instead of advancing - e.g. a guard that isn't met, or an
      * action that failed. Anything else (including `void`) advances to the next
      * step. A `Promise` return disables the button until it settles, so a slow or
      * real action can't be double-fired by a second click.
      */
     onClick?: (event: MouseEvent, id: string) => void | false | Promise<void | false>;
-    /** Extra class(es) applied only while this step is active — added/removed via `classList` alongside the button's own base classes, never replacing them. */
+    /** Extra class(es) applied only while this step is active - added/removed via `classList` alongside the button's own base classes, never replacing them. */
     className?: string;
     /**
      * Auto-advance to `revertToStep` this many ms after this step becomes active
-     * (cancelled if the button is clicked again first). No effect on `steps[0]` —
+     * (cancelled if the button is clicked again first). No effect on `steps[0]` -
      * the first step is applied at render time, not via a click, so no timer ever
      * starts for it.
      */
@@ -47,14 +47,14 @@ const buttonAllowLineBreaks = new WeakMap<HTMLButtonElement, boolean>();
 
 // Builds a `<button class="bt-toast-action">` wired so mouse and keyboard
 // activation both stop the event from ever reaching the row's own
-// Enter/Space/click-to-dismiss listeners — no preventDefault, so the button's
+// Enter/Space/click-to-dismiss listeners - no preventDefault, so the button's
 // native click activation still fires normally.
 export function createActionButton(label: string, onClick: (e: MouseEvent) => void, allowLineBreaks: boolean = true, className?: string): HTMLButtonElement {
     const el = document.createElement('button');
     el.type = 'button';
     el.className = className ? `bt-toast-action ${className}` : 'bt-toast-action';
     // Plain text, like the toast's own title/message when allowHtml is
-    // false — "\n" and literal "<br>"/"<br/>" still render as line breaks,
+    // false - "\n" and literal "<br>"/"<br/>" still render as line breaks,
     // unless allowLineBreaks is false.
     renderTextWithBreaks(el, label, allowLineBreaks);
     buttonAllowLineBreaks.set(el, allowLineBreaks);
@@ -69,7 +69,7 @@ export function createActionButton(label: string, onClick: (e: MouseEvent) => vo
     return el;
 }
 
-/** Renders a `ToastButton` — the shared body behind both the top-level `buttons` option and a details item's own `buttons`. `extraClassName` is `bt-toast-detail-action` for the latter. */
+/** Renders a `ToastButton` - the shared body behind both the top-level `buttons` option and a details item's own `buttons`. `extraClassName` is `bt-toast-detail-action` for the latter. */
 export function renderToastButton(btn: ToastButton, id: string, allowLineBreaks: boolean = true, extraClassName?: string): HTMLButtonElement {
     return createActionButton(btn.label, (e) => btn.onClick?.(e, id), allowLineBreaks, combineClassNames(extraClassName, btn.className));
 }
@@ -80,7 +80,7 @@ interface StepButtonState {
 }
 
 // Keyed off the rendered <button> element itself, not the `steps` array/closure
-// — so the same `createStepButton(...)` result can be reused across multiple
+// - so the same `createStepButton(...)` result can be reused across multiple
 // simultaneously-rendered toasts without their state machines colliding, and so
 // state is automatically released once a toast's button is removed. Mirrors
 // `Toasts`'s own `_onCloseCallbacks`/`_resizeObservers: WeakMap<HTMLElement, ...>`.
@@ -104,13 +104,13 @@ function applyStep(el: HTMLButtonElement, steps: ToastButtonStep[], fromIndex: n
 }
 
 /**
- * Builds a plain `ToastButton` whose `onClick` walks through `steps` in order —
+ * Builds a plain `ToastButton` whose `onClick` walks through `steps` in order -
  * the primitive behind `Toasts.detailsCopyButton()`, also usable directly (via
  * `Toasts.stepButton()`/`ToastBuilder.withStepButton()`) for custom multi-step
  * flows (temporary feedback, a guarded action, ...). `Toasts.confirmButton()`
- * doesn't use this — it swaps the whole toast's content instead of just this
+ * doesn't use this - it swaps the whole toast's content instead of just this
  * button's label, see there. Safe to reuse the same returned `ToastButton`
- * across multiple simultaneously-rendered toasts — state lives per rendered
+ * across multiple simultaneously-rendered toasts - state lives per rendered
  * `<button>` element, not in this call's closure.
  */
 export function createStepButton(steps: ToastButtonStep[], className?: string): ToastButton {

@@ -181,3 +181,32 @@ toasts.promise(
 and can be `await`ed/chained normally; turning a rejection into an `error`
 toast here doesn't count as handling it for `promise` itself, so you still
 need your own `.catch`/try-catch around it to avoid an unhandled rejection.
+
+### Timeout
+
+`options.timeout` bounds how long the loading toast is allowed to stay
+sticky - if `promise` hasn't settled within `timeout` ms, the toast is
+patched to a fourth `messages.timeout` entry instead (same shapes as
+`success`/`error`, minus the resolved value/reason - just a plain
+message/options patch/zero-arg thunk), defaulting the toast's `color` to
+`ToastColor.WARNING`:
+
+```ts
+toasts.promise(
+  fetch('/api/posts').then(r => r.json()),
+  {
+    loading: 'Fetching posts...',
+    success: (posts) => `Fetched ${posts.length} posts`,
+    error: (err) => `Failed to fetch posts: ${err.message}`,
+    timeout: 'Still working on it...',
+  },
+  { timeout: 8000 }
+);
+```
+
+Omit `messages.timeout` to just dismiss the loading toast on timeout instead
+of showing one. `promise` itself is never touched by a timeout - it's purely
+about what the toast shows; if `promise` settles later anyway, that's
+ignored, since the toast has already moved on. `options.timeout` falls back
+to `configure()`'s `promiseTimeout` (default `0`, disabled) for a
+library-wide default across every `promise()` call.

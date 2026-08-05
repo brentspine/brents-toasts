@@ -134,7 +134,19 @@ const body = data.content.map((block) => block.text).join("").trim();
 
 const date = new Date().toISOString().slice(0, 10);
 const socketBadge = `[![Socket Security](https://badge.socket.dev/npm/package/brents-toasts/${version})](https://socket.dev/npm/package/brents-toasts/overview/${version})`;
-const entry = `# ${version} - ${date}\n\n${socketBadge}\n\n${body}\n`;
+
+// Deterministic, not LLM-generated - shields.io/socket badges are self-updating images, so
+// there's nothing to fetch or hallucinate here, just the right badge/link URLs. Placed at the
+// bottom (unlike socketBadge above) since these reflect the repo's current standing, not
+// anything specific to this release.
+const statsFooter = [
+  `[![Stars](https://img.shields.io/github/stars/brentspine/brents-toasts.svg?style=for-the-badge)](https://github.com/brentspine/brents-toasts/stargazers)`,
+  `[![Issues](https://img.shields.io/github/issues/brentspine/brents-toasts.svg?style=for-the-badge)](https://github.com/brentspine/brents-toasts/issues)`,
+  `[![npm downloads](https://img.shields.io/npm/dm/brents-toasts.svg?label=%E2%8F%ACdownloads&style=for-the-badge)](https://www.npmjs.com/package/brents-toasts)`,
+  `[![coverage](https://img.shields.io/codecov/c/github/brentspine/brents-toasts.svg?style=for-the-badge)](https://codecov.io/gh/brentspine/brents-toasts)`,
+  `[![npm v${version}](https://img.shields.io/badge/npm-v${version}-cb3837?style=for-the-badge&logo=npm)](https://www.npmjs.com/package/brents-toasts/v/${version})`,
+].join("\n");
+const entry = `# ${version} - ${date}\n\n${socketBadge}\n\n${body}\n\n---\n\n${statsFooter}\n`;
 
 mkdirSync("docs/changelogs", { recursive: true });
 writeFileSync(`docs/changelogs/${version}.md`, entry);

@@ -8,5 +8,6 @@
     "done": "Done",
     "yes": "Yes",
     "no": "No",
-    "notificationsRegion": "Notifications"
+    "notificationsRegion": "Notifications",
+    "progress": "Progress"
 }

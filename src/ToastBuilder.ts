@@ -7,7 +7,7 @@ import { ToastTransition, type ToastTransitionValue } from './ToastTransition';
 
 /*
   Fluent alternative to showToast(message, options). Builds the exact same
-  options object showToast() accepts, then hands it off — so builder-created
+  options object showToast() accepts, then hands it off - so builder-created
   toasts and directly-called showToast(message, { ... }) toasts always behave
   identically.
 */
@@ -16,7 +16,7 @@ export class ToastBuilder {
     private _message: string | Node;
     private _options: ToastOptions;
 
-    /** @param message Defaults to `''` — omit it entirely for a title-only toast (see `withTitle()`). */
+    /** @param message Defaults to `''` - omit it entirely for a title-only toast (see `withTitle()`). */
     constructor(message: string | Node = '', toastsInstance: Toasts = defaultToasts) {
         this._toasts = toastsInstance;
         this._message = message;
@@ -29,7 +29,7 @@ export class ToastBuilder {
         if (mode !== undefined) this._options.titleMode = mode;
         return this;
     }
-    /** Standalone alternative to `withTitle(title, mode)`'s second argument — set independently since `title` may already be set elsewhere in the chain. No effect when `title` is unset. See `ToastOptions.titleMode`. */
+    /** Standalone alternative to `withTitle(title, mode)`'s second argument - set independently since `title` may already be set elsewhere in the chain. No effect when `title` is unset. See `ToastOptions.titleMode`. */
     withTitleMode(mode: 'inline' | 'stacked'): this {
         this._options.titleMode = mode;
         return this;
@@ -40,11 +40,11 @@ export class ToastBuilder {
     asWarning(): this { return this.withColor(ToastColor.WARNING); }
     asError(): this { return this.withColor(ToastColor.ERROR); }
     withDuration(durationMs: number): this { this._options.duration = durationMs; return this; }
-    /** Called with no argument, enables closability (`true`) — the library-wide default stays whatever `configure()` says unless you call this. */
+    /** Called with no argument, enables closability (`true`) - the library-wide default stays whatever `configure()` says unless you call this. */
     withClosable(closable: boolean = true): this { this._options.closable = closable; return this; }
-    /** Called with no argument, enables HTML rendering (`true`) — the library-wide/`ToastOptions` default stays `false` unless you call this. XSS: sanitize input yourself if it may contain user-controlled content. */
+    /** Called with no argument, enables HTML rendering (`true`) - the library-wide/`ToastOptions` default stays `false` unless you call this. XSS: sanitize input yourself if it may contain user-controlled content. */
     withAllowHtml(allowHtml: boolean = true): this { this._options.allowHtml = allowHtml; return this; }
-    /** Whether "\n"/"<br>" render as real line breaks in `message`, `title`, button labels, and `details`. Called with no argument, enables it (`true`) — see `ToastOptions.allowLineBreaks`. */
+    /** Whether "\n"/"<br>" render as real line breaks in `message`, `title`, button labels, and `details`. Called with no argument, enables it (`true`) - see `ToastOptions.allowLineBreaks`. */
     withAllowLineBreaks(allowLineBreaks: boolean = true): this { this._options.allowLineBreaks = allowLineBreaks; return this; }
     withPosition(position: ToastPositionValue): this { this._options.position = position; return this; }
     withAnimation(animation: ToastAnimationValue): this { this._options.animation = animation; return this; }
@@ -56,14 +56,14 @@ export class ToastBuilder {
     withProgress(progress: boolean | ToastProgressOptions = true): this { this._options.progress = progress; return this; }
     /** Arbitrary data readable later via `getToastData(id)`. See `ToastOptions.data`. */
     withData(data: unknown): this { this._options.data = data; return this; }
-    /** Extra color knobs beyond `withColor()` — merges key-by-key over `configure()`'s `theme` at `.show()` time. See `ToastOptions.theme`/`ToastTheme`. */
+    /** Extra color knobs beyond `withColor()` - merges key-by-key over `configure()`'s `theme` at `.show()` time. See `ToastOptions.theme`/`ToastTheme`. */
     withTheme(theme: ToastTheme): this { this._options.theme = theme; return this; }
-    /** No-op via `.show()` — there's nothing to transition from on a toast's first render, so this only takes effect if the built options object later reaches `updateToast`/`promise()` some other way. Included for shape-compatibility with `ToastOptions`. See `ToastOptions.transition`. */
+    /** No-op via `.show()` - there's nothing to transition from on a toast's first render, so this only takes effect if the built options object later reaches `updateToast`/`promise()` some other way. Included for shape-compatibility with `ToastOptions`. See `ToastOptions.transition`. */
     withTransition(transition: ToastTransitionValue = ToastTransition.FADE): this { this._options.transition = transition; return this; }
     andRemoveOtherToasts(): this { this._options.removeOtherToasts = true; return this; }
     /** Inserts this toast at the far end of its position's stack instead of nearest the anchor edge. See `ToastOptions.reverseOrder`. */
     andReverseOrder(): this { this._options.reverseOrder = true; return this; }
-    /** Adds one action button (repeatable — call multiple times for multiple buttons). */
+    /** Adds one action button (repeatable - call multiple times for multiple buttons). */
     withButton(label: string, onClick?: (event: MouseEvent, id: string) => void, className?: string): this {
         if (!this._options.buttons) this._options.buttons = [];
         this._options.buttons.push({ label, onClick, className });
@@ -104,7 +104,7 @@ export class ToastBuilder {
         this._options.buttons.push(this._toasts.confirmButton(label, onConfirm, options));
         return this;
     }
-    /** Adds a button whose `onClick` walks through `steps` in order — the general-purpose primitive behind `Toasts.detailsCopyButton()`. See `Toasts.stepButton()`/`ToastButtonStep`. */
+    /** Adds a button whose `onClick` walks through `steps` in order - the general-purpose primitive behind `Toasts.detailsCopyButton()`. See `Toasts.stepButton()`/`ToastButtonStep`. */
     withStepButton(steps: ToastButtonStep[], className?: string): this {
         if (!this._options.buttons) this._options.buttons = [];
         this._options.buttons.push(this._toasts.stepButton(steps, className));

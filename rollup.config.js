@@ -18,7 +18,7 @@ function css() {
 }
 
 // Inlines `import x from './file.json'` as a plain JS object-literal export
-// (JSON text is already valid as a JS expression, unlike CSS text) — the
+// (JSON text is already valid as a JS expression, unlike CSS text) - the
 // same "no bundler-specific import support needed downstream" contract
 // css() gives the CJS/UMD outputs, applied to the bundled locale data.
 function json() {

@@ -23,10 +23,23 @@ toasts.showToast('Uploading…', {
 | `color` | the toast's resolved `color` | Fill color; stays linked to the toast's `color` if left unset, so a later `updateToast({ color })` re-syncs it too |
 | `trackColor` | `'transparent'` | Color of the unfilled track |
 | `height` | `3` | Bar thickness in px |
+| `label` | resolved locale's `"Progress"` | Accessible name for the bar, e.g. `"Uploading file"` |
 
 `'fill'`/`'drain'` are no-ops on a sticky toast (`duration: 0`); there's no
 countdown for them to track, so the bar stays hidden. Builder equivalent:
 `.withProgress(progress?)`.
+
+## Accessibility
+
+The bar renders with `role="progressbar"` and `aria-valuemin="0"`/
+`aria-valuemax="100"`, and keeps `aria-valuenow` in sync with the fill
+(as a 0-100 integer percentage) every time the bar's config changes
+(`showToast`/`updateToast`), the timer state changes (pause/resume/reset/
+extend/remove), or `setToastProgress()` is called. Its accessible name comes
+from `label` (see above) - set it to something more specific than the
+generic default when the bar represents a particular operation, so a screen
+reader user hears e.g. "Uploading file, 45 percent" instead of a bare
+percentage.
 
 ## Manual progress
 
