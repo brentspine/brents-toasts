@@ -1,3 +1,8 @@
+import en from './locales/toast/en.json';
+import de from './locales/toast/de.json';
+import es from './locales/toast/es.json';
+import fr from './locales/toast/fr.json';
+
 /*
   Library-owned translatable strings (button labels, the snackbar region's
   aria-label, ...) — everything else (title, message, per-button/detail
@@ -16,56 +21,7 @@ export interface ToastTranslations {
     notificationsRegion: string;
 }
 
-export const ToastLocales: Record<string, ToastTranslations> = {
-    en: {
-        close: 'Close',
-        details: 'Details',
-        hideDetails: 'Hide details',
-        copy: 'Copy',
-        copied: 'Copied!',
-        areYouSure: 'Are you sure?',
-        done: 'Done',
-        yes: 'Yes',
-        no: 'No',
-        notificationsRegion: 'Notifications',
-    },
-    de: {
-        close: 'Schließen',
-        details: 'Details',
-        hideDetails: 'Details ausblenden',
-        copy: 'Kopieren',
-        copied: 'Kopiert!',
-        areYouSure: 'Bist du sicher?',
-        done: 'Fertig',
-        yes: 'Ja',
-        no: 'Nein',
-        notificationsRegion: 'Benachrichtigungen',
-    },
-    es: {
-        close: 'Cerrar',
-        details: 'Detalles',
-        hideDetails: 'Ocultar detalles',
-        copy: 'Copiar',
-        copied: '¡Copiado!',
-        areYouSure: '¿Estás seguro?',
-        done: 'Hecho',
-        yes: 'Sí',
-        no: 'No',
-        notificationsRegion: 'Notificaciones',
-    },
-    fr: {
-        close: 'Fermer',
-        details: 'Détails',
-        hideDetails: 'Masquer les détails',
-        copy: 'Copier',
-        copied: 'Copié !',
-        areYouSure: 'Êtes-vous sûr ?',
-        done: 'Terminé',
-        yes: 'Oui',
-        no: 'Non',
-        notificationsRegion: 'Notifications',
-    },
-};
+export const ToastLocales: Record<string, ToastTranslations> = { en, de, es, fr };
 
 /**
  * Case-insensitive match against `ToastLocales`, falling back from a full

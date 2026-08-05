@@ -10,6 +10,7 @@
         "forceConsistentCasingInFileNames": true,
         "esModuleInterop": true,
         "declaration": true,
+        "resolveJsonModule": true,
         "noEmit": true
     },
     "include": ["src/**/*.ts"]

@@ -1,4 +1,8 @@
 import { detectBrowserLocales } from './ToastLocale';
+import en from './locales/quick-actions/en.json';
+import de from './locales/quick-actions/de.json';
+import es from './locales/quick-actions/es.json';
+import fr from './locales/quick-actions/fr.json';
 
 /**
  * Pre-translated common action words — "Yes", "Cancel", "Undo", ... — for
@@ -22,12 +26,7 @@ export interface QuickActionStrings {
     delete: string;
 }
 
-export const QuickActionLocales: Record<string, QuickActionStrings> = {
-    en: { yes: 'Yes', no: 'No', ok: 'OK', cancel: 'Cancel', confirm: 'Confirm', dismiss: 'Dismiss', undo: 'Undo', retry: 'Retry', save: 'Save', delete: 'Delete' },
-    de: { yes: 'Ja', no: 'Nein', ok: 'OK', cancel: 'Abbrechen', confirm: 'Bestätigen', dismiss: 'Verwerfen', undo: 'Rückgängig', retry: 'Erneut versuchen', save: 'Speichern', delete: 'Löschen' },
-    es: { yes: 'Sí', no: 'No', ok: 'Aceptar', cancel: 'Cancelar', confirm: 'Confirmar', dismiss: 'Descartar', undo: 'Deshacer', retry: 'Reintentar', save: 'Guardar', delete: 'Eliminar' },
-    fr: { yes: 'Oui', no: 'Non', ok: 'OK', cancel: 'Annuler', confirm: 'Confirmer', dismiss: 'Ignorer', undo: 'Annuler', retry: 'Réessayer', save: 'Enregistrer', delete: 'Supprimer' },
-};
+export const QuickActionLocales: Record<string, QuickActionStrings> = { en, de, es, fr };
 
 // Case-insensitive match against QuickActionLocales, falling back from a
 // full tag ("de-CH") to its base language ("de") — same shape as
