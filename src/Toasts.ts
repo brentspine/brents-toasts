@@ -81,7 +81,7 @@ export interface ToastOptions {
     titleMode?: 'inline' | 'stacked';
     /** See `ToastPosition`. Defaults to `ToastPosition.BOTTOM_CENTER` or the configured default. */
     position?: ToastPositionValue;
-    /** See `ToastAnimation`/"Animations" in README.md. `slide` (default), `fade`, `none`, or a name registered via `registerToastAnimation`. */
+    /** See `ToastAnimation`/`docs/guide/animations.md`. `slide` (default), `fade`, `none`, or a name registered via `registerToastAnimation`. */
     animation?: ToastAnimationValue;
     /** Called as soon as the toast starts closing (manually or via duration timeout). */
     onClose?: () => void;

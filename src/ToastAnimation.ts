@@ -143,7 +143,7 @@ const registry = new Map<string, ToastAnimationDefinition>([
 /**
  * Registers a custom named animation, usable anywhere `animation` is
  * accepted (`ToastOptions`, `configure()`, `ToastBuilder.withAnimation()`)
- * by passing its `name`. See README.md's "Animations" section for a worked
+ * by passing its `name`. See `docs/guide/animations.md` for a worked
  * example. Overwriting a built-in name (e.g. `'slide'`) is allowed, and
  * replaces its behavior for every toast that requests it afterwards.
  */
