@@ -1,7 +1,8 @@
 .bt-snackbar {
     position: fixed;
     box-sizing: border-box;
-    width: 100vw;
+    left: 0;
+    right: 0;
     padding: 0 20px;
     z-index: 10000;
     display: flex;
