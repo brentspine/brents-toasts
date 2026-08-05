@@ -215,6 +215,12 @@
       "code": "const fetchPosts = () =>\n  new Promise((resolve, reject) => {\n    setTimeout(() => {\n      Math.random() > 0.3\n        ? resolve({ count: 12 })\n        : reject(new Error(\"Network error\"));\n    }, 1500);\n  });\n\ntoasts.promise(\n  fetchPosts(),\n  {\n    loading: \"Fetching posts...\",\n    success: (data) => ({\n      message: `Fetched ${data.count} posts`,\n      transition: ToastTransition.FADE,\n    }),\n    error: (err) => ({\n      message: `Failed to fetch posts: ${err.message}`,\n      transition: ToastTransition.SHAKE_LR,\n    }),\n  }\n);"
     },
     {
+      "id": "play-transition",
+      "title": "Play a transition on demand",
+      "description": "playToastTransition(id, transition) plays a transition with no content change - e.g. shaking a toast to signal a disallowed action instead of dismissing it.",
+      "code": "new ToastBuilder(\"Can't touch me\")\n  .withButton(\"Undo\", (event, id) => toasts.playToastTransition(id, ToastTransition.SHAKE_LR))\n  .show();"
+    },
+    {
       "id": "reverse-order",
       "title": "Reverse stacking order",
       "description": "Insert a toast at the far end of the stack instead of nearest the anchor edge.",

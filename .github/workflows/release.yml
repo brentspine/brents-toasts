@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release:
@@ -19,6 +20,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          registry-url: 'https://registry.npmjs.org'
 
       - run: npm ci
       - run: npm run typecheck
@@ -34,6 +36,22 @@ jobs:
             exit 1
           fi
 
+      - name: Determine prerelease status
+        id: prerelease
+        run: |
+          if [[ "${GITHUB_REF_NAME}" =~ -(alpha|beta|rc) ]]; then
+            echo "flag=--prerelease" >> "$GITHUB_OUTPUT"
+            echo "npmtag=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          else
+            echo "flag=" >> "$GITHUB_OUTPUT"
+            echo "npmtag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --tag "${{ steps.prerelease.outputs.npmtag }}" --provenance
+
       - name: Rename dist files with version
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -44,15 +62,6 @@ jobs:
           cp dist/index.umd.js       "release/brents-toasts-${VERSION}.umd.js"
           cp dist/index.umd.min.js   "release/brents-toasts-${VERSION}.umd.min.js"
           cp dist/index.d.ts         "release/brents-toasts-${VERSION}.d.ts"
-
-      - name: Determine prerelease status
-        id: prerelease
-        run: |
-          if [[ "${GITHUB_REF_NAME}" =~ -(alpha|beta|rc) ]]; then
-            echo "flag=--prerelease" >> "$GITHUB_OUTPUT"
-          else
-            echo "flag=" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Determine previous tag
         id: prevtag
