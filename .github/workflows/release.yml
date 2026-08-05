@@ -50,7 +50,7 @@ jobs:
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --tag "${{ steps.prerelease.outputs.npmtag }}" --provenance
+        run: npm publish --tag "${{ steps.prerelease.outputs.npmtag }}" --access public --provenance
 
       - name: Rename dist files with version
         run: |
