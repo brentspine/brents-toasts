@@ -48,9 +48,13 @@ jobs:
           fi
 
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --tag "${{ steps.prerelease.outputs.npmtag }}" --access public --provenance
+        # Trusted publishing (OIDC) needs npm >= 11.5.1, newer than what
+        # actions/setup-node's Node 22 bundles, and no NODE_AUTH_TOKEN —
+        # npm authenticates via the job's GitHub Actions OIDC token instead
+        # (see the `id-token: write` permission above).
+        run: |
+          npm install -g npm@latest
+          npm publish --tag "${{ steps.prerelease.outputs.npmtag }}" --access public --provenance
 
       - name: Rename dist files with version
         run: |
