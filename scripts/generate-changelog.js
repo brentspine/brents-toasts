@@ -133,7 +133,8 @@ const data = await response.json();
 const body = data.content.map((block) => block.text).join("").trim();
 
 const date = new Date().toISOString().slice(0, 10);
-const entry = `# ${version} - ${date}\n\n${body}\n`;
+const socketBadge = `[![Socket Security](https://badge.socket.dev/npm/package/brents-toasts/${version})](https://socket.dev/npm/package/brents-toasts/overview/${version})`;
+const entry = `# ${version} - ${date}\n\n${socketBadge}\n\n${body}\n`;
 
 mkdirSync("docs/changelogs", { recursive: true });
 writeFileSync(`docs/changelogs/${version}.md`, entry);
