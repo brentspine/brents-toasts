@@ -38,6 +38,8 @@
         type="number"
         [ngModel]="form().maxToasts"
         (ngModelChange)="updateForm('maxToasts', $event)"
+        [disabled]="!form().evictOldest"
+        [title]="!form().evictOldest ? 'maxToasts has no effect while evictOldest is off — the stack is never capped' : ''"
       />
     </div>
 
@@ -142,7 +144,13 @@
         <option [value]="p">{{ p }}</option>
       }
     </select>
-    <input type="number" [ngModel]="overrideMaxToasts()" (ngModelChange)="overrideMaxToasts.set($event)" />
+    <input
+      type="number"
+      [ngModel]="overrideMaxToasts()"
+      (ngModelChange)="overrideMaxToasts.set($event)"
+      [disabled]="!overrideEvictOldest()"
+      [title]="!overrideEvictOldest() ? 'maxToasts has no effect while evictOldest is off — the stack is never capped' : ''"
+    />
     <label>
       <input
         type="checkbox"
@@ -158,7 +166,11 @@
     <ul class="override-list">
       @for (entry of positionOverrideEntries(); track entry[0]) {
         <li>
-          <code>{{ entry[0] }}</code>: maxToasts={{ entry[1].maxToasts }}, evictOldest={{ entry[1].evictOldest }}
+          <code>{{ entry[0] }}</code>:
+          <span
+            [class.irrelevant]="!entry[1].evictOldest"
+            [title]="!entry[1].evictOldest ? 'maxToasts has no effect while evictOldest is off — the stack is never capped' : ''"
+          >maxToasts={{ entry[1].maxToasts }}</span>, evictOldest={{ entry[1].evictOldest }}
           <button type="button" class="clear" (click)="clearPositionOverride(entry[0])">Clear</button>
         </li>
       }
