@@ -1,0 +1,14 @@
+{
+  "name": "brents-toasts",
+  "owner": {
+    "name": "Brentspine",
+    "url": "https://brentspine.de"
+  },
+  "plugins": [
+    {
+      "name": "brents-toasts",
+      "source": "./docs",
+      "description": "Claude Skill for writing correct code against brents-toasts, a zero-dependency toast/snackbar UI library."
+    }
+  ]
+}
