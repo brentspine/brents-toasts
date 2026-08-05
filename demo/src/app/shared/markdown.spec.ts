@@ -13,6 +13,34 @@ describe('parseInline', () => {
       { text: ' to show a toast', code: false },
     ]);
   });
+
+  it('parses a link-wrapped image (the Socket Security badge shape) into one segment', () => {
+    const badge =
+      '[![Socket Security](https://badge.socket.dev/npm/package/brents-toasts/2.4.8)](https://socket.dev/npm/package/brents-toasts/overview/2.4.8)';
+
+    expect(parseInline(badge)).toEqual([
+      {
+        text: 'Socket Security',
+        code: false,
+        image: 'https://badge.socket.dev/npm/package/brents-toasts/2.4.8',
+        link: 'https://socket.dev/npm/package/brents-toasts/overview/2.4.8',
+      },
+    ]);
+  });
+
+  it('parses a plain image', () => {
+    expect(parseInline('![alt text](https://example.com/img.png)')).toEqual([
+      { text: 'alt text', code: false, image: 'https://example.com/img.png' },
+    ]);
+  });
+
+  it('parses a plain link', () => {
+    expect(parseInline('see [the docs](https://example.com) for more')).toEqual([
+      { text: 'see ', code: false },
+      { text: 'the docs', code: false, link: 'https://example.com' },
+      { text: ' for more', code: false },
+    ]);
+  });
 });
 
 describe('parseChangelogMarkdown', () => {
