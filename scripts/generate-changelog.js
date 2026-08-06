@@ -146,7 +146,7 @@ const statsFooter = [
   `[![coverage](https://img.shields.io/codecov/c/github/brentspine/brents-toasts.svg?style=for-the-badge)](https://codecov.io/gh/brentspine/brents-toasts)`,
   `[![npm v${version}](https://img.shields.io/badge/npm-v${version}-cb3837?style=for-the-badge&logo=npm)](https://www.npmjs.com/package/brents-toasts/v/${version})`,
 ].join("\n");
-const entry = `# ${version} - ${date}\n\n${socketBadge}\n\n${body}\n\n---\n\n${statsFooter}\n`;
+const entry = `# ${version} - ${date}\n\n<!--\n${socketBadge}\n-->\n\n${body}\n\n---\n\n<!--\n${statsFooter}\n-->\n`;
 
 mkdirSync("docs/changelogs", { recursive: true });
 writeFileSync(`docs/changelogs/${version}.md`, entry);
