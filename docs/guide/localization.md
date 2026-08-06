@@ -6,13 +6,19 @@ The library's own text (`closeButton()`'s `"Close"`, `detailsLabel`
 (`"Details"`) / `detailsHideLabel` (`"Hide details"`), `detailsCopyButton()`'s
 `"Copy"`/`"Copied!"`, `confirmButton()`'s `confirmMessage` (`"Are you
 sure?"`) / `yesLabel`/`noLabel` (`"Yes"`/`"No"`) / `doneMessage` (`"Done"`),
-and the snackbar region's `aria-label` (`"Notifications"`)) is
+and the snackbar region's `aria-label` (`"Notifications, <position>"`)) is
 auto-translated based on the browser's `navigator.language`(s), no config
 required. Bundled packs today: `en` (default/fallback), `de`, `es`, `fr`
 (see `ToastLocales` in `dist/index.d.ts`, or `src/locales/toast/*.json`).
 Everything else (`title`, `message`, per-button/detail text,
 `confirmButton()`'s own `label` (e.g. `"Delete"`)) is your own application
 text and is never auto-translated.
+
+Each of the 6 positions gets its own `role="region"` snackbar container, and
+each one's `aria-label` is suffixed with a localized position name (e.g.
+`"Notifications, top right"` vs. `"Notifications, bottom center"`) so
+screen readers can tell simultaneously-visible regions apart instead of
+announcing several identically-named "Notifications" landmarks.
 
 To force a specific bundled pack instead of auto-detecting:
 
@@ -38,7 +44,9 @@ precedence as every other option.
 
 The full `ToastTranslations` shape: `close`, `details`, `hideDetails`,
 `copy`, `copied`, `areYouSure`, `done`, `yes`, `no`, `notificationsRegion`,
-`progress` (default accessible name for a progress bar - see
+`positions` (a `Record` of all 6 `ToastPosition` values to a localized
+position name, appended to `notificationsRegion` for each snackbar's
+`aria-label`), `progress` (default accessible name for a progress bar - see
 [`ToastProgressOptions.label`](progress.md)).
 
 ## Quick action strings

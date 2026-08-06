@@ -9,5 +9,13 @@
     "yes": "Ja",
     "no": "Nein",
     "notificationsRegion": "Benachrichtigungen",
+    "positions": {
+        "top-left": "oben links",
+        "top-center": "oben mitte",
+        "top-right": "oben rechts",
+        "bottom-left": "unten links",
+        "bottom-center": "unten mitte",
+        "bottom-right": "unten rechts"
+    },
     "progress": "Fortschritt"
 }

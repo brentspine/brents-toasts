@@ -9,5 +9,13 @@
     "yes": "Yes",
     "no": "No",
     "notificationsRegion": "Notifications",
+    "positions": {
+        "top-left": "top left",
+        "top-center": "top center",
+        "top-right": "top right",
+        "bottom-left": "bottom left",
+        "bottom-center": "bottom center",
+        "bottom-right": "bottom right"
+    },
     "progress": "Progress"
 }

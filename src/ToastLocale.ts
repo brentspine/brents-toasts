@@ -2,6 +2,7 @@ import en from './locales/toast/en.json';
 import de from './locales/toast/de.json';
 import es from './locales/toast/es.json';
 import fr from './locales/toast/fr.json';
+import type { ToastPositionValue } from './ToastPosition';
 
 /*
   Library-owned translatable strings (button labels, the snackbar region's
@@ -19,6 +20,13 @@ export interface ToastTranslations {
     yes: string;
     no: string;
     notificationsRegion: string;
+    /**
+     * Per-position suffix for the snackbar region's `aria-label` (e.g.
+     * "top left"), so simultaneously-visible regions at different positions
+     * get distinct accessible names instead of all being announced as just
+     * `notificationsRegion` - see `_snackbarLabel` in `Toasts.ts`.
+     */
+    positions: Record<ToastPositionValue, string>;
     /** Default accessible name for a progress bar with no explicit `ToastProgressOptions.label`. */
     progress: string;
 }

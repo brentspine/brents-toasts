@@ -457,6 +457,17 @@ describe('eviction and stacking', () => {
         expect(document.getElementById(id1)?.classList.contains('bt-hiding')).toBe(true);
         expect(document.getElementById(id2)?.classList.contains('bt-hiding')).toBe(true);
     });
+
+    it('gives simultaneously-visible snackbar regions distinct aria-labels per position', () => {
+        const t = new Toasts();
+        const idBottom = t.showToast('1', { duration: 0, position: ToastPosition.BOTTOM_CENTER });
+        const idTop = t.showToast('2', { duration: 0, position: ToastPosition.TOP_RIGHT });
+        const bottomLabel = document.getElementById(idBottom)!.parentElement!.getAttribute('aria-label');
+        const topLabel = document.getElementById(idTop)!.parentElement!.getAttribute('aria-label');
+        expect(bottomLabel).not.toBe(topLabel);
+        expect(bottomLabel).toBe('Notifications, bottom center');
+        expect(topLabel).toBe('Notifications, top right');
+    });
 });
 
 describe('responsive position collapsing', () => {

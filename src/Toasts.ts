@@ -1441,6 +1441,16 @@ export class Toasts {
     }
 
     /**
+     * Distinct accessible name per position (e.g. "Notifications, top
+     * left") so simultaneously-visible regions at different positions read
+     * as separate landmarks to a screen reader instead of several
+     * identically-named "Notifications" regions.
+     */
+    private _snackbarLabel(position: ToastPositionValue, t: ToastTranslations): string {
+        return `${t.notificationsRegion}, ${t.positions[position]}`;
+    }
+
+    /**
      * Reusing the literal `id="snackbar"` element for BOTTOM_CENTER only is a
      * back-compat hook for pages that already had a `<div id="snackbar">`
      * before position support existed - not a statement about which
@@ -1454,7 +1464,7 @@ export class Toasts {
             // Refreshed on every call (not just at creation) so a later
             // configure({ locale }) updates an already-rendered snackbar's
             // accessible name, not just newly-created ones.
-            cached.setAttribute('aria-label', t.notificationsRegion);
+            cached.setAttribute('aria-label', this._snackbarLabel(position, t));
             return cached;
         }
 
@@ -1462,7 +1472,7 @@ export class Toasts {
             ? document.getElementById('snackbar')
             : null;
         if (existing) {
-            existing.setAttribute('aria-label', t.notificationsRegion);
+            existing.setAttribute('aria-label', this._snackbarLabel(position, t));
             this.snackbars.set(position, existing);
             return existing;
         }
@@ -1472,7 +1482,7 @@ export class Toasts {
         snackbar.dataset.position = position;
         if (position === ToastPosition.BOTTOM_CENTER) snackbar.id = 'snackbar';
         snackbar.setAttribute('role', 'region');
-        snackbar.setAttribute('aria-label', t.notificationsRegion);
+        snackbar.setAttribute('aria-label', this._snackbarLabel(position, t));
         const root = this._getRoot();
         root.appendChild(snackbar);
         root.insertBefore(document.createComment(`brents-toasts v${VERSION} snackbar container`), snackbar);
