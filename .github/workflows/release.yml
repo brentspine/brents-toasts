@@ -178,3 +178,47 @@ jobs:
             git commit -m "Add changelog and options snapshot for v${VERSION}"
             git push origin main
           fi
+
+      - name: Warm unpkg cache
+        # Best-effort only: unpkg pulls from the npm registry on cache miss and
+        # can transiently 500/timeout on a version's first request(s). Priming
+        # it here means the first real user isn't the one who eats that cold
+        # start. Deliberately placed last (rather than right after publish) so
+        # the npm registry has real time to propagate the new version first -
+        # hitting unpkg before that propagation finishes risks an error
+        # response getting cached at unpkg's own CDN edge for a while, which
+        # would be worse than not warming at all. `if: always()` because this
+        # is the one thing in the job that should still be attempted even if
+        # an earlier best-effort step (e.g. the demo deploy) failed - it's
+        # unrelated to those failures and losing it is pure downside for the
+        # actual release. Fired concurrently (one backgrounded curl per URL,
+        # then a single `wait`) rather than one-at-a-time so this can't add up
+        # into a multi-minute sequential retry chain - deliberately not curl's
+        # own --parallel/-Z, whose -o/-w options don't reliably stay scoped to
+        # their own URL when shared across a multi-URL parallel invocation.
+        # timeout-minutes is a hard backstop on top of that. Never fails the
+        # release - a still-cold or flaky unpkg here is not something this
+        # workflow can fix, so failures are just logged.
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 2
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          URLS=(
+            "https://unpkg.com/brents-toasts@${VERSION}"
+            "https://unpkg.com/brents-toasts@${VERSION}/dist/index.esm.js"
+            "https://unpkg.com/brents-toasts@${VERSION}/dist/index.esm.min.js"
+            "https://unpkg.com/brents-toasts@${VERSION}/dist/index.cjs"
+            "https://unpkg.com/brents-toasts@${VERSION}/dist/index.umd.js"
+            "https://unpkg.com/brents-toasts@${VERSION}/dist/index.umd.min.js"
+            "https://unpkg.com/brents-toasts@${VERSION}/dist/index.d.ts"
+            "https://app.unpkg.com/brents-toasts@${VERSION}"
+            "https://app.unpkg.com/brents-toasts@${VERSION}/files/dist"
+          )
+          for url in "${URLS[@]}"; do
+            curl --fail --silent --show-error --output /dev/null \
+              -w "HTTP %{http_code}  ${url}\n" \
+              --retry 2 --retry-delay 2 --retry-all-errors --max-time 15 \
+              "$url" || echo "::warning::unpkg warm-up failed for $url (non-fatal)" &
+          done
+          wait
