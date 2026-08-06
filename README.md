@@ -66,7 +66,7 @@ TypeScript-first: full `.d.ts` types ship with every build, documented via JSDoc
 - **[Live demo & playground](https://brentspine.github.io/brents-toasts/)** - try every option interactively and copy the generated code.
 - **[Claude Skill](docs/SKILL.md)** - accurate, hallucination-resistant guidance for AI agents writing code against this library. Install as a Claude Code plugin: `/plugin marketplace add brentspine/brents-toasts` then `/plugin install brents-toasts@brents-toasts`. No install step needed either - copy `docs/` into your own project's `.claude/skills/brents-toasts/` for the same effect.
 - **[Changelogs](docs/changelogs/)** and **[GitHub Releases](https://github.com/brentspine/brents-toasts/releases)** - what changed in each version.
-- **[ROADMAP.md](ROADMAP.md)** - design history and what's planned.
+<!-- - **[ROADMAP.md](ROADMAP.md)** - design history and what's planned. -->
 
 ## License
 
