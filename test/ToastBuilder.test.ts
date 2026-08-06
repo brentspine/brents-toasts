@@ -135,6 +135,17 @@ describe('ToastBuilder', () => {
         vi.useRealTimers();
     });
 
+    it('withPauseOnHover also pauses the timer on focusin, not just mouseenter', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = new ToastBuilder('m', t).withPauseOnHover().withDuration(1000).show();
+        const container = document.getElementById(id)!;
+        container.dispatchEvent(new FocusEvent('focusin'));
+        vi.advanceTimersByTime(5000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
+        vi.useRealTimers();
+    });
+
     it('withProgress defaults to true and renders a progress bar', () => {
         const t = new Toasts();
         const id = new ToastBuilder('m', t).withProgress().withDuration(1000).show();

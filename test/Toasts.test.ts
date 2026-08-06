@@ -279,6 +279,95 @@ describe('timer lifecycle', () => {
     });
 });
 
+describe('pauseOnHover (mouse + focus)', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+        cleanup();
+    });
+
+    it('defaults to true and pauses the timer on focusin, not just mouseenter', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000 });
+        const container = document.getElementById(id)!;
+        container.dispatchEvent(new FocusEvent('focusin'));
+        vi.advanceTimersByTime(5000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
+    });
+
+    it('resumes on focusout once focus leaves the toast entirely', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000 });
+        const container = document.getElementById(id)!;
+        container.dispatchEvent(new FocusEvent('focusin'));
+        vi.advanceTimersByTime(5000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
+        container.dispatchEvent(new FocusEvent('focusout', { relatedTarget: document.body }));
+        vi.advanceTimersByTime(1000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('does not resume on focusout when focus moves to another element still inside the toast', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000 });
+        const container = document.getElementById(id)!;
+        const closeBtn = container.querySelector('.bt-toast-close') as HTMLElement;
+        container.dispatchEvent(new FocusEvent('focusin'));
+        container.dispatchEvent(new FocusEvent('focusout', { relatedTarget: closeBtn }));
+        vi.advanceTimersByTime(5000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
+    });
+
+    it('pauseOnHover: false leaves the timer running through focusin too', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000, pauseOnHover: false });
+        const container = document.getElementById(id)!;
+        container.dispatchEvent(new FocusEvent('focusin'));
+        vi.advanceTimersByTime(1000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('stays paused via focus after the mouse leaves while still focused', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000 });
+        const container = document.getElementById(id)!;
+        container.dispatchEvent(new Event('mouseenter'));
+        container.dispatchEvent(new FocusEvent('focusin'));
+        container.dispatchEvent(new Event('mouseleave'));
+        vi.advanceTimersByTime(5000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
+    });
+
+    it('only resumes once both hover and focus release', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000 });
+        const container = document.getElementById(id)!;
+        container.dispatchEvent(new Event('mouseenter'));
+        container.dispatchEvent(new FocusEvent('focusin'));
+        container.dispatchEvent(new Event('mouseleave'));
+        container.dispatchEvent(new FocusEvent('focusout', { relatedTarget: document.body }));
+        vi.advanceTimersByTime(1000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('is a safe no-op for a sticky toast (duration: 0)', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0 });
+        const container = document.getElementById(id)!;
+        expect(() => {
+            container.dispatchEvent(new FocusEvent('focusin'));
+            container.dispatchEvent(new FocusEvent('focusout', { relatedTarget: document.body }));
+        }).not.toThrow();
+        expect(t.getToastTimer(id)).toBeNull();
+    });
+});
+
 describe('progress bar sync', () => {
     afterEach(() => {
         vi.useRealTimers();

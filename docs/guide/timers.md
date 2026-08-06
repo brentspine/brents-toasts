@@ -8,6 +8,15 @@ or `toasts.configure({ pauseOnHover: false })` to turn it off). A sticky toast
 starts a timer, since it never gets timer state in the first place, so it
 can't suddenly disappear after a hover.
 
+`pauseOnHover` covers keyboard/screen-reader focus too, not just the mouse:
+tabbing to the toast itself or anything inside it (its close button, an
+action button, the "Details" toggle) pauses the countdown the same way,
+resuming once focus leaves the toast entirely. Hovering and focusing are
+tracked independently under the hood - either one pausing is enough to stop
+the countdown, and both have to release before it resumes (e.g. clicking a
+button leaves it focused even after the mouse moves away, so the timer stays
+paused until that button loses focus too).
+
 For anything else (reset on a button click, extend while a related async
 action is running, pause while a dropdown opened from the toast is open), call
 the same timer controls the built-in hover behavior is built on, using the
