@@ -95,7 +95,7 @@ declare const toasts: {
 };
 `;
 
-const MONACO_VERSION = '0.52.2';
+const MONACO_VERSION = '0.56.0';
 const MONACO_BASE = `https://cdn.jsdelivr.net/npm/monaco-editor@${MONACO_VERSION}/min/vs`;
 
 declare global {
@@ -235,9 +235,9 @@ export class CodeEditor {
     const host = this.monacoHost()?.nativeElement;
     if (!host) return;
 
-    monaco.languages.typescript.javascriptDefaults.addExtraLib(TOASTS_DTS, 'file:///toasts.d.ts');
-    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
-      target: monaco.languages.typescript.ScriptTarget.ES2020,
+    monaco.typescript.javascriptDefaults.addExtraLib(TOASTS_DTS, 'file:///toasts.d.ts');
+    monaco.typescript.javascriptDefaults.setCompilerOptions({
+      target: monaco.typescript.ScriptTarget.ES2020,
       allowNonTsExtensions: true,
     });
 
