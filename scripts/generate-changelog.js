@@ -42,7 +42,7 @@ if (!version) throw new Error("VERSION is not set");
 const diffBase = prevTag || EMPTY_TREE;
 let diff = execFileSync(
   "git",
-  ["diff", `${diffBase}..HEAD`, "--", ".", ":!dist", ":!docs/changelogs", ":!docs/options", ":!package-lock.json", ":!.idea/", ":!.claude/"],
+  ["diff", `${diffBase}..HEAD`, "--", ".", ":!dist", ":!docs/changelogs", ":!docs/options", ":!package-lock.json", ":!demo/package-lock.json", ":!.idea/", ":!.claude/"],
   { maxBuffer: 1024 * 1024 * 20 },
 ).toString();
 
