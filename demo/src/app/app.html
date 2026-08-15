@@ -1,4 +1,5 @@
 @let repo = githubStats.repo();
+@let pagesRepo = pagesStats.repo();
 
 <header class="top">
   <div class="container top-inner">
@@ -65,6 +66,11 @@
         <a [href]="repo.html_url + '/commits/main/'" target="_blank" rel="noopener"
           >Last commit {{ formatRelativeTime(repo.pushed_at) }}</a
         >
+        @if (pagesRepo) {
+          <a [href]="pagesRepo.html_url" target="_blank" rel="noopener"
+            >Demo deployed {{ formatRelativeTime(pagesRepo.pushed_at) }}</a
+          >
+        }
       </div>
     }
   </div>
