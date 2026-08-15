@@ -3,7 +3,7 @@ export type { ToastOptions, ToastsConfig, ToastButton, ToastButtonStep, ToastDet
 export { ToastLocales } from './ToastLocale';
 export type { ToastTranslations } from './ToastLocale';
 export { ToastColor } from './ToastColor';
-export type { ToastColorValue } from './ToastColor';
+export type { ToastColorValue, ToastColorPalette } from './ToastColor';
 export { ToastPosition } from './ToastPosition';
 export type { ToastPositionValue } from './ToastPosition';
 export { ToastAnimation, registerToastAnimation } from './ToastAnimation';

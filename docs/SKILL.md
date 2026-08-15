@@ -95,7 +95,10 @@ cases, and worked examples before implementing anything non-trivial with it.
   separate pre-translated common words. → [guide/localization.md](guide/localization.md)
 - **Config** - `configure()`/`configurePosition()` for defaults, six stacking positions,
   `maxToasts`/`evictOldest`, responsive collapsing below `responsiveBreakpoint`. Scope defaults
-  to one page/section with `new Toasts()` instead of the shared singleton.
+  to one page/section with `new Toasts()` instead of the shared singleton. `role`/`aria-live` are
+  derived from `color` matching `configure()`'s `colors.WARNING`/`.ERROR` (default bundled
+  `ToastColor`) - reskinning your palette? Override `colors`, not just a one-off `color` string,
+  or warning/error toasts silently lose their assertive announcement.
   → [guide/config.md](guide/config.md)
 - **Per-toast data** - `setToastData`/`getToastData(id)`: attach a payload so one shared button
   handler can act on many toasts. Not general app state. → [guide/data.md](guide/data.md)

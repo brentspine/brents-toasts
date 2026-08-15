@@ -765,6 +765,68 @@ describe('theme', () => {
     });
 });
 
+describe('role/aria-live derivation from color (#56)', () => {
+    afterEach(cleanup);
+
+    function roleOf(id: string): { role: string | null; ariaLive: string | null } {
+        const toast = document.getElementById(id)!.querySelector<HTMLElement>('.bt-toast')!;
+        return { role: toast.getAttribute('role'), ariaLive: toast.getAttribute('aria-live') };
+    }
+
+    it('the bundled WARNING/ERROR colors get role="alert"/aria-live="assertive"; INFO/SUCCESS get "status"/"polite"', () => {
+        const t = new Toasts();
+        expect(roleOf(t.showToast('x', { color: ToastColor.WARNING, duration: 0 }))).toEqual({ role: 'alert', ariaLive: 'assertive' });
+        expect(roleOf(t.showToast('x', { color: ToastColor.ERROR, duration: 0 }))).toEqual({ role: 'alert', ariaLive: 'assertive' });
+        expect(roleOf(t.showToast('x', { color: ToastColor.INFO, duration: 0 }))).toEqual({ role: 'status', ariaLive: 'polite' });
+        expect(roleOf(t.showToast('x', { color: ToastColor.SUCCESS, duration: 0 }))).toEqual({ role: 'status', ariaLive: 'polite' });
+    });
+
+    it('an arbitrary custom color not in the configured palette is never treated as a severity', () => {
+        const t = new Toasts();
+        expect(roleOf(t.showToast('x', { color: '#ffc107', duration: 0 }))).toEqual({ role: 'status', ariaLive: 'polite' });
+    });
+
+    it('configure({ colors }) retargets which exact color counts as a warning/error, merging key-by-key', () => {
+        const t = new Toasts();
+        const appWarning = '#ffc107';
+        t.configure({ colors: { WARNING: appWarning } });
+
+        // The app's own warning color now gets the alert role...
+        expect(roleOf(t.showToast('x', { color: appWarning, duration: 0 }))).toEqual({ role: 'alert', ariaLive: 'assertive' });
+        // ...the library's original WARNING no longer does, since it's not the configured value anymore...
+        expect(roleOf(t.showToast('x', { color: ToastColor.WARNING, duration: 0 }))).toEqual({ role: 'status', ariaLive: 'polite' });
+        // ...and ERROR, untouched by the partial override, still matches its bundled default.
+        expect(roleOf(t.showToast('x', { color: ToastColor.ERROR, duration: 0 }))).toEqual({ role: 'alert', ariaLive: 'assertive' });
+    });
+
+    it('updateToast re-derives role/aria-live from the current config.colors when color changes', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { color: ToastColor.INFO, duration: 0 });
+        expect(roleOf(id)).toEqual({ role: 'status', ariaLive: 'polite' });
+        t.updateToast(id, { color: ToastColor.ERROR });
+        expect(roleOf(id)).toEqual({ role: 'alert', ariaLive: 'assertive' });
+    });
+
+    it("promise()'s success/error/timeout defaults track a reskinned configure({ colors }) palette", async () => {
+        const t = new Toasts();
+        t.configure({ colors: { SUCCESS: '#00cc66', ERROR: '#cc0000' } });
+
+        let resolveFn!: (v: string) => void;
+        const p = new Promise<string>((resolve) => { resolveFn = resolve; });
+        t.promise(p, { loading: 'Loading...', success: 'Done!' });
+        const id = document.querySelector('.bt-toast-container')!.id;
+
+        resolveFn('ok');
+        await Promise.resolve();
+        await Promise.resolve();
+
+        // SUCCESS isn't a severity color - role stays "status", same as INFO.
+        expect(roleOf(id)).toEqual({ role: 'status', ariaLive: 'polite' });
+        const toastClose = document.getElementById(id)!.querySelector<HTMLElement>('.bt-toast-close')!;
+        expect(toastClose.style.getPropertyValue('--data-background')).toBe('#00cc66');
+    });
+});
+
 describe('button/detail helpers', () => {
     afterEach(cleanup);
 

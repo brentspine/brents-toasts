@@ -1,4 +1,4 @@
-import { ToastColor } from './ToastColor';
+import type { ToastColorPalette } from './ToastColor';
 import { applyThemeVars, autoCloseIconColor, type ToastTheme } from './ToastTheme';
 import { createActionButton, renderToastButton, type ToastButton } from './ToastButton';
 import { renderTextWithBreaks } from './ToastText';
@@ -29,9 +29,16 @@ export interface ResolvedProgress {
 // the theme (card background/text/details background/action color as CSS
 // vars, plus the close icon color) so all of it can never fall out of sync
 // between the two call sites.
-export function applyColor(toastClose: HTMLElement, toast: HTMLElement, color: string, theme?: ToastTheme): void {
+//
+// `colors` is the caller's *currently configured* severity palette
+// (`Toasts.config.colors`, default `ToastColor`), not the bundled `ToastColor`
+// constants directly - a consumer who reskins WARNING/ERROR via
+// `configure({ colors })` needs the exact-match role/aria-live derivation
+// below to track their palette, not silently keep comparing against colors
+// they've already overridden.
+export function applyColor(toastClose: HTMLElement, toast: HTMLElement, color: string, colors: ToastColorPalette, theme?: ToastTheme): void {
     toastClose.style.setProperty('--data-background', color);
-    const isAlert = color === ToastColor.ERROR || color === ToastColor.WARNING;
+    const isAlert = color === colors.ERROR || color === colors.WARNING;
     toast.setAttribute('role', isAlert ? 'alert' : 'status');
     toast.setAttribute('aria-live', isAlert ? 'assertive' : 'polite');
     applyThemeVars(toast, theme);

@@ -34,6 +34,7 @@ whatever `configure()` set.
 | `locale` | `undefined` (auto-detect) | see [Localization](localization.md) |
 | `translations` | `undefined` | see [Localization](localization.md) |
 | `theme` | `undefined` | see [Theming](theming.md) |
+| `colors` | `{ ...ToastColor }` | see "Severity colors and accessibility" below |
 
 Two `ToastOptions` fields have no `ToastsConfig` counterpart to set
 library-wide, since they're inherently per-call: `onClose` (called as soon
@@ -41,6 +42,38 @@ as a toast starts closing, manually or via duration timeout; there's no
 sensible shared default for a callback) and `reverseOrder` (inserts a toast
 at the far end of its position's stack instead of nearest the anchor edge;
 creation-time only, a no-op passed to `updateToast`).
+
+## Severity colors and accessibility
+
+A toast's `role`/`aria-live` (`role="alert"`/`aria-live="assertive"` vs.
+`role="status"`/`aria-live="polite"`) is derived from its resolved `color`:
+a value that exactly matches `configure()`'s `colors.WARNING`/`colors.ERROR`
+gets the assertive `alert` treatment; anything else - including `INFO`/
+`SUCCESS`, and any color of your own that isn't one of the four severities -
+gets the passive `status` treatment. `colors` defaults to the bundled
+`ToastColor` (`{ INFO, SUCCESS, WARNING, ERROR }`), and also supplies the
+default `color` `promise()` applies to its `success`/`error`/`timeout`
+outcomes.
+
+**If your app reskins its palette, override `colors`, not just `color`.**
+Passing your own hex as a one-off `color` (e.g. to match your app's design
+system) doesn't tell the library what that color *means* - it'll render
+`role="status"` even for something semantically a warning or error, since
+it no longer matches the bundled `ToastColor.WARNING`/`ERROR` byte-for-byte.
+Instead, override the severities themselves:
+
+```ts
+toasts.configure({
+  colors: { WARNING: '#ffc107', ERROR: '#dc3545' },
+});
+
+// Now correctly gets role="alert"/aria-live="assertive":
+toasts.showToast('Please sign in to use this feature.', { color: '#ffc107' });
+```
+
+`colors` merges key-by-key over the current value (like `theme`), so a
+partial override - just `WARNING`, say - leaves `INFO`/`SUCCESS`/`ERROR` at
+their bundled defaults rather than losing them.
 
 ## Capacity and eviction
 

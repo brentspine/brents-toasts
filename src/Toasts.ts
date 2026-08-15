@@ -5,7 +5,7 @@
   Brentspine 2026
 */
 
-import { ToastColor } from './ToastColor';
+import { ToastColor, type ToastColorPalette } from './ToastColor';
 import { ToastPosition, IMPLEMENTED_POSITIONS, POSITION_EDGE, collapsedPosition, DEFAULT_RESPONSIVE_BREAKPOINT, type ToastPositionValue } from './ToastPosition';
 import { ToastAnimation, getToastAnimation, type ToastAnimationValue, type ToastAnimationDefinition } from './ToastAnimation';
 import { ToastTransition, getToastTransition, type ToastTransitionValue } from './ToastTransition';
@@ -72,7 +72,12 @@ export interface ToastProgressOptions {
 }
 
 export interface ToastOptions {
-    /** Background color of the indicator bar. Defaults to `ToastColor.INFO` or the configured default. */
+    /** Background color of the indicator bar. Defaults to `ToastColor.INFO` or the configured default.
+     *  Also drives accessibility semantics: a value exactly matching `configure()`'s `colors.WARNING`/
+     *  `.ERROR` (default `ToastColor.WARNING`/`ERROR`) gets `role="alert"`/`aria-live="assertive"`;
+     *  anything else gets `role="status"`/`aria-live="polite"`. If your app reskins its palette, override
+     *  `configure({ colors })` (see `ToastsConfig.colors`) rather than just passing a different `color`
+     *  string here, so this toast's semantic role tracks your palette instead of the library's originals. */
     color?: string;
     /** Auto-dismiss after ms. Use `0` to disable. Defaults to `3000` or the configured default. */
     duration?: number;
@@ -159,6 +164,17 @@ export interface ToastsConfig {
     theme?: ToastTheme;
     /** Library-wide default for `promise()`'s `timeout` - see there. `0` disables the timeout. Default `0`. */
     promiseTimeout: number;
+    /** The severity palette - which exact `color` values `applyColor` treats as "warning"/"error" for
+     *  `role="alert"`/`aria-live="assertive"` (everything else gets `role="status"`/`polite`), and what
+     *  `promise()` defaults `color` to for its `timeout`/`success`/`error` outcomes. Defaults to the bundled
+     *  `ToastColor` (`{ INFO, SUCCESS, WARNING, ERROR }`). Override this - not a one-off `color` string - if
+     *  your app reskins its palette: `configure({ colors: { WARNING: '#ffc107', ERROR: '#dc3545' } })` keeps
+     *  the a11y role/aria-live derivation (and `promise()`'s own defaults) in sync with your colors instead of
+     *  silently comparing against the library's originals. Merges key-by-key over the current value (like
+     *  `theme` does per-toast), so a partial override doesn't drop the other severities' colors. An arbitrary
+     *  per-toast `color` that isn't one of these four is never treated as a severity - it gets `role="status"`,
+     *  same as `INFO`/`SUCCESS`. */
+    colors: ToastColorPalette;
 }
 
 interface ResolvedToastOptions {
@@ -213,6 +229,7 @@ const DEFAULT_CONFIG: ToastsConfig = {
     pauseOnHover: true,
     progress: false,
     promiseTimeout: 0,
+    colors: { ...ToastColor },
 };
 
 // Per-toast auto-dismiss timer bookkeeping, keyed off the toast's own root
@@ -332,7 +349,13 @@ export class Toasts {
      * Per-call options passed to showToast still take precedence.
      */
     configure(config: Partial<ToastsConfig> = {}): void {
+        // `colors` merges key-by-key against the *current* palette (like `theme` does
+        // per-toast) rather than a whole-value replace, so `configure({ colors: { WARNING:
+        // '#ffc107' } })` only changes WARNING - INFO/SUCCESS/ERROR keep whatever they
+        // already resolved to instead of going undefined.
+        const colors = config.colors ? { ...this.config.colors, ...config.colors } : undefined;
         this.config = { ...this.config, ...config };
+        if (colors) this.config.colors = colors;
     }
 
     /**
@@ -456,7 +479,7 @@ export class Toasts {
         const closeSpan = document.createElement('span');
         closeSpan.innerHTML = '&times;';
         toastClose.appendChild(closeSpan);
-        applyColor(toastClose, toast, opts.color, opts.theme);
+        applyColor(toastClose, toast, opts.color, this.config.colors, opts.theme);
 
         const toastContent = document.createElement('div');
         toastContent.className = 'bt-toast-content';
@@ -658,7 +681,7 @@ export class Toasts {
             if ('message' in update || 'title' in update || 'titleMode' in update || 'allowHtml' in update || 'allowLineBreaks' in update) {
                 applyContent(toastContent, state.message, state);
             }
-            if ('color' in update || 'theme' in update) applyColor(toastClose, toast, state.color, state.theme);
+            if ('color' in update || 'theme' in update) applyColor(toastClose, toast, state.color, this.config.colors, state.theme);
             if ('progress' in update) {
                 // An explicit new `progress` config is a real config swap (mode,
                 // position, height, ...), so a full rebuild (same as creation)
@@ -1152,7 +1175,8 @@ export class Toasts {
      * sticky, `duration: 0`, since there's nothing sensible to auto-dismiss into while the
      * promise is still pending), then patches that same toast to `messages.success`/
      * `messages.error` via `updateToast` once `promise` settles, defaulting the outcome's
-     * `color` to `ToastColor.SUCCESS`/`ToastColor.ERROR` unless overridden. Each of
+     * `color` to `config.colors.SUCCESS`/`.ERROR` (see `ToastsConfig.colors`) unless
+     * overridden. Each of
      * `loading`/`success`/`error` is a plain message (`string`/`Node`, shorthand for
      * `{ message }`), a full `ToastUpdateOptions` patch, or - for `success`/`error` - a
      * function of the resolved value/rejection reason returning either, for outcome messages
@@ -1168,7 +1192,7 @@ export class Toasts {
      * bounds how long the loading toast is allowed to stay sticky: if `promise` hasn't settled
      * within `timeout` ms, the toast is patched to `messages.timeout` (same shapes as
      * `success`/`error`, but with no resolved value/reason to pass through - just a plain
-     * message/patch/thunk) instead, defaulting to `ToastColor.WARNING`, or dismissed if
+     * message/patch/thunk) instead, defaulting to `config.colors.WARNING`, or dismissed if
      * `messages.timeout` is omitted. `promise` itself is untouched either way - a timeout only
      * changes what the *toast* shows; if `promise` later settles anyway, that's ignored, since
      * the toast has already moved on. `0`/omitted disables the timeout entirely (the pre-#33
@@ -1198,7 +1222,7 @@ export class Toasts {
             settled = true;
             if (messages.timeout === undefined) { this.removeToast(id); return; }
             const update = this._resolvePromiseMessage(messages.timeout);
-            this.updateToast(id, { color: ToastColor.WARNING, duration: this.config.duration, ...options, ...update });
+            this.updateToast(id, { color: this.config.colors.WARNING, duration: this.config.duration, ...options, ...update });
         }, timeoutMs) : undefined;
 
         promise.then(
@@ -1207,14 +1231,14 @@ export class Toasts {
                 if (timeoutId !== undefined) clearTimeout(timeoutId);
                 if (messages.success === undefined) { this.removeToast(id); return; }
                 const update = this._resolvePromiseMessage(messages.success, data);
-                this.updateToast(id, { color: ToastColor.SUCCESS, duration: this.config.duration, ...options, ...update });
+                this.updateToast(id, { color: this.config.colors.SUCCESS, duration: this.config.duration, ...options, ...update });
             },
             (err) => {
                 if (settled) return;
                 if (timeoutId !== undefined) clearTimeout(timeoutId);
                 if (messages.error === undefined) { this.removeToast(id); return; }
                 const update = this._resolvePromiseMessage(messages.error, err);
-                this.updateToast(id, { color: ToastColor.ERROR, duration: this.config.duration, ...options, ...update });
+                this.updateToast(id, { color: this.config.colors.ERROR, duration: this.config.duration, ...options, ...update });
             }
         );
 

@@ -59,7 +59,8 @@
     { "name": "promiseTimeout", "type": "number", "default": "0", "description": "Library-wide default for promise()'s timeout (ms). If a promise hasn't settled within this long, its loading toast is patched to messages.timeout instead. 0 disables the timeout.", "control": "number" },
     { "name": "locale", "type": "string | undefined", "default": "undefined (auto-detect)", "description": "Force a specific bundled locale (e.g. \"de\"). Omit to auto-detect from the browser, falling back to \"en\".", "control": "select", "selectOptions": ["auto", "en", "de", "es", "fr"] },
     { "name": "translations", "type": "Partial<ToastTranslations> | undefined", "default": "undefined", "description": "Partial string overrides layered on top of the resolved locale pack.", "control": "text" },
-    { "name": "theme", "type": "ToastTheme", "typeRef": "ToastTheme", "default": "undefined", "description": "Library-wide default color overrides: card background, text, details block, action/close-icon colors.", "control": "text" }
+    { "name": "theme", "type": "ToastTheme", "typeRef": "ToastTheme", "default": "undefined", "description": "Library-wide default color overrides: card background, text, details block, action/close-icon colors.", "control": "text" },
+    { "name": "colors", "type": "ToastColorPalette", "typeRef": "ToastColorPalette", "default": "{ ...ToastColor }", "description": "The severity palette: which exact color counts as WARNING/ERROR for role=\"alert\"/aria-live=\"assertive\" (everything else gets role=\"status\"), and what promise() defaults color to for its timeout/success/error outcomes. Reskinning your palette? Override this, not just a one-off color string, so the a11y role stays in sync. Merges key-by-key over the current value.", "control": "text" }
   ],
   "typeSpecs": {
     "ToastPositionValue": {
@@ -111,6 +112,16 @@
         { "name": "detailsBackground", "type": "string", "default": "rgba(0,0,0,0.15)", "description": "Details block background. CSS var --bt-details-background." },
         { "name": "actionColor", "type": "string", "default": "defaults to text", "description": "Action button/details toggle text color. CSS var --bt-action-color." },
         { "name": "closeIcon", "type": "string", "default": "auto-computed for contrast", "description": "Close (x) icon color. Auto-picked dark/light against color unless set here. CSS var --bt-close-icon." }
+      ]
+    },
+    "ToastColorPalette": {
+      "kind": "object",
+      "description": "One CSS color string per ToastColor key. Drives both promise()'s outcome color defaults and which color(s) applyColor treats as a severity for role=\"alert\"/aria-live=\"assertive\" (an exact match on WARNING/ERROR) vs. role=\"status\" (everything else, including INFO/SUCCESS).",
+      "fields": [
+        { "name": "INFO", "type": "string", "default": "#28a6f5", "description": "Default accent color; not treated as a severity for role/aria-live." },
+        { "name": "SUCCESS", "type": "string", "default": "#4bb543", "description": "promise()'s default success color; not treated as a severity for role/aria-live." },
+        { "name": "WARNING", "type": "string", "default": "#dfb200", "description": "Matching this exactly gets role=\"alert\"/aria-live=\"assertive\". Also promise()'s default timeout color." },
+        { "name": "ERROR", "type": "string", "default": "#ff4433", "description": "Matching this exactly gets role=\"alert\"/aria-live=\"assertive\". Also promise()'s default error color." }
       ]
     },
     "ToastProgressOptions": {
