@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { GithubStatsService } from './services/github-stats';
+import { PagesStatsService } from './services/pages-stats';
 import { SectionService } from './services/section';
 import { VersionService } from './services/version';
 import { formatCompactCount, formatRelativeTime } from './shared/format';
@@ -17,6 +18,7 @@ import { formatCompactCount, formatRelativeTime } from './shared/format';
 export class App {
   private readonly router = inject(Router);
   protected readonly githubStats = inject(GithubStatsService);
+  protected readonly pagesStats = inject(PagesStatsService);
   protected readonly versionService = inject(VersionService);
   protected readonly section = inject(SectionService);
 
