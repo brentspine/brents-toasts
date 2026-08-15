@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Toasts } from '../src/Toasts';
 import { ToastBuilder } from '../src/ToastBuilder';
-import { ToastColor } from '../src/ToastColor';
+import { ToastColor, ToastSeverity } from '../src/ToastColor';
 import { ToastPosition } from '../src/ToastPosition';
 import { ToastAnimation, registerToastAnimation, getToastAnimation } from '../src/ToastAnimation';
 import { ToastTransition, registerToastTransition } from '../src/ToastTransition';
@@ -765,7 +765,7 @@ describe('theme', () => {
     });
 });
 
-describe('role/aria-live derivation from color (#56)', () => {
+describe('role/aria-live derivation from severity (#56)', () => {
     afterEach(cleanup);
 
     function roleOf(id: string): { role: string | null; ariaLive: string | null } {
@@ -773,41 +773,67 @@ describe('role/aria-live derivation from color (#56)', () => {
         return { role: toast.getAttribute('role'), ariaLive: toast.getAttribute('aria-live') };
     }
 
-    it('the bundled WARNING/ERROR colors get role="alert"/aria-live="assertive"; INFO/SUCCESS get "status"/"polite"', () => {
+    function colorOf(id: string): string {
+        const toastClose = document.getElementById(id)!.querySelector<HTMLElement>('.bt-toast-close')!;
+        return toastClose.style.getPropertyValue('--data-background');
+    }
+
+    it('WARNING/ERROR severities get role="alert"/aria-live="assertive"; INFO/SUCCESS get "status"/"polite"', () => {
         const t = new Toasts();
-        expect(roleOf(t.showToast('x', { color: ToastColor.WARNING, duration: 0 }))).toEqual({ role: 'alert', ariaLive: 'assertive' });
-        expect(roleOf(t.showToast('x', { color: ToastColor.ERROR, duration: 0 }))).toEqual({ role: 'alert', ariaLive: 'assertive' });
-        expect(roleOf(t.showToast('x', { color: ToastColor.INFO, duration: 0 }))).toEqual({ role: 'status', ariaLive: 'polite' });
-        expect(roleOf(t.showToast('x', { color: ToastColor.SUCCESS, duration: 0 }))).toEqual({ role: 'status', ariaLive: 'polite' });
+        expect(roleOf(t.showToast('x', { severity: ToastSeverity.WARNING, duration: 0 }))).toEqual({ role: 'alert', ariaLive: 'assertive' });
+        expect(roleOf(t.showToast('x', { severity: ToastSeverity.ERROR, duration: 0 }))).toEqual({ role: 'alert', ariaLive: 'assertive' });
+        expect(roleOf(t.showToast('x', { severity: ToastSeverity.INFO, duration: 0 }))).toEqual({ role: 'status', ariaLive: 'polite' });
+        expect(roleOf(t.showToast('x', { severity: ToastSeverity.SUCCESS, duration: 0 }))).toEqual({ role: 'status', ariaLive: 'polite' });
+        // No severity at all defaults to INFO, same as no color did pre-#56.
+        expect(roleOf(t.showToast('x', { duration: 0 }))).toEqual({ role: 'status', ariaLive: 'polite' });
     });
 
-    it('an arbitrary custom color not in the configured palette is never treated as a severity', () => {
+    it('an arbitrary custom color, with no severity set, never implies an alert role - color and severity are independent axes', () => {
         const t = new Toasts();
+        expect(roleOf(t.showToast('x', { color: ToastColor.ERROR, duration: 0 }))).toEqual({ role: 'status', ariaLive: 'polite' });
         expect(roleOf(t.showToast('x', { color: '#ffc107', duration: 0 }))).toEqual({ role: 'status', ariaLive: 'polite' });
     });
 
-    it('configure({ colors }) retargets which exact color counts as a warning/error, merging key-by-key', () => {
+    it('severity picks a default color from the configured palette when color is unset, but an explicit color always wins', () => {
         const t = new Toasts();
-        const appWarning = '#ffc107';
-        t.configure({ colors: { WARNING: appWarning } });
+        const idDefault = t.showToast('x', { severity: ToastSeverity.WARNING, duration: 0 });
+        expect(colorOf(idDefault)).toBe(ToastColor.WARNING);
 
-        // The app's own warning color now gets the alert role...
-        expect(roleOf(t.showToast('x', { color: appWarning, duration: 0 }))).toEqual({ role: 'alert', ariaLive: 'assertive' });
-        // ...the library's original WARNING no longer does, since it's not the configured value anymore...
-        expect(roleOf(t.showToast('x', { color: ToastColor.WARNING, duration: 0 }))).toEqual({ role: 'status', ariaLive: 'polite' });
-        // ...and ERROR, untouched by the partial override, still matches its bundled default.
-        expect(roleOf(t.showToast('x', { color: ToastColor.ERROR, duration: 0 }))).toEqual({ role: 'alert', ariaLive: 'assertive' });
+        const idOverridden = t.showToast('x', { severity: ToastSeverity.WARNING, color: '#ffc107', duration: 0 });
+        expect(colorOf(idOverridden)).toBe('#ffc107');
+        expect(roleOf(idOverridden)).toEqual({ role: 'alert', ariaLive: 'assertive' });
     });
 
-    it('updateToast re-derives role/aria-live from the current config.colors when color changes', () => {
+    it('configure({ colors }) retargets severity → default color without affecting role, merging key-by-key', () => {
         const t = new Toasts();
-        const id = t.showToast('x', { color: ToastColor.INFO, duration: 0 });
-        expect(roleOf(id)).toEqual({ role: 'status', ariaLive: 'polite' });
-        t.updateToast(id, { color: ToastColor.ERROR });
+        t.configure({ colors: { WARNING: '#ffc107' } });
+
+        const id = t.showToast('x', { severity: ToastSeverity.WARNING, duration: 0 });
+        expect(colorOf(id)).toBe('#ffc107');
         expect(roleOf(id)).toEqual({ role: 'alert', ariaLive: 'assertive' });
+        // ERROR, untouched by the partial override, still defaults to its bundled color.
+        expect(colorOf(t.showToast('x', { severity: ToastSeverity.ERROR, duration: 0 }))).toBe(ToastColor.ERROR);
     });
 
-    it("promise()'s success/error/timeout defaults track a reskinned configure({ colors }) palette", async () => {
+    it('configure({ severity }) sets the library-wide default severity for calls that omit it', () => {
+        const t = new Toasts();
+        t.configure({ severity: ToastSeverity.WARNING });
+        const id = t.showToast('x', { duration: 0 });
+        expect(roleOf(id)).toEqual({ role: 'alert', ariaLive: 'assertive' });
+        expect(colorOf(id)).toBe(ToastColor.WARNING);
+    });
+
+    it('updateToast re-derives role/aria-live when severity changes, independently of color', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { severity: ToastSeverity.INFO, color: '#123456', duration: 0 });
+        expect(roleOf(id)).toEqual({ role: 'status', ariaLive: 'polite' });
+        // Severity-only update flips the role but leaves the existing color alone.
+        t.updateToast(id, { severity: ToastSeverity.ERROR });
+        expect(roleOf(id)).toEqual({ role: 'alert', ariaLive: 'assertive' });
+        expect(colorOf(id)).toBe('#123456');
+    });
+
+    it("promise()'s success/error/timeout outcomes carry the right severity, tracking a reskinned configure({ colors }) palette", async () => {
         const t = new Toasts();
         t.configure({ colors: { SUCCESS: '#00cc66', ERROR: '#cc0000' } });
 
@@ -820,10 +846,9 @@ describe('role/aria-live derivation from color (#56)', () => {
         await Promise.resolve();
         await Promise.resolve();
 
-        // SUCCESS isn't a severity color - role stays "status", same as INFO.
+        // SUCCESS is a passive severity - role stays "status", same as INFO.
         expect(roleOf(id)).toEqual({ role: 'status', ariaLive: 'polite' });
-        const toastClose = document.getElementById(id)!.querySelector<HTMLElement>('.bt-toast-close')!;
-        expect(toastClose.style.getPropertyValue('--data-background')).toBe('#00cc66');
+        expect(colorOf(id)).toBe('#00cc66');
     });
 });
 

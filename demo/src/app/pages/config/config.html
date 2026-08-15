@@ -8,8 +8,12 @@
 
   <div class="grid">
     <div class="field">
-      <label for="color">color</label>
-      <input id="color" type="color" [ngModel]="form().color" (ngModelChange)="updateForm('color', $event)" />
+      <label for="severity">severity</label>
+      <select id="severity" [ngModel]="form().severity" (ngModelChange)="updateForm('severity', $event)">
+        @for (s of severities; track s) {
+          <option [value]="s">{{ s }}</option>
+        }
+      </select>
     </div>
 
     <div class="field">

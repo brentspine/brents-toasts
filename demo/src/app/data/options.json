@@ -19,7 +19,8 @@
   "toastOptions": [
     { "name": "title", "type": "string", "default": "undefined", "description": "Optional bold title line above the message.", "builderCall": ".withTitle(\"Heads up!\")" },
     { "name": "titleMode", "type": "'inline' | 'stacked'", "default": "\"stacked\"", "description": "Whether title renders on its own line above message (stacked) or as a bold lead-in sharing its line (inline). No effect when title is unset.", "builderCall": ".withTitleMode(\"inline\")" },
-    { "name": "color", "type": "string", "typeRef": "ToastColorValue", "default": "ToastColor.INFO", "description": "Background color of the indicator bar. Any CSS color string works; ToastColor just bundles presets.", "builderCall": ".withColor(\"#4bb543\")" },
+    { "name": "severity", "type": "ToastSeverityValue", "typeRef": "ToastSeverityValue", "default": "ToastSeverity.INFO", "description": "Semantic severity - the sole driver of role/aria-live (WARNING/ERROR get role=\"alert\", INFO/SUCCESS get role=\"status\"). Also picks the default color (via configure()'s colors palette) when color itself isn't set.", "builderCall": ".withSeverity(\"WARNING\")" },
+    { "name": "color", "type": "string", "typeRef": "ToastColorValue", "default": "colors[severity], e.g. ToastColor.INFO", "description": "Background color of the indicator bar. Purely presentational - has no effect on role/aria-live, which come from severity alone. Any CSS color string works; ToastColor just bundles presets.", "builderCall": ".withColor(\"#4bb543\")" },
     { "name": "duration", "type": "number", "default": "3000", "description": "Auto-dismiss after this many ms. Use 0 to make the toast sticky (never auto-dismisses).", "builderCall": ".withDuration(5000)" },
     { "name": "closable", "type": "boolean", "default": "true", "description": "Whether clicking the toast dismisses it.", "builderCall": ".withClosable(true)" },
     { "name": "allowHtml", "type": "boolean", "default": "false", "description": "If true, message is rendered as HTML. Sanitize the input yourself if it may contain user-controlled content.", "builderCall": ".withAllowHtml(true)" },
@@ -43,7 +44,7 @@
     { "name": "stepButton()", "type": "(steps, className?) => ToastButton", "typeRef": "ToastButtonStep", "default": "-", "description": "The general-purpose primitive behind detailsCopyButton(): a button that walks through custom steps in order.", "builderCall": ".withStepButton([{ label: \"Copy\" }, { label: \"Copied!\", revertAfterMs: 2000 }])" }
   ],
   "configOptions": [
-    { "name": "color", "type": "string", "typeRef": "ToastColorValue", "default": "ToastColor.INFO", "description": "Library-wide default background color for the indicator bar.", "control": "color" },
+    { "name": "severity", "type": "ToastSeverityValue", "typeRef": "ToastSeverityValue", "default": "ToastSeverity.INFO", "description": "Library-wide default severity for calls that omit it - drives role/aria-live and the default color.", "control": "select", "selectOptions": ["INFO", "SUCCESS", "WARNING", "ERROR"] },
     { "name": "duration", "type": "number", "default": "3000", "description": "Library-wide default auto-dismiss duration in ms.", "control": "number" },
     { "name": "closable", "type": "boolean", "default": "true", "description": "Library-wide default for whether clicking a toast dismisses it.", "control": "boolean" },
     { "name": "allowHtml", "type": "boolean", "default": "false", "description": "Library-wide default for whether message is rendered as HTML.", "control": "boolean" },
@@ -60,7 +61,7 @@
     { "name": "locale", "type": "string | undefined", "default": "undefined (auto-detect)", "description": "Force a specific bundled locale (e.g. \"de\"). Omit to auto-detect from the browser, falling back to \"en\".", "control": "select", "selectOptions": ["auto", "en", "de", "es", "fr"] },
     { "name": "translations", "type": "Partial<ToastTranslations> | undefined", "default": "undefined", "description": "Partial string overrides layered on top of the resolved locale pack.", "control": "text" },
     { "name": "theme", "type": "ToastTheme", "typeRef": "ToastTheme", "default": "undefined", "description": "Library-wide default color overrides: card background, text, details block, action/close-icon colors.", "control": "text" },
-    { "name": "colors", "type": "ToastColorPalette", "typeRef": "ToastColorPalette", "default": "{ ...ToastColor }", "description": "The severity palette: which exact color counts as WARNING/ERROR for role=\"alert\"/aria-live=\"assertive\" (everything else gets role=\"status\"), and what promise() defaults color to for its timeout/success/error outcomes. Reskinning your palette? Override this, not just a one-off color string, so the a11y role stays in sync. Merges key-by-key over the current value.", "control": "text" }
+    { "name": "colors", "type": "ToastColorPalette", "typeRef": "ToastColorPalette", "default": "{ ...ToastColor }", "description": "The severity -> default color lookup: what an unset color resolves to for a given severity, and what promise() defaults color to for its timeout/success/error outcomes. Accessibility (role/aria-live) is unaffected by this - it comes from severity alone. Merges key-by-key over the current value.", "control": "text" }
   ],
   "typeSpecs": {
     "ToastPositionValue": {
@@ -103,6 +104,16 @@
         { "value": "ToastColor.ERROR (#ff4433)", "description": "For errors/failures." }
       ]
     },
+    "ToastSeverityValue": {
+      "kind": "enum",
+      "description": "Semantic severity - the sole driver of a toast's role/aria-live. Independent of color: color is purely presentational and never affects accessibility semantics.",
+      "values": [
+        { "value": "ToastSeverity.INFO", "description": "role=\"status\"/aria-live=\"polite\". Default color ToastColor.INFO. The default severity." },
+        { "value": "ToastSeverity.SUCCESS", "description": "role=\"status\"/aria-live=\"polite\". Default color ToastColor.SUCCESS. Also promise()'s default success severity." },
+        { "value": "ToastSeverity.WARNING", "description": "role=\"alert\"/aria-live=\"assertive\". Default color ToastColor.WARNING. Also promise()'s default timeout severity." },
+        { "value": "ToastSeverity.ERROR", "description": "role=\"alert\"/aria-live=\"assertive\". Default color ToastColor.ERROR. Also promise()'s default error severity." }
+      ]
+    },
     "ToastTheme": {
       "kind": "object",
       "description": "Extra color knobs beyond color: the toast's overall chrome, not just its accent bar. Each field mirrors a --bt-* CSS custom property, so plain CSS works too.",
@@ -116,12 +127,12 @@
     },
     "ToastColorPalette": {
       "kind": "object",
-      "description": "One CSS color string per ToastColor key. Drives both promise()'s outcome color defaults and which color(s) applyColor treats as a severity for role=\"alert\"/aria-live=\"assertive\" (an exact match on WARNING/ERROR) vs. role=\"status\" (everything else, including INFO/SUCCESS).",
+      "description": "One default color string per severity (ToastSeverityValue key). Looked up when a toast's severity is known but color isn't set - never the other way around, so reskinning this never affects accessibility.",
       "fields": [
-        { "name": "INFO", "type": "string", "default": "#28a6f5", "description": "Default accent color; not treated as a severity for role/aria-live." },
-        { "name": "SUCCESS", "type": "string", "default": "#4bb543", "description": "promise()'s default success color; not treated as a severity for role/aria-live." },
-        { "name": "WARNING", "type": "string", "default": "#dfb200", "description": "Matching this exactly gets role=\"alert\"/aria-live=\"assertive\". Also promise()'s default timeout color." },
-        { "name": "ERROR", "type": "string", "default": "#ff4433", "description": "Matching this exactly gets role=\"alert\"/aria-live=\"assertive\". Also promise()'s default error color." }
+        { "name": "INFO", "type": "string", "default": "#28a6f5", "description": "Default color for ToastSeverity.INFO." },
+        { "name": "SUCCESS", "type": "string", "default": "#4bb543", "description": "Default color for ToastSeverity.SUCCESS; also promise()'s default success color." },
+        { "name": "WARNING", "type": "string", "default": "#dfb200", "description": "Default color for ToastSeverity.WARNING; also promise()'s default timeout color." },
+        { "name": "ERROR", "type": "string", "default": "#ff4433", "description": "Default color for ToastSeverity.ERROR; also promise()'s default error color." }
       ]
     },
     "ToastProgressOptions": {

@@ -12,7 +12,7 @@ dismissal:
 ```ts
 toasts.showToast('Account settings could not be updated.', {
   title: 'Action Failed',
-  color: ToastColor.ERROR,
+  severity: ToastSeverity.ERROR,
   details: [
     { label: 'Error', value: '500 Internal Server Error' },
     { label: 'Status', value: 'failed' },
@@ -30,7 +30,7 @@ className?)`, appended to a specific item's `buttons` (or every item's, via
 ```ts
 toasts.showToast('Account settings could not be updated.', {
   title: 'Action Failed',
-  color: ToastColor.ERROR,
+  severity: ToastSeverity.ERROR,
   details: [
     { label: 'Error', value: '500', buttons: [toasts.detailsCopyButton('500')] },
     { label: 'Status', value: 'failed' }, // no copy button for this one
@@ -61,7 +61,7 @@ own alongside it:
 ```ts
 toasts.showToast('Payment failed.', {
   title: 'Payment Failed',
-  color: ToastColor.ERROR,
+  severity: ToastSeverity.ERROR,
   details: [
     {
       label: 'Transaction',

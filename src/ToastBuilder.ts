@@ -1,5 +1,5 @@
 import { toasts as defaultToasts, Toasts, type ToastOptions, type ToastDetailItem, type ToastButtonStep, type ToastProgressOptions } from './Toasts';
-import { ToastColor } from './ToastColor';
+import { ToastSeverity, type ToastSeverityValue } from './ToastColor';
 import type { ToastTheme } from './ToastTheme';
 import type { ToastPositionValue } from './ToastPosition';
 import type { ToastAnimationValue } from './ToastAnimation';
@@ -34,11 +34,19 @@ export class ToastBuilder {
         this._options.titleMode = mode;
         return this;
     }
+    /** Semantic severity - drives `role`/`aria-live` and this toast's default `color` (via `configure()`'s
+     *  `colors` palette) unless `withColor()` also sets one. See `ToastOptions.severity`. */
+    withSeverity(severity: ToastSeverityValue): this { this._options.severity = severity; return this; }
+    /** Purely presentational - has no effect on `role`/`aria-live`. See `ToastOptions.color`/`withSeverity()`. */
     withColor(color: string): this { this._options.color = color; return this; }
-    asInfo(): this { return this.withColor(ToastColor.INFO); }
-    asSuccess(): this { return this.withColor(ToastColor.SUCCESS); }
-    asWarning(): this { return this.withColor(ToastColor.WARNING); }
-    asError(): this { return this.withColor(ToastColor.ERROR); }
+    /** Shorthand for `withSeverity(ToastSeverity.INFO)` - gets both the default look and `role="status"`. */
+    asInfo(): this { return this.withSeverity(ToastSeverity.INFO); }
+    /** Shorthand for `withSeverity(ToastSeverity.SUCCESS)` - gets both the default look and `role="status"`. */
+    asSuccess(): this { return this.withSeverity(ToastSeverity.SUCCESS); }
+    /** Shorthand for `withSeverity(ToastSeverity.WARNING)` - gets both the default look and `role="alert"`. */
+    asWarning(): this { return this.withSeverity(ToastSeverity.WARNING); }
+    /** Shorthand for `withSeverity(ToastSeverity.ERROR)` - gets both the default look and `role="alert"`. */
+    asError(): this { return this.withSeverity(ToastSeverity.ERROR); }
     withDuration(durationMs: number): this { this._options.duration = durationMs; return this; }
     /** Called with no argument, enables closability (`true`) - the library-wide default stays whatever `configure()` says unless you call this. */
     withClosable(closable: boolean = true): this { this._options.closable = closable; return this; }

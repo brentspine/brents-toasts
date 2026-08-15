@@ -87,7 +87,7 @@ file?" after the file is already gone doesn't make sense:
 
 ```ts
 toasts.showToast('Delete this file?', {
-  color: ToastColor.WARNING,
+  severity: ToastSeverity.WARNING,
   duration: 0,
   buttons: [
     toasts.confirmButton('Delete', () => deleteFile(), {

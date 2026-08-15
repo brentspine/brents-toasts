@@ -8,7 +8,7 @@ npm install brents-toasts
 
 ```ts
 // TypeScript / bundlers: types come free from dist/index.d.ts
-import { toasts, ToastColor, ToastBuilder, Toasts } from 'brents-toasts';
+import { toasts, ToastColor, ToastSeverity, ToastBuilder, Toasts } from 'brents-toasts';
 ```
 
 Or drop it straight into a page with no build step, no module system required:
@@ -22,7 +22,7 @@ Or drop it straight into a page with no build step, no module system required:
 
 `BrentsToasts` (the UMD global) mirrors the npm named exports 1:1:
 `BrentsToasts.toasts` (the ready-to-use instance), `BrentsToasts.Toasts`
-(the class), plus `ToastColor`, `ToastPosition`, `ToastAnimation`,
+(the class), plus `ToastColor`, `ToastSeverity`, `ToastPosition`, `ToastAnimation`,
 `ToastTransition`, `ToastBuilder`, `ToastQuickActions`, and the rest of
 `src/index.ts`'s exports. There is no separate CSS file to `<link>`; the
 stylesheet is bundled into the JS and injected into `<head>` the first time
@@ -46,7 +46,7 @@ toasts.showToast('Saved!', ToastColor.SUCCESS, 5000, false, false);
 
 // 4. Options object: the recommended form once you need more than color
 toasts.showToast('Saved!', {
-  color: ToastColor.SUCCESS,
+  severity: ToastSeverity.SUCCESS, // picks the SUCCESS color for you, and the right role/aria-live
   duration: 5000,
   closable: false,
   title: 'Done',
@@ -67,8 +67,10 @@ the legacy positional form has **five** parameters, not four:
 `showToast(message, color?, duration?, closable?, allowHtml?)`.
 
 Defaults (from `Toasts.ts`'s `DEFAULT_CONFIG`, overridable via
-[`configure()`](config.md)): `color` `ToastColor.INFO`, `duration` `3000`ms,
-`closable` `true`, `allowHtml` `false`, `allowLineBreaks` `true`.
+[`configure()`](config.md)): `severity` `ToastSeverity.INFO` (which also
+picks the default `color`, `ToastColor.INFO` - see [Config](config.md) for
+how `severity`/`color` relate), `duration` `3000`ms, `closable` `true`,
+`allowHtml` `false`, `allowLineBreaks` `true`.
 
 See [`docs/guide/builder-reference.md`](builder-reference.md) for the full
 `ToastBuilder` method list.

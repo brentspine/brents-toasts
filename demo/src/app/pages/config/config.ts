@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { toasts, ToastAnimation, ToastColor, ToastPosition, type ToastPositionValue, type PositionConfig } from 'brents-toasts';
+import { toasts, ToastAnimation, ToastSeverity, ToastPosition, type ToastSeverityValue, type ToastPositionValue, type PositionConfig } from 'brents-toasts';
 import { CodeSnippet } from '../../shared/code-snippet';
 import { OptionsDataService } from '../../services/options-data';
 
 interface ConfigFormState {
-  color: string;
+  severity: ToastSeverityValue;
   duration: number;
   closable: boolean;
   allowHtml: boolean;
@@ -22,7 +22,7 @@ interface ConfigFormState {
 }
 
 const DEFAULT_FORM_STATE: ConfigFormState = {
-  color: ToastColor.INFO,
+  severity: ToastSeverity.INFO,
   duration: 3000,
   closable: true,
   allowHtml: false,
@@ -64,6 +64,7 @@ export function hasStoredConfigChanges(): boolean {
 export class Config {
   readonly configOptions = inject(OptionsDataService).data.configOptions;
   readonly positions = Object.values(ToastPosition);
+  readonly severities = Object.values(ToastSeverity);
 
   readonly form = signal<ConfigFormState>(loadStoredForm());
   readonly themeError = signal<string | null>(null);
@@ -96,7 +97,7 @@ export class Config {
 
   resetConfig(): void {
     toasts.showToast('Reset all Playground config to the library defaults?', {
-      color: ToastColor.WARNING,
+      severity: ToastSeverity.WARNING,
       duration: 0,
       buttons: [
         toasts.confirmButton('Reset', () => {
@@ -123,7 +124,7 @@ export class Config {
     }
 
     toasts.configure({
-      color: state.color,
+      severity: state.severity,
       duration: state.duration,
       closable: state.closable,
       allowHtml: state.allowHtml,
@@ -161,7 +162,7 @@ export class Config {
   private buildSnippet(state: ConfigFormState, theme: Record<string, string> | undefined): string {
     const lines = [
       'toasts.configure({',
-      `  color: "${state.color}",`,
+      `  severity: "${state.severity}",`,
       `  duration: ${state.duration},`,
       `  closable: ${state.closable},`,
       `  allowHtml: ${state.allowHtml},`,
