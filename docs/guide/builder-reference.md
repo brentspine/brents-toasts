@@ -21,8 +21,9 @@ toast's id, same as `showToast()`.
 |---|---|---|
 | `withTitle(title, mode?)` | `ToastOptions.title`/`titleMode` | `mode` is optional; omitted leaves the configured `titleMode` default in place |
 | `withTitleMode(mode)` | `ToastOptions.titleMode` | Standalone alternative to `withTitle()`'s second argument. No effect when `title` is unset |
-| `withColor(color)` | `ToastOptions.color` | |
-| `asInfo()` / `asSuccess()` / `asWarning()` / `asError()` | `ToastOptions.color` | Shorthand for `withColor(ToastColor.INFO / SUCCESS / WARNING / ERROR)` |
+| `withSeverity(severity)` | `ToastOptions.severity` | Drives `role`/`aria-live`; also picks the default `color` unless `withColor()` also sets one - see [Config](config.md) |
+| `withColor(color)` | `ToastOptions.color` | Purely presentational - has no effect on `role`/`aria-live` |
+| `asInfo()` / `asSuccess()` / `asWarning()` / `asError()` | `ToastOptions.severity` | Shorthand for `withSeverity(ToastSeverity.INFO / SUCCESS / WARNING / ERROR)` |
 | `withDuration(durationMs)` | `ToastOptions.duration` | |
 | `withClosable(closable = true)` | `ToastOptions.closable` | Called with no argument, enables closability |
 | `withAllowHtml(allowHtml = true)` | `ToastOptions.allowHtml` | Called with no argument, enables HTML rendering |

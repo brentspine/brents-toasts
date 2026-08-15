@@ -131,8 +131,9 @@ toasts.promise(
 It shows `loading` right away as a forced-sticky toast (`duration: 0`;
 there's nothing sensible to auto-dismiss into while the promise is still
 pending), then, once `promise` settles, patches that same toast via
-`updateToast` to `success` or `error`, defaulting the toast's `color` to
-`ToastColor.SUCCESS`/`ToastColor.ERROR` and its `duration` back to
+`updateToast` to `success` or `error`, defaulting the toast's `severity` to
+`ToastSeverity.SUCCESS`/`ToastSeverity.ERROR` (and its `color` to
+`configure()`'s matching `colors` entry) and its `duration` back to
 `configure()`'s current default (so the resolved toast auto-dismisses
 normally, unless overridden) unless overridden. `loading`/`success`/`error`
 each accept a plain message (shorthand for `{ message }`), a full
@@ -188,8 +189,8 @@ need your own `.catch`/try-catch around it to avoid an unhandled rejection.
 sticky - if `promise` hasn't settled within `timeout` ms, the toast is
 patched to a fourth `messages.timeout` entry instead (same shapes as
 `success`/`error`, minus the resolved value/reason - just a plain
-message/options patch/zero-arg thunk), defaulting the toast's `color` to
-`ToastColor.WARNING`:
+message/options patch/zero-arg thunk), defaulting the toast's `severity` to
+`ToastSeverity.WARNING`:
 
 ```ts
 toasts.promise(

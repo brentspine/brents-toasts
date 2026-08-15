@@ -1,4 +1,4 @@
-import { ToastColor } from './ToastColor';
+import { SEVERITY_ROLE, type ToastSeverityValue } from './ToastColor';
 import { applyThemeVars, autoCloseIconColor, type ToastTheme } from './ToastTheme';
 import { createActionButton, renderToastButton, type ToastButton } from './ToastButton';
 import { renderTextWithBreaks } from './ToastText';
@@ -29,11 +29,19 @@ export interface ResolvedProgress {
 // the theme (card background/text/details background/action color as CSS
 // vars, plus the close icon color) so all of it can never fall out of sync
 // between the two call sites.
-export function applyColor(toastClose: HTMLElement, toast: HTMLElement, color: string, theme?: ToastTheme): void {
+//
+// `color` and `severity` are deliberately independent inputs (see
+// `ToastOptions.severity`): `color` is purely presentational - it paints the
+// indicator bar/close-icon-contrast-basis and nothing else - while `severity`
+// alone drives role/aria-live via the static `SEVERITY_ROLE` lookup. Unlike
+// the pre-#56 design, nothing here ever compares `color` against a palette to
+// guess severity, so a custom `color` can never silently gain or lose
+// accessibility semantics.
+export function applyColor(toastClose: HTMLElement, toast: HTMLElement, color: string, severity: ToastSeverityValue, theme?: ToastTheme): void {
     toastClose.style.setProperty('--data-background', color);
-    const isAlert = color === ToastColor.ERROR || color === ToastColor.WARNING;
-    toast.setAttribute('role', isAlert ? 'alert' : 'status');
-    toast.setAttribute('aria-live', isAlert ? 'assertive' : 'polite');
+    const role = SEVERITY_ROLE[severity];
+    toast.setAttribute('role', role);
+    toast.setAttribute('aria-live', role === 'alert' ? 'assertive' : 'polite');
     applyThemeVars(toast, theme);
     // Always set explicitly (never left to plain CSS) - this is the one
     // theme field whose whole point is computing something CSS can't:

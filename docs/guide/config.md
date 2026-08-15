@@ -17,7 +17,7 @@ whatever `configure()` set.
 
 | Field | Default | Notes |
 |---|---|---|
-| `color` | `ToastColor.INFO` | |
+| `severity` | `ToastSeverity.INFO` | see "Severity and accessibility" below |
 | `duration` | `3000` | ms |
 | `closable` | `true` | |
 | `allowHtml` | `false` | |
@@ -34,6 +34,7 @@ whatever `configure()` set.
 | `locale` | `undefined` (auto-detect) | see [Localization](localization.md) |
 | `translations` | `undefined` | see [Localization](localization.md) |
 | `theme` | `undefined` | see [Theming](theming.md) |
+| `colors` | `{ ...ToastColor }` | see "Severity and accessibility" below |
 
 Two `ToastOptions` fields have no `ToastsConfig` counterpart to set
 library-wide, since they're inherently per-call: `onClose` (called as soon
@@ -41,6 +42,61 @@ as a toast starts closing, manually or via duration timeout; there's no
 sensible shared default for a callback) and `reverseOrder` (inserts a toast
 at the far end of its position's stack instead of nearest the anchor edge;
 creation-time only, a no-op passed to `updateToast`).
+
+## Severity and accessibility
+
+`ToastOptions.severity` (`ToastSeverity.INFO` / `SUCCESS` / `WARNING` /
+`ERROR`) is the sole source of a toast's `role`/`aria-live`:
+`WARNING`/`ERROR` render `role="alert"`/`aria-live="assertive"`;
+`INFO`/`SUCCESS` (or no `severity` at all) render `role="status"`/
+`aria-live="polite"`. `color` is purely presentational and has **no**
+bearing on this - unlike versions before this, nothing ever inspects a
+`color` value to guess what it means.
+
+`severity` also picks this toast's default `color`, via `configure()`'s
+`colors` palette, when `color` itself is left unset - so
+`severity: ToastSeverity.WARNING` alone gets you both the right look and
+the right role for free:
+
+```ts
+toasts.showToast('Please sign in to use this feature.', {
+  severity: ToastSeverity.WARNING,
+});
+```
+
+Pass `color` too if you want a custom look with the same semantics - it
+overrides just the visual, `severity` still drives the role:
+
+```ts
+toasts.showToast('Please sign in to use this feature.', {
+  severity: ToastSeverity.WARNING,
+  color: '#ffc107', // your app's own warning color
+});
+```
+
+`colors` defaults to the bundled `ToastColor` (`{ INFO, SUCCESS, WARNING,
+ERROR }`) and also supplies the default `color` `promise()` applies to its
+`success`/`error`/`timeout` outcomes (each of which also carries the
+matching `severity` - see [Lifecycle](lifecycle.md)). Reskinning your
+palette is just:
+
+```ts
+toasts.configure({
+  colors: { WARNING: '#ffc107', ERROR: '#dc3545' },
+});
+```
+
+`colors` merges key-by-key over the current value (like `theme`), so a
+partial override - just `WARNING`, say - leaves `INFO`/`SUCCESS`/`ERROR` at
+their bundled defaults rather than losing them. Because accessibility comes
+from `severity` alone, reskinning `colors` never risks changing which
+toasts get announced as `alert`s - that's controlled independently via
+`configure({ severity })` (the library-wide default) or each call's own
+`severity`.
+
+Builder equivalents: `.withSeverity(severity)`, or the shorthands
+`.asInfo()` / `.asSuccess()` / `.asWarning()` / `.asError()` (each sets
+`severity`, not just `color`).
 
 ## Capacity and eviction
 
@@ -104,7 +160,7 @@ get different defaults without a second visual container:
 import { Toasts } from 'brents-toasts';
 
 const pageToasts = new Toasts();
-pageToasts.configure({ color: ToastColor.WARNING, closable: false });
+pageToasts.configure({ severity: ToastSeverity.WARNING, closable: false });
 
 pageToasts.showToast('This page only.');
 new ToastBuilder('Also this page only.', pageToasts).show();

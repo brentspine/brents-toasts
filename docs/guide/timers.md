@@ -66,6 +66,6 @@ const timer = toasts.getToastTimer(id);
 const ratio = timer.remaining / timer.duration;
 toasts.updateToast(id, {
   message: `Closes in ${(timer.remaining / 1000).toFixed(1)}s`,
-  color: ratio > 0.5 ? ToastColor.SUCCESS : ratio > 0.2 ? ToastColor.WARNING : ToastColor.ERROR,
+  severity: ratio > 0.5 ? ToastSeverity.SUCCESS : ratio > 0.2 ? ToastSeverity.WARNING : ToastSeverity.ERROR,
 });
 ```

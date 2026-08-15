@@ -5,7 +5,7 @@
   Brentspine 2026
 */
 
-import { ToastColor } from './ToastColor';
+import { ToastColor, ToastSeverity, type ToastColorPalette, type ToastSeverityValue } from './ToastColor';
 import { ToastPosition, IMPLEMENTED_POSITIONS, POSITION_EDGE, collapsedPosition, DEFAULT_RESPONSIVE_BREAKPOINT, type ToastPositionValue } from './ToastPosition';
 import { ToastAnimation, getToastAnimation, type ToastAnimationValue, type ToastAnimationDefinition } from './ToastAnimation';
 import { ToastTransition, getToastTransition, type ToastTransitionValue } from './ToastTransition';
@@ -72,7 +72,16 @@ export interface ToastProgressOptions {
 }
 
 export interface ToastOptions {
-    /** Background color of the indicator bar. Defaults to `ToastColor.INFO` or the configured default. */
+    /** Semantic severity - the sole driver of accessibility semantics: `'WARNING'`/`'ERROR'` render
+     *  `role="alert"`/`aria-live="assertive"`; `'INFO'`/`'SUCCESS'` render `role="status"`/`aria-live="polite"`.
+     *  Also picks this toast's default `color` (via `configure()`'s `colors` palette - see `ToastsConfig.colors`)
+     *  when `color` itself isn't set, so `severity: ToastSeverity.WARNING` alone gets you both the right look
+     *  and the right role for free. Defaults to `ToastSeverity.INFO` or the configured default. */
+    severity?: ToastSeverityValue;
+    /** Background color of the indicator bar. Purely presentational - has no effect on `role`/`aria-live`,
+     *  which come from `severity` alone (see above). Defaults to `configure()`'s `colors[severity]` (see
+     *  `ToastsConfig.colors`) unless set here. Passing a custom `color` never changes this toast's
+     *  accessibility semantics; set `severity` for that, independently of whatever `color` looks like. */
     color?: string;
     /** Auto-dismiss after ms. Use `0` to disable. Defaults to `3000` or the configured default. */
     duration?: number;
@@ -133,7 +142,8 @@ export interface ToastPromiseOptions extends ToastOptions {
 }
 
 export interface ToastsConfig {
-    color: string;
+    /** Library-wide default `ToastOptions.severity`. Default `ToastSeverity.INFO`. */
+    severity: ToastSeverityValue;
     duration: number;
     closable: boolean;
     allowHtml: boolean;
@@ -159,9 +169,18 @@ export interface ToastsConfig {
     theme?: ToastTheme;
     /** Library-wide default for `promise()`'s `timeout` - see there. `0` disables the timeout. Default `0`. */
     promiseTimeout: number;
+    /** The severity → default-`color` lookup: what an unset `ToastOptions.color` resolves to for a given
+     *  `severity` (see `ToastOptions.severity`), and what `promise()` defaults `color` to for its
+     *  `timeout`/`success`/`error` outcomes. Defaults to the bundled `ToastColor` (`{ INFO, SUCCESS, WARNING,
+     *  ERROR }`). Reskinning your palette is just `configure({ colors: { WARNING: '#ffc107', ERROR: '#dc3545' } })`
+     *  - accessibility semantics are never affected, since those come from `severity` alone, not from matching
+     *  a `color` value against this table. Merges key-by-key over the current value (like `theme` does
+     *  per-toast), so a partial override doesn't drop the other severities' colors. */
+    colors: ToastColorPalette;
 }
 
 interface ResolvedToastOptions {
+    severity: ToastSeverityValue;
     color: string;
     duration: number;
     closable: boolean;
@@ -199,7 +218,7 @@ export type ToastUpdateOptions = Partial<ToastOptions> & { message?: string | No
 type ToastState = ResolvedToastOptions & { message: string | Node };
 
 const DEFAULT_CONFIG: ToastsConfig = {
-    color: ToastColor.INFO,
+    severity: ToastSeverity.INFO,
     duration: 3000,
     closable: true,
     allowHtml: false,
@@ -213,6 +232,7 @@ const DEFAULT_CONFIG: ToastsConfig = {
     pauseOnHover: true,
     progress: false,
     promiseTimeout: 0,
+    colors: { ...ToastColor },
 };
 
 // Per-toast auto-dismiss timer bookkeeping, keyed off the toast's own root
@@ -332,7 +352,13 @@ export class Toasts {
      * Per-call options passed to showToast still take precedence.
      */
     configure(config: Partial<ToastsConfig> = {}): void {
+        // `colors` merges key-by-key against the *current* palette (like `theme` does
+        // per-toast) rather than a whole-value replace, so `configure({ colors: { WARNING:
+        // '#ffc107' } })` only changes WARNING - INFO/SUCCESS/ERROR keep whatever they
+        // already resolved to instead of going undefined.
+        const colors = config.colors ? { ...this.config.colors, ...config.colors } : undefined;
         this.config = { ...this.config, ...config };
+        if (colors) this.config.colors = colors;
     }
 
     /**
@@ -375,7 +401,10 @@ export class Toasts {
      * @param message  The text to display. HTML only if `allowHtml` is true;
      *   otherwise "\n" and literal "<br>"/"<br/>" still render as line breaks.
      *   Pass a `Node` for fully custom content - `allowHtml` is ignored in that case.
-     * @param color    Background color of the indicator bar. Defaults to `ToastColor.INFO`.
+     * @param color    Background color of the indicator bar. Defaults to `ToastColor.INFO`. Purely
+     *   presentational - this legacy shape has no `severity` parameter, so role/aria-live always
+     *   stay at the default (`status`/`polite`) regardless of `color`; use the options-object form
+     *   and `ToastOptions.severity` if you need `role="alert"`.
      * @param duration Auto-dismiss after ms. Use `0` to disable. Defaults to `3000`.
      * @param closable Whether clicking the toast dismisses it. Defaults to `true`.
      * @param allowHtml If true, `message` is rendered as HTML. XSS: sanitize input yourself...
@@ -456,7 +485,7 @@ export class Toasts {
         const closeSpan = document.createElement('span');
         closeSpan.innerHTML = '&times;';
         toastClose.appendChild(closeSpan);
-        applyColor(toastClose, toast, opts.color, opts.theme);
+        applyColor(toastClose, toast, opts.color, opts.severity, opts.theme);
 
         const toastContent = document.createElement('div');
         toastContent.className = 'bt-toast-content';
@@ -651,14 +680,18 @@ export class Toasts {
 
         const hasVisualChange =
             'message' in update || 'title' in update || 'titleMode' in update || 'allowHtml' in update || 'allowLineBreaks' in update ||
-            'color' in update || 'theme' in update || 'progress' in update ||
+            'color' in update || 'severity' in update || 'theme' in update || 'progress' in update ||
             'buttons' in update || 'details' in update || 'detailsLabel' in update || 'detailsHideLabel' in update;
 
         const applyVisuals = () => {
             if ('message' in update || 'title' in update || 'titleMode' in update || 'allowHtml' in update || 'allowLineBreaks' in update) {
                 applyContent(toastContent, state.message, state);
             }
-            if ('color' in update || 'theme' in update) applyColor(toastClose, toast, state.color, state.theme);
+            // `severity` alone (no `color` in this patch) still re-derives role/aria-live - the two
+            // are independent axes (see `ToastOptions.severity`), so a severity-only update changes
+            // meaning without touching the toast's current look, same as a color-only update changes
+            // the look without touching meaning.
+            if ('color' in update || 'severity' in update || 'theme' in update) applyColor(toastClose, toast, state.color, state.severity, state.theme);
             if ('progress' in update) {
                 // An explicit new `progress` config is a real config swap (mode,
                 // position, height, ...), so a full rebuild (same as creation)
@@ -1152,7 +1185,9 @@ export class Toasts {
      * sticky, `duration: 0`, since there's nothing sensible to auto-dismiss into while the
      * promise is still pending), then patches that same toast to `messages.success`/
      * `messages.error` via `updateToast` once `promise` settles, defaulting the outcome's
-     * `color` to `ToastColor.SUCCESS`/`ToastColor.ERROR` unless overridden. Each of
+     * `severity` to `ToastSeverity.SUCCESS`/`.ERROR` (and its `color` to
+     * `config.colors.SUCCESS`/`.ERROR` accordingly - see `ToastsConfig.colors`) unless
+     * overridden. Each of
      * `loading`/`success`/`error` is a plain message (`string`/`Node`, shorthand for
      * `{ message }`), a full `ToastUpdateOptions` patch, or - for `success`/`error` - a
      * function of the resolved value/rejection reason returning either, for outcome messages
@@ -1168,7 +1203,8 @@ export class Toasts {
      * bounds how long the loading toast is allowed to stay sticky: if `promise` hasn't settled
      * within `timeout` ms, the toast is patched to `messages.timeout` (same shapes as
      * `success`/`error`, but with no resolved value/reason to pass through - just a plain
-     * message/patch/thunk) instead, defaulting to `ToastColor.WARNING`, or dismissed if
+     * message/patch/thunk) instead, defaulting to `ToastSeverity.WARNING`/`config.colors.WARNING`,
+     * or dismissed if
      * `messages.timeout` is omitted. `promise` itself is untouched either way - a timeout only
      * changes what the *toast* shows; if `promise` later settles anyway, that's ignored, since
      * the toast has already moved on. `0`/omitted disables the timeout entirely (the pre-#33
@@ -1198,7 +1234,7 @@ export class Toasts {
             settled = true;
             if (messages.timeout === undefined) { this.removeToast(id); return; }
             const update = this._resolvePromiseMessage(messages.timeout);
-            this.updateToast(id, { color: ToastColor.WARNING, duration: this.config.duration, ...options, ...update });
+            this.updateToast(id, { severity: ToastSeverity.WARNING, color: this.config.colors.WARNING, duration: this.config.duration, ...options, ...update });
         }, timeoutMs) : undefined;
 
         promise.then(
@@ -1207,14 +1243,14 @@ export class Toasts {
                 if (timeoutId !== undefined) clearTimeout(timeoutId);
                 if (messages.success === undefined) { this.removeToast(id); return; }
                 const update = this._resolvePromiseMessage(messages.success, data);
-                this.updateToast(id, { color: ToastColor.SUCCESS, duration: this.config.duration, ...options, ...update });
+                this.updateToast(id, { severity: ToastSeverity.SUCCESS, color: this.config.colors.SUCCESS, duration: this.config.duration, ...options, ...update });
             },
             (err) => {
                 if (settled) return;
                 if (timeoutId !== undefined) clearTimeout(timeoutId);
                 if (messages.error === undefined) { this.removeToast(id); return; }
                 const update = this._resolvePromiseMessage(messages.error, err);
-                this.updateToast(id, { color: ToastColor.ERROR, duration: this.config.duration, ...options, ...update });
+                this.updateToast(id, { severity: ToastSeverity.ERROR, color: this.config.colors.ERROR, duration: this.config.duration, ...options, ...update });
             }
         );
 
@@ -1363,7 +1399,8 @@ export class Toasts {
         allowHtml?: boolean
     ): ResolvedToastOptions {
         const base: ResolvedToastOptions = {
-            color: this.config.color,
+            severity: this.config.severity,
+            color: this.config.colors[this.config.severity],
             duration: this.config.duration,
             closable: this.config.closable,
             allowHtml: this.config.allowHtml,
@@ -1387,6 +1424,14 @@ export class Toasts {
 
         if (colorOrOptions !== null && typeof colorOrOptions === 'object') {
             const resolved: ResolvedToastOptions = { ...base, ...colorOrOptions };
+            // An explicit `severity` with no explicit `color` picks up that
+            // severity's default color from the palette - same as `base` above
+            // does for the configured default severity - so `{ severity:
+            // ToastSeverity.WARNING }` alone gets the right look for free. An
+            // explicit `color` always wins outright, regardless of `severity`.
+            if (colorOrOptions.severity !== undefined && colorOrOptions.color === undefined) {
+                resolved.color = this.config.colors[resolved.severity];
+            }
             // Merged key-by-key (unlike every other object-shaped option,
             // e.g. `progress`, which is a whole-value replacement) so a
             // per-toast theme only needs to give the fields it wants to
@@ -1397,6 +1442,8 @@ export class Toasts {
             return resolved;
         }
 
+        // Legacy positional signature has no `severity` parameter - it keeps
+        // whatever the configured default severity is, same as it always has.
         if (colorOrOptions !== undefined) base.color = colorOrOptions;
         if (duration !== undefined) base.duration = duration;
         if (closable !== undefined) base.closable = closable;

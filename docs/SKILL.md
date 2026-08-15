@@ -21,7 +21,7 @@ npm install brents-toasts
 ```
 
 ```ts
-import { toasts, ToastColor, ToastBuilder, Toasts } from 'brents-toasts';
+import { toasts, ToastColor, ToastSeverity, ToastBuilder, Toasts } from 'brents-toasts';
 ```
 
 No-build-step alternative:
@@ -41,9 +41,10 @@ No-build-step alternative:
 
 ```ts
 // Options object: default choice once you need more than a bare message
-toasts.showToast('Saved!', { color: ToastColor.SUCCESS, duration: 5000, title: 'Done' });
+toasts.showToast('Saved!', { severity: ToastSeverity.SUCCESS, duration: 5000, title: 'Done' });
 
-// Legacy positional: message, color, duration(ms), closable, allowHtml (5 args, all after message optional)
+// Legacy positional: message, color, duration(ms), closable, allowHtml (5 args, all after message
+// optional) - no severity param, so role/aria-live stay at the default (see Config below)
 toasts.showToast('Saved!', ToastColor.SUCCESS, 5000, false, false);
 
 // Fluent builder: chainable, same options object under the hood
@@ -51,7 +52,8 @@ new ToastBuilder('Saved!').asSuccess().withDuration(5000).withTitle('Done').show
 ```
 
 `showToast()` returns the toast's `id` (string); save it if you'll `removeToast`/`updateToast`/
-control its timer later. Defaults: `color` `ToastColor.INFO`, `duration` `3000`ms, `closable`
+control its timer later. Defaults: `severity` `ToastSeverity.INFO` (which also picks the default
+`color`, `ToastColor.INFO` - see Config below), `duration` `3000`ms, `closable`
 `true`, `allowHtml` `false`, `allowLineBreaks` `true` (all overridable via `configure()`, see
 [guide/config.md](guide/config.md)). Builder method reference:
 [guide/builder-reference.md](guide/builder-reference.md).
@@ -95,7 +97,11 @@ cases, and worked examples before implementing anything non-trivial with it.
   separate pre-translated common words. → [guide/localization.md](guide/localization.md)
 - **Config** - `configure()`/`configurePosition()` for defaults, six stacking positions,
   `maxToasts`/`evictOldest`, responsive collapsing below `responsiveBreakpoint`. Scope defaults
-  to one page/section with `new Toasts()` instead of the shared singleton.
+  to one page/section with `new Toasts()` instead of the shared singleton. `role`/`aria-live`
+  come from `ToastOptions.severity` alone (`WARNING`/`ERROR` → `alert`/`assertive`,
+  `INFO`/`SUCCESS` → `status`/`polite`) - `color` is purely visual and never affects them. An
+  unset `color` defaults to `configure()`'s `colors[severity]` (default bundled `ToastColor`),
+  so `severity: ToastSeverity.WARNING` alone gets both the right look and the right role.
   → [guide/config.md](guide/config.md)
 - **Per-toast data** - `setToastData`/`getToastData(id)`: attach a payload so one shared button
   handler can act on many toasts. Not general app state. → [guide/data.md](guide/data.md)
