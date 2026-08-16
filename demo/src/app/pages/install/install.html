@@ -3,14 +3,20 @@
   <p class="intro">Pick whichever fits your project: the library is the same either way.</p>
 
   <div class="method">
-    <h2>npm <span class="badge">Available</span></h2>
+    <h2>npm <span class="badge">Recommended</span></h2>
     <p>For any bundler-based project (Vite, webpack, Rollup, Angular, React, Vue, ...).</p>
     <app-code-snippet [code]="npmSnippet()" />
   </div>
 
   <div class="method">
-    <h2>CDN / script tag <span class="badge">Available</span></h2>
-    <p>A UMD build served straight from unpkg, no install and no build step, just paste this into an HTML file.</p>
+    <h2>CDN / script tag <span class="badge">Recommended</span></h2>
+    <p>A UMD build served straight from jsDelivr, no install and no build step, just paste this into an HTML file.</p>
     <app-code-snippet [code]="cdnSnippet()" />
+  </div>
+
+  <div class="method">
+    <h2>CDN alternative <span class="badge badge-alt">Alternative</span></h2>
+    <p>Same UMD build, served from unpkg instead of jsDelivr, if you'd rather use that.</p>
+    <app-code-snippet [code]="cdnAltSnippet()" />
   </div>
 </section>

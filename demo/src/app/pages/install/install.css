@@ -28,6 +28,11 @@
   padding: 2px 8px;
 }
 
+.badge-alt {
+  color: var(--muted);
+  border-color: var(--muted);
+}
+
 .method p {
   color: var(--muted);
   margin-top: 0;

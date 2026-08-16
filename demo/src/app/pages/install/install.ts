@@ -19,6 +19,7 @@ export class Install {
 
   protected readonly npmSnippet = computed(() => this.snippets.npm);
   protected readonly cdnSnippet = computed(() => this.withVersion(this.snippets.cdn));
+  protected readonly cdnAltSnippet = computed(() => this.withVersion(this.snippets.cdnAlt));
 
   private withVersion(template: string): string {
     return template.replaceAll('{{VERSION}}', this.versionService.version());

@@ -16,6 +16,8 @@ This is a rewrite of an old optimistic previous attempt, that I used on various 
 
 ## Install
 
+**npm** ![recommended](https://img.shields.io/badge/-recommended-2ea44f?style=flat-square)
+
 ```bash
 npm install brents-toasts
 ```
@@ -24,13 +26,21 @@ npm install brents-toasts
 import { toasts, ToastColor, ToastBuilder } from 'brents-toasts';
 ```
 
-Or drop it straight into a page with no build step, no module system required:
+**CDN / script tag** ![recommended](https://img.shields.io/badge/-recommended-2ea44f?style=flat-square)
+
+No build step, no module system required - served via [jsDelivr](https://www.jsdelivr.com/):
 
 ```html
-<script src="https://unpkg.com/brents-toasts/dist/index.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/brents-toasts/dist/index.umd.min.js"></script>
 <script>
   BrentsToasts.toasts.showToast('Hello, toast.');
 </script>
+```
+
+Prefer [unpkg](https://unpkg.com/brents-toasts/dist/index.umd.min.js) instead? Same UMD build, works as a drop-in alternative:
+
+```html
+<script src="https://unpkg.com/brents-toasts/dist/index.umd.min.js"></script>
 ```
 
 ## Quick start

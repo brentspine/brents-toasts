@@ -19,6 +19,8 @@ export interface InstallSnippets {
     npm: string;
     /** `{{VERSION}}` is substituted at runtime from the build-time-generated version.json. */
     cdn: string;
+    /** Alternative CDN (unpkg) snippet, same `{{VERSION}}` substitution as `cdn`. */
+    cdnAlt: string;
 }
 
 /** One curated card in the Playground's "Browse examples" section. */

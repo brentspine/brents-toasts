@@ -11,14 +11,18 @@ npm install brents-toasts
 import { toasts, ToastColor, ToastSeverity, ToastBuilder, Toasts } from 'brents-toasts';
 ```
 
-Or drop it straight into a page with no build step, no module system required:
+Or drop it straight into a page with no build step, no module system required, served via
+[jsDelivr](https://www.jsdelivr.com/):
 
 ```html
-<script src="https://unpkg.com/brents-toasts/dist/index.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/brents-toasts/dist/index.umd.min.js"></script>
 <script>
   BrentsToasts.toasts.showToast('Hello, toast.');
 </script>
 ```
+
+[unpkg](https://unpkg.com/brents-toasts/dist/index.umd.min.js) serves the same UMD build and
+works as a drop-in alternative if you prefer it.
 
 `BrentsToasts` (the UMD global) mirrors the npm named exports 1:1:
 `BrentsToasts.toasts` (the ready-to-use instance), `BrentsToasts.Toasts`
