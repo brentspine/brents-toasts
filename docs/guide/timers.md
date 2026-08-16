@@ -17,6 +17,18 @@ the countdown, and both have to release before it resumes (e.g. clicking a
 button leaves it focused even after the mouse moves away, so the timer stays
 paused until that button loses focus too).
 
+A timed toast also pauses while the page itself is hidden - the browser tab
+switched away from, or the window minimized/backgrounded (detected via the
+Page Visibility API). This is `pauseOnPageHidden`, on by default (same
+`showToast(msg, { pauseOnPageHidden: false })` / `toasts.configure({
+pauseOnPageHidden: false })` opt-out as `pauseOnHover`). It's independent of
+`pauseOnHover` - either one pausing is enough to stop the countdown, and if
+both are active at once (e.g. the mouse is still over the toast when you
+switch tabs), both have to release before it resumes, same as hover and
+focus do. A toast shown while the page is already hidden starts paused
+right away, rather than counting down unseen. Sticky toasts are unaffected
+either way, for the same reason `pauseOnHover` doesn't affect them.
+
 For anything else (reset on a button click, extend while a related async
 action is running, pause while a dropdown opened from the toast is open), call
 the same timer controls the built-in hover behavior is built on, using the

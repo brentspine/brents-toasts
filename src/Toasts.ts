@@ -115,6 +115,13 @@ export interface ToastOptions {
     detailsHideLabel?: string;
     /** Whether hovering the toast, or focusing it or anything inside it (tabbing to its close button, an action button, ...), pauses its auto-dismiss timer, resuming once the mouse leaves and focus has also moved outside the toast entirely. The focus half covers keyboard/screen-reader users, who can't "leave" a toast by moving a mouse. Has no effect on sticky toasts (`duration: 0`) - they have no timer to pause. Defaults to `true` or the configured default. */
     pauseOnHover?: boolean;
+    /** Whether the page becoming hidden (tab switched away, window minimized/backgrounded - detected via the
+     *  Page Visibility API) pauses this toast's auto-dismiss timer, resuming once the page is visible again.
+     *  Independent of `pauseOnHover` - either one pausing is enough to stop the countdown, and (like the
+     *  hover/focus pair) both must release before it actually resumes if both are active at once. Has no
+     *  effect on sticky toasts (`duration: 0`) - they have no timer to pause. Defaults to `true` or the
+     *  configured default. */
+    pauseOnPageHidden?: boolean;
     /** Adds a thin progress bar synced to the toast's auto-dismiss countdown via
      *  the same timer state `getToastTimer`/`pauseToastTimer`/etc. use. `true` is
      *  shorthand for all defaults. Falsy/omitted renders no bar at all - opt-in,
@@ -159,6 +166,8 @@ export interface ToastsConfig {
     evictOldest: boolean;
     /** Whether hovering/focusing a toast pauses its auto-dismiss timer by default. See `ToastOptions.pauseOnHover`. */
     pauseOnHover: boolean;
+    /** Whether the page becoming hidden pauses a toast's auto-dismiss timer by default. See `ToastOptions.pauseOnPageHidden`. */
+    pauseOnPageHidden: boolean;
     /** Library-wide default for `ToastOptions.progress`. See there. */
     progress: boolean | ToastProgressOptions;
     /** Force a specific bundled locale (e.g. `"de"`). Omit to auto-detect from `navigator.language`(s), falling back to `"en"` if nothing bundled matches. See `ToastLocales` for the bundled packs. */
@@ -198,6 +207,7 @@ interface ResolvedToastOptions {
     detailsLabel?: string;
     detailsHideLabel?: string;
     pauseOnHover: boolean;
+    pauseOnPageHidden: boolean;
     progress: boolean | ToastProgressOptions;
     data?: unknown;
     theme?: ToastTheme;
@@ -230,6 +240,7 @@ const DEFAULT_CONFIG: ToastsConfig = {
     maxToasts: MAX_TOASTS,
     evictOldest: true,
     pauseOnHover: true,
+    pauseOnPageHidden: true,
     progress: false,
     promiseTimeout: 0,
     colors: { ...ToastColor },
@@ -305,6 +316,23 @@ export class Toasts {
         });
     }
 
+    // A single page-wide `visibilitychange` listener (bound once from
+    // `_init`, regardless of how many `Toasts` instances exist - hence
+    // `static`, same reasoning as the resize listener above) tracks whether
+    // the page is currently hidden (tab switched away, window
+    // minimized/backgrounded) and re-syncs every currently-shown toast's
+    // pause state against it - see `pauseOnPageHidden`/`_syncPauseState`.
+    private static _visibilityListenerBound = false;
+    private static _pageHidden = false;
+
+    private static _handleVisibilityChange(): void {
+        Toasts._pageHidden = document.hidden;
+        document.querySelectorAll<HTMLElement>('.bt-toast-container').forEach((el) => {
+            if (el.classList.contains('bt-hiding')) return;
+            toastOwners.get(el)?._syncPauseState(el, el.id);
+        });
+    }
+
     public config: ToastsConfig;
     public snackbars: Map<ToastPositionValue, HTMLElement>;
     /** Per-position `maxToasts`/`evictOldest` overrides set via `configurePosition()`. A position absent here (or a key left `undefined` within its entry) falls back to `config`. */
@@ -324,7 +352,7 @@ export class Toasts {
     private _toastState: WeakMap<HTMLElement, ToastState>;
     // Raw hover/focus presence, independent of `pauseOnHover` itself -
     // tracked separately from the timer's own paused/running state so
-    // `_syncHoverFocusPause` can tell whether the *other* trigger is still
+    // `_syncPauseState` can tell whether the *other* trigger is still
     // holding the toast open before actually resuming (e.g. clicking a
     // button focuses it, then the mouse leaves - the timer must stay paused
     // until the button itself loses focus too).
@@ -380,6 +408,11 @@ export class Toasts {
         if (!Toasts._resizeListenerBound) {
             Toasts._resizeListenerBound = true;
             window.addEventListener('resize', () => Toasts._scheduleReconcile());
+        }
+        if (!Toasts._visibilityListenerBound) {
+            Toasts._visibilityListenerBound = true;
+            Toasts._pageHidden = document.hidden;
+            document.addEventListener('visibilitychange', () => Toasts._handleVisibilityChange());
         }
     }
 
@@ -571,11 +604,11 @@ export class Toasts {
         this._pointerFocusState.set(toastContainer, { hovering: false, focused: false });
         toastContainer.addEventListener('mouseenter', () => {
             this._pointerFocusState.get(toastContainer)!.hovering = true;
-            this._syncHoverFocusPause(toastContainer, id);
+            this._syncPauseState(toastContainer, id);
         });
         toastContainer.addEventListener('mouseleave', () => {
             this._pointerFocusState.get(toastContainer)!.hovering = false;
-            this._syncHoverFocusPause(toastContainer, id);
+            this._syncPauseState(toastContainer, id);
         });
         // `focusin`/`focusout` bubble, so one pair of listeners on the
         // container covers the row and every focusable thing inside it
@@ -585,13 +618,18 @@ export class Toasts {
         // buttons in the same toast doesn't briefly resume the timer.
         toastContainer.addEventListener('focusin', () => {
             this._pointerFocusState.get(toastContainer)!.focused = true;
-            this._syncHoverFocusPause(toastContainer, id);
+            this._syncPauseState(toastContainer, id);
         });
         toastContainer.addEventListener('focusout', (e: FocusEvent) => {
             if (e.relatedTarget instanceof Node && toastContainer.contains(e.relatedTarget)) return;
             this._pointerFocusState.get(toastContainer)!.focused = false;
-            this._syncHoverFocusPause(toastContainer, id);
+            this._syncPauseState(toastContainer, id);
         });
+        // Picks up the page's *current* visibility immediately, rather than
+        // waiting for the next `visibilitychange` - e.g. a toast spawned by
+        // a background task while the tab is already hidden starts paused
+        // instead of silently counting down unseen.
+        this._syncPauseState(toastContainer, id);
 
         return id;
     }
@@ -748,10 +786,11 @@ export class Toasts {
                 this._startToastTimer(toastContainer, state.duration);
             }
         }
-        // `pauseOnHover` needs no DOM change - the hover/focus listeners set
-        // up in `showToast` already read it live from `_toastState` on
-        // every mouseenter/mouseleave/focusin/focusout, so updating the
-        // stored state above is enough.
+        // `pauseOnHover`/`pauseOnPageHidden` need no DOM change - the hover/
+        // focus/visibilitychange listeners set up in `showToast`/`_init`
+        // already read them live from `_toastState` on every
+        // mouseenter/mouseleave/focusin/focusout/visibilitychange, so
+        // updating the stored state above is enough.
     }
 
     /**
@@ -814,8 +853,9 @@ export class Toasts {
     /**
      * Pauses `id`'s auto-dismiss countdown, remembering the time left so a later
      * `resumeToastTimer` continues from where it left off instead of restarting. Built-in
-     * hover/focus-to-pause (see `pauseOnHover`) is implemented on top of this - call it
-     * yourself for other pause triggers (e.g. while a related modal/dropdown is open).
+     * hover/focus-to-pause (see `pauseOnHover`) and page-hidden-to-pause (see
+     * `pauseOnPageHidden`) are both implemented on top of this - call it yourself for other
+     * pause triggers (e.g. while a related modal/dropdown is open).
      * No-op for a sticky toast (`duration: 0`) - it has no timer to pause - and for an
      * already-paused one.
      */
@@ -1364,20 +1404,25 @@ export class Toasts {
         fill.style.transform = `scaleX(${target})`;
     }
 
-    // Recomputes whether `pauseOnHover` wants this toast's timer paused
-    // right now, from the raw hover/focus presence tracked in
-    // `_pointerFocusState` - hovering and focusing both feed the same flag.
-    // Called on every mouseenter/mouseleave/focusin/focusout rather than
-    // pausing/resuming directly from those handlers, so a mouse leaving a
-    // toast while a button inside it still has keyboard focus (or vice
-    // versa) can't resume the timer while the other trigger is still
-    // active - both have to release before the countdown actually
-    // continues.
-    private _syncHoverFocusPause(el: HTMLElement, id: string): void {
+    // Recomputes whether this toast's timer should be paused right now,
+    // combining two independent triggers: `pauseOnHover` against the raw
+    // hover/focus presence tracked in `_pointerFocusState` (hovering and
+    // focusing both feed the same flag), and `pauseOnPageHidden` against
+    // the page-wide `Toasts._pageHidden` flag. Either trigger alone is
+    // enough to pause. Called on every mouseenter/mouseleave/focusin/
+    // focusout/visibilitychange rather than pausing/resuming directly from
+    // those handlers, so e.g. a mouse leaving a toast while a button inside
+    // it still has keyboard focus (or the page regaining visibility while
+    // still hovered) can't resume the timer while another trigger is still
+    // active - every active trigger has to release before the countdown
+    // actually continues.
+    private _syncPauseState(el: HTMLElement, id: string): void {
         const state = this._toastState.get(el);
         const pointer = this._pointerFocusState.get(el);
         if (!state || !pointer) return;
-        const shouldPause = (pointer.hovering || pointer.focused) && state.pauseOnHover;
+        const shouldPause =
+            ((pointer.hovering || pointer.focused) && state.pauseOnHover) ||
+            (Toasts._pageHidden && state.pauseOnPageHidden);
         if (shouldPause) this.pauseToastTimer(id);
         else this.resumeToastTimer(id);
     }
@@ -1417,6 +1462,7 @@ export class Toasts {
             detailsLabel: undefined,
             detailsHideLabel: undefined,
             pauseOnHover: this.config.pauseOnHover,
+            pauseOnPageHidden: this.config.pauseOnPageHidden,
             progress: this.config.progress,
             data: undefined,
             theme: this.config.theme,

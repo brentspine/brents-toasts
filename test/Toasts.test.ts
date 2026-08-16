@@ -368,6 +368,89 @@ describe('pauseOnHover (mouse + focus)', () => {
     });
 });
 
+describe('pauseOnPageHidden', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+        // Clear the DOM before resetting visibility so the reset dispatch
+        // below doesn't find any live toast containers to resume (which
+        // would schedule a real, un-mocked setTimeout) - it only needs to
+        // reset the module-static `Toasts._pageHidden` flag so it doesn't
+        // leak `true` into unrelated tests later in this file.
+        cleanup();
+        Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+        document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    function setHidden(hidden: boolean): void {
+        Object.defineProperty(document, 'hidden', { value: hidden, configurable: true });
+        document.dispatchEvent(new Event('visibilitychange'));
+    }
+
+    it('defaults to true and pauses the timer while the page is hidden', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000 });
+        setHidden(true);
+        vi.advanceTimersByTime(5000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
+    });
+
+    it('resumes once the page becomes visible again', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000 });
+        setHidden(true);
+        vi.advanceTimersByTime(5000);
+        setHidden(false);
+        vi.advanceTimersByTime(1000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('a toast shown while the page is already hidden starts paused', () => {
+        vi.useFakeTimers();
+        setHidden(true);
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000 });
+        vi.advanceTimersByTime(5000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
+        setHidden(false);
+        vi.advanceTimersByTime(1000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('pauseOnPageHidden: false leaves the timer running while the page is hidden', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000, pauseOnPageHidden: false });
+        setHidden(true);
+        vi.advanceTimersByTime(1000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('only resumes once both page-hidden and hover/focus release', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000 });
+        const container = document.getElementById(id)!;
+        setHidden(true);
+        container.dispatchEvent(new Event('mouseenter'));
+        setHidden(false);
+        vi.advanceTimersByTime(5000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
+        container.dispatchEvent(new Event('mouseleave'));
+        vi.advanceTimersByTime(1000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('is a safe no-op for a sticky toast (duration: 0)', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0 });
+        expect(() => setHidden(true)).not.toThrow();
+        expect(t.getToastTimer(id)).toBeNull();
+    });
+});
+
 describe('progress bar sync', () => {
     afterEach(() => {
         vi.useRealTimers();

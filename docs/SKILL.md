@@ -83,7 +83,9 @@ cases, and worked examples before implementing anything non-trivial with it.
   incremental changes), optionally animated via `transition`. Also covers `toasts.promise(...)`
   for loading/success/error toasts. → [guide/lifecycle.md](guide/lifecycle.md)
 - **Timers** - `pause`/`resume`/`reset`/`extend`/`removeToastTimer`, `getToastTimer(id)`. All
-  no-ops on a sticky toast (`duration: 0`); it never has timer state.
+  no-ops on a sticky toast (`duration: 0`); it never has timer state. Timers also auto-pause on
+  hover/focus (`pauseOnHover`, default on) and while the page is hidden (`pauseOnPageHidden`,
+  default on) - independent triggers, both must release to resume.
   → [guide/timers.md](guide/timers.md)
 - **Progress bar** - `progress: { mode: 'fill' | 'drain' | 'manual' }`; `'manual'` ignores the
   timer, drive it with `setToastProgress(id, 0-1)`. → [guide/progress.md](guide/progress.md)

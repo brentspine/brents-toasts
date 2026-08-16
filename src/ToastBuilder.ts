@@ -59,6 +59,8 @@ export class ToastBuilder {
     withOnClose(onClose: () => void): this { this._options.onClose = onClose; return this; }
     /** Whether hovering or focusing this toast pauses its auto-dismiss timer. Called with no argument, enables it (`true`). See `ToastOptions.pauseOnHover`. */
     withPauseOnHover(pauseOnHover: boolean = true): this { this._options.pauseOnHover = pauseOnHover; return this; }
+    /** Whether the page becoming hidden pauses this toast's auto-dismiss timer. Called with no argument, enables it (`true`). See `ToastOptions.pauseOnPageHidden`. */
+    withPauseOnPageHidden(pauseOnPageHidden: boolean = true): this { this._options.pauseOnPageHidden = pauseOnPageHidden; return this; }
     /** Adds a thin progress bar synced to the toast's auto-dismiss countdown.
      *  See `ToastOptions.progress`/`ToastProgressOptions`. */
     withProgress(progress: boolean | ToastProgressOptions = true): this { this._options.progress = progress; return this; }

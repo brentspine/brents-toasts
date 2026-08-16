@@ -32,6 +32,7 @@ toast's id, same as `showToast()`.
 | `withAnimation(animation)` | `ToastOptions.animation` | See [Animations](animations.md) |
 | `withOnClose(onClose)` | `ToastOptions.onClose` | |
 | `withPauseOnHover(pauseOnHover = true)` | `ToastOptions.pauseOnHover` | Called with no argument, enables it; also governs focus-to-pause |
+| `withPauseOnPageHidden(pauseOnPageHidden = true)` | `ToastOptions.pauseOnPageHidden` | Called with no argument, enables it; pauses while the page is hidden |
 | `withProgress(progress = true)` | `ToastOptions.progress` | See [Progress bar](progress.md) |
 | `withData(data)` | `ToastOptions.data` | See [Per-toast data](data.md) |
 | `withTheme(theme)` | `ToastOptions.theme` | Merges key-by-key over the configured default at `.show()` time |

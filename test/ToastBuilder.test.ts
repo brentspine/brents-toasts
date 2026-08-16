@@ -146,6 +146,20 @@ describe('ToastBuilder', () => {
         vi.useRealTimers();
     });
 
+    it('withPauseOnPageHidden defaults to true and pauses the timer while the page is hidden', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = new ToastBuilder('m', t).withPauseOnPageHidden().withDuration(1000).show();
+        Object.defineProperty(document, 'hidden', { value: true, configurable: true });
+        document.dispatchEvent(new Event('visibilitychange'));
+        vi.advanceTimersByTime(5000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
+        vi.useRealTimers();
+        cleanup();
+        Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+        document.dispatchEvent(new Event('visibilitychange'));
+    });
+
     it('withProgress defaults to true and renders a progress bar', () => {
         const t = new Toasts();
         const id = new ToastBuilder('m', t).withProgress().withDuration(1000).show();
@@ -301,6 +315,7 @@ describe('ToastBuilder', () => {
             .withPosition(ToastPosition.BOTTOM_RIGHT)
             .withAnimation(ToastAnimation.SLIDE)
             .withPauseOnHover(false)
+            .withPauseOnPageHidden(false)
             .withProgress(false)
             .withData({ n: 1 })
             .withTheme({ actionColor: 'red' })

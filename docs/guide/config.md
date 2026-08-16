@@ -29,6 +29,7 @@ whatever `configure()` set.
 | `maxToasts` | `5` | see "Capacity and eviction" below |
 | `evictOldest` | `true` | |
 | `pauseOnHover` | `true` | also governs focus-to-pause; see [Timers](timers.md) |
+| `pauseOnPageHidden` | `true` | pauses while the page is hidden; see [Timers](timers.md) |
 | `progress` | `false` | see [Progress bar](progress.md) |
 | `promiseTimeout` | `0` (disabled) | ms; see "Timeout" in [Lifecycle](lifecycle.md) |
 | `locale` | `undefined` (auto-detect) | see [Localization](localization.md) |
