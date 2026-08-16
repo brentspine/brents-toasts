@@ -1,0 +1,281 @@
+{
+  "features": [
+    { "title": "Zero dependencies", "description": "No runtime dependencies at all: the whole library, CSS included, is a single self-contained bundle." },
+    { "title": "Framework-agnostic", "description": "Works with plain script tags (UMD), or as an ESM/CJS import in React, Vue, Angular, Svelte, or anything else." },
+    { "title": "No build step required", "description": "Drop in a single <script> tag and call toasts.showToast(...), no bundler or compilation needed." },
+    { "title": "Fully themeable", "description": "Every color is a CSS custom property, overridable per-toast or library-wide, with automatic close-icon contrast.", "exampleId": "theme" },
+    { "title": "Built-in localization", "description": "English, German, Spanish and French chrome text out of the box, with custom translation overrides." },
+    { "title": "Six stacking positions", "description": "Edge-agnostic stacking math keeps toasts from overlapping in any corner or center-edge position.", "exampleId": "positions" },
+    { "title": "Multi-step & confirm buttons", "description": "Built-in confirm-before-action, copy-to-clipboard, and general multi-step button state machines.", "exampleId": "confirm" },
+    { "title": "Expandable details", "description": "Attach extra collapsible detail lines to any toast without cluttering the main message.", "exampleId": "details" },
+    { "title": "Progress bars", "description": "An optional thin progress bar synced to a toast's auto-dismiss countdown, fill or drain, any edge.", "exampleId": "progress" },
+    { "title": "Promise-based toasts", "description": "toasts.promise() ties a toast to a fetch/async call's lifecycle: a loading state that patches itself to success or error once the promise settles.", "exampleId": "promise" },
+    { "title": "TypeScript-first", "description": "Full .d.ts types ship with every build, with every option documented via JSDoc." }
+  ],
+  "install": {
+    "npm": "npm install brents-toasts",
+    "cdn": "<script src=\"https://unpkg.com/brents-toasts@{{VERSION}}/dist/index.umd.min.js\"></script>\n<script>\n  BrentsToasts.toasts.showToast(\"Hello world!\", {\n    color: BrentsToasts.ToastColor.SUCCESS\n  });\n</script>"
+  },
+  "toastOptions": [
+    { "name": "title", "type": "string", "default": "undefined", "description": "Optional bold title line above the message.", "builderCall": ".withTitle(\"Heads up!\")" },
+    { "name": "titleMode", "type": "'inline' | 'stacked'", "default": "\"stacked\"", "description": "Whether title renders on its own line above message (stacked) or as a bold lead-in sharing its line (inline). No effect when title is unset.", "builderCall": ".withTitleMode(\"inline\")" },
+    { "name": "severity", "type": "ToastSeverityValue", "typeRef": "ToastSeverityValue", "default": "ToastSeverity.INFO", "description": "Semantic severity - the sole driver of role/aria-live (WARNING/ERROR get role=\"alert\", INFO/SUCCESS get role=\"status\"). Also picks the default color (via configure()'s colors palette) when color itself isn't set.", "builderCall": ".withSeverity(ToastSeverity.WARNING)" },
+    { "name": "color", "type": "string", "typeRef": "ToastColorValue", "default": "colors[severity], e.g. ToastColor.INFO", "description": "Background color of the indicator bar. Purely presentational - has no effect on role/aria-live, which come from severity alone. Any CSS color string works; ToastColor just bundles presets.", "builderCall": ".withColor(\"#4bb543\")" },
+    { "name": "duration", "type": "number", "default": "3000", "description": "Auto-dismiss after this many ms. Use 0 to make the toast sticky (never auto-dismisses).", "builderCall": ".withDuration(5000)" },
+    { "name": "closable", "type": "boolean", "default": "true", "description": "Whether clicking the toast dismisses it.", "builderCall": ".withClosable(true)" },
+    { "name": "allowHtml", "type": "boolean", "default": "false", "description": "If true, message is rendered as HTML. Sanitize the input yourself if it may contain user-controlled content.", "builderCall": ".withAllowHtml(true)" },
+    { "name": "allowLineBreaks", "type": "boolean", "default": "true", "description": "Whether \\n or literal <br> in message/title/button labels/details renders as a real line break.", "builderCall": ".withAllowLineBreaks(false)" },
+    { "name": "position", "type": "ToastPositionValue", "typeRef": "ToastPositionValue", "default": "ToastPosition.BOTTOM_CENTER", "description": "Which screen edge/corner this toast stacks from.", "builderCall": ".withPosition(ToastPosition.TOP_RIGHT)" },
+    { "name": "animation", "type": "ToastAnimationValue", "typeRef": "ToastAnimationValue", "default": "ToastAnimation.SLIDE", "description": "Entry/exit animation. slide, fade, none, or a name registered via registerToastAnimation().", "builderCall": ".withAnimation(ToastAnimation.FADE)" },
+    { "name": "onClose", "type": "() => void", "default": "undefined", "description": "Called as soon as the toast starts closing, manually or via duration timeout.", "builderCall": ".withOnClose(() => console.log(\"closed\"))" },
+    { "name": "removeOtherToasts", "type": "boolean", "default": "false", "description": "If true, dismisses every other currently-visible toast before showing this one.", "builderCall": ".andRemoveOtherToasts()" },
+    { "name": "reverseOrder", "type": "boolean", "default": "false", "description": "If true, inserts this toast at the far end of its position's stack instead of nearest the anchor edge. Creation-time only.", "builderCall": ".andReverseOrder()" },
+    { "name": "pauseOnHover", "type": "boolean", "default": "true", "description": "Whether hovering the toast, or focusing it or anything inside it, pauses its auto-dismiss timer. No effect on sticky toasts.", "builderCall": ".withPauseOnHover(false)" },
+    { "name": "pauseOnPageHidden", "type": "boolean", "default": "true", "description": "Whether the page becoming hidden (tab switched away, window minimized/backgrounded) pauses its auto-dismiss timer, resuming once visible again. Independent of pauseOnHover - either pausing is enough. No effect on sticky toasts.", "builderCall": ".withPauseOnPageHidden(false)" },
+    { "name": "progress", "type": "boolean | ToastProgressOptions", "typeRef": "ToastProgressOptions", "default": "false", "description": "Adds a thin progress bar. fill/drain sync to the auto-dismiss countdown; manual is driven yourself via setToastProgress(id, value). true = all defaults.", "builderCall": ".withProgress({ mode: \"fill\", color: \"#4bb543\" })" },
+    { "name": "data", "type": "unknown", "default": "undefined", "description": "Arbitrary data to associate with the toast, readable later via getToastData(id).", "builderCall": ".withData({ orderId: 1234 })" },
+    { "name": "theme", "type": "ToastTheme", "typeRef": "ToastTheme", "default": "undefined", "description": "Extra color knobs beyond color: card background, text, details block, action/close-icon colors.", "builderCall": ".withTheme({ background: \"#1c1c1c\", text: \"#f5f5f5\" })" },
+    { "name": "transition", "type": "ToastTransitionValue", "typeRef": "ToastTransitionValue", "default": "undefined", "description": "Only meaningful passed to updateToast (directly, or via promise()) - animates the whole toast card into the patch instead of swapping instantly. No-op at creation, since there's nothing to transition from yet.", "builderCall": ".withTransition(ToastTransition.FADE)" },
+    { "name": "buttons", "type": "ToastButton[]", "typeRef": "ToastButton", "default": "undefined", "description": "Action buttons rendered right of the message. Clicks never trigger closable dismissal.", "builderCall": ".withButton(\"Undo\", (event, id) => console.log(\"undo\", id))" },
+    { "name": "details", "type": "(string | ToastDetailItem)[]", "typeRef": "ToastDetailItem", "default": "undefined", "description": "Extra lines revealed by an auto-added Details toggle, rendered outside the dismissable row.", "builderCall": ".withDetails([\"Order #1234 shipped\", \"Tracking: 1Z999AA10123456784\"], \"Show details\", \"Hide details\")" },
+    { "name": "detailsLabel", "type": "string", "default": "\"Details\" (locale)", "description": "Label for the auto-added details toggle button. Set together with details.", "builderCall": ".withDetails([\"Order #1234 shipped\", \"Tracking: 1Z999AA10123456784\"], \"Show details\", \"Hide details\")" },
+    { "name": "detailsHideLabel", "type": "string", "default": "\"Hide details\" (locale)", "description": "Label for the toggle button while details are expanded. Set together with details.", "builderCall": ".withDetails([\"Order #1234 shipped\", \"Tracking: 1Z999AA10123456784\"], \"Show details\", \"Hide details\")" },
+    { "name": "closeButton()", "type": "(label?, className?) => ToastButton", "typeRef": "ToastButton", "default": "-", "description": "Ready-made button that dismisses the toast it's on.", "builderCall": ".withCloseButton()" },
+    { "name": "confirmButton()", "type": "(label, onConfirm, options?) => ToastButton", "typeRef": "ToastConfirmButtonOptions", "default": "-", "description": "Ready-made confirm-before-action button: swaps the toast's message/color to a confirm step, then Yes/No, runs onConfirm, optionally a pending step, then a done flash that either restores the original content or closes the toast.", "builderCall": ".withConfirmButton(\"Delete\", (event, id) => console.log(\"deleted\", id))" },
+    { "name": "stepButton()", "type": "(steps, className?) => ToastButton", "typeRef": "ToastButtonStep", "default": "-", "description": "The general-purpose primitive behind detailsCopyButton(): a button that walks through custom steps in order.", "builderCall": ".withStepButton([{ label: \"Copy\" }, { label: \"Copied!\", revertAfterMs: 2000 }])" }
+  ],
+  "configOptions": [
+    { "name": "severity", "type": "ToastSeverityValue", "typeRef": "ToastSeverityValue", "default": "ToastSeverity.INFO", "description": "Library-wide default severity for calls that omit it - drives role/aria-live and the default color.", "control": "select", "selectOptions": ["INFO", "SUCCESS", "WARNING", "ERROR"] },
+    { "name": "duration", "type": "number", "default": "3000", "description": "Library-wide default auto-dismiss duration in ms.", "control": "number" },
+    { "name": "closable", "type": "boolean", "default": "true", "description": "Library-wide default for whether clicking a toast dismisses it.", "control": "boolean" },
+    { "name": "allowHtml", "type": "boolean", "default": "false", "description": "Library-wide default for whether message is rendered as HTML.", "control": "boolean" },
+    { "name": "allowLineBreaks", "type": "boolean", "default": "true", "description": "Library-wide default for \\n/<br> rendering as real line breaks.", "control": "boolean" },
+    { "name": "titleMode", "type": "'inline' | 'stacked'", "default": "\"stacked\"", "description": "Library-wide default for whether title stacks above message or shares its line.", "control": "select", "selectOptions": ["stacked", "inline"] },
+    { "name": "position", "type": "ToastPositionValue", "typeRef": "ToastPositionValue", "default": "ToastPosition.BOTTOM_CENTER", "description": "Library-wide default stacking position.", "control": "select", "selectOptions": ["bottom-center", "top-center", "top-left", "top-right", "bottom-left", "bottom-right"] },
+    { "name": "responsiveBreakpoint", "type": "number", "default": "800", "description": "Below this viewport width (px), *-left/*-right positions collapse into their edge's *-center position and share one stack. Re-evaluated live on resize. Set to 0 to disable collapsing entirely.", "control": "number" },
+    { "name": "animation", "type": "ToastAnimationValue", "typeRef": "ToastAnimationValue", "default": "ToastAnimation.SLIDE", "description": "Library-wide default entry/exit animation.", "control": "select", "selectOptions": ["slide", "fade", "none"] },
+    { "name": "maxToasts", "type": "number", "default": "5", "description": "Maximum toasts visible at once (per position, unless overridden via configurePosition()).", "control": "number" },
+    { "name": "evictOldest", "type": "boolean", "default": "true", "description": "When maxToasts is exceeded, evict the oldest toast to make room instead of blocking new ones.", "control": "boolean" },
+    { "name": "pauseOnHover", "type": "boolean", "default": "true", "description": "Library-wide default for whether hovering/focusing a toast pauses its timer.", "control": "boolean" },
+    { "name": "pauseOnPageHidden", "type": "boolean", "default": "true", "description": "Library-wide default for whether a toast's timer pauses while the page is hidden (tab switched away, window minimized/backgrounded).", "control": "boolean" },
+    { "name": "progress", "type": "boolean | ToastProgressOptions", "typeRef": "ToastProgressOptions", "default": "false", "description": "Library-wide default progress-bar behavior.", "control": "boolean" },
+    { "name": "promiseTimeout", "type": "number", "default": "0", "description": "Library-wide default for promise()'s timeout (ms). If a promise hasn't settled within this long, its loading toast is patched to messages.timeout instead. 0 disables the timeout.", "control": "number" },
+    { "name": "locale", "type": "string | undefined", "default": "undefined (auto-detect)", "description": "Force a specific bundled locale (e.g. \"de\"). Omit to auto-detect from the browser, falling back to \"en\".", "control": "select", "selectOptions": ["auto", "en", "de", "es", "fr"] },
+    { "name": "translations", "type": "Partial<ToastTranslations> | undefined", "default": "undefined", "description": "Partial string overrides layered on top of the resolved locale pack.", "control": "text" },
+    { "name": "theme", "type": "ToastTheme", "typeRef": "ToastTheme", "default": "undefined", "description": "Library-wide default color overrides: card background, text, details block, action/close-icon colors.", "control": "text" },
+    { "name": "colors", "type": "ToastColorPalette", "typeRef": "ToastColorPalette", "default": "{ ...ToastColor }", "description": "The severity -> default color lookup: what an unset color resolves to for a given severity, and what promise() defaults color to for its timeout/success/error outcomes. Accessibility (role/aria-live) is unaffected by this - it comes from severity alone. Merges key-by-key over the current value.", "control": "text" }
+  ],
+  "typeSpecs": {
+    "ToastPositionValue": {
+      "kind": "enum",
+      "description": "Which screen edge/corner a toast stacks from. All six are implemented; stacking math is edge-agnostic.",
+      "values": [
+        { "value": "bottom-center", "description": "Stacks upward from the bottom-center of the screen. The default." },
+        { "value": "top-center", "description": "Stacks downward from the top-center of the screen." },
+        { "value": "top-left", "description": "Stacks downward from the top-left corner." },
+        { "value": "top-right", "description": "Stacks downward from the top-right corner." },
+        { "value": "bottom-left", "description": "Stacks upward from the bottom-left corner." },
+        { "value": "bottom-right", "description": "Stacks upward from the bottom-right corner." }
+      ]
+    },
+    "ToastAnimationValue": {
+      "kind": "enum",
+      "description": "Entry/exit animation. Passing an unimplemented/unregistered value falls back to slide with a one-time console warning. Custom animations can be added via registerToastAnimation().",
+      "values": [
+        { "value": "slide", "description": "Slides in/out from its stacking edge while fading. The default." },
+        { "value": "fade", "description": "Opacity-only - appears already at its resting position, nothing slides." },
+        { "value": "none", "description": "No transition at all: appears, disappears, and reflows instantly." }
+      ]
+    },
+    "ToastTransitionValue": {
+      "kind": "enum",
+      "description": "How updateToast() (directly, or via promise()) animates into a visual patch. Passing an unregistered value falls back to fade with a one-time console warning. Custom transitions can be added via registerToastTransition().",
+      "values": [
+        { "value": "fade", "description": "Fades the toast card out, applies the patch, then fades it back in." },
+        { "value": "shake-lr", "description": "Applies the patch immediately and shakes the card left-right over it, to draw attention rather than hide the change." },
+        { "value": "none", "description": "No animation: applies instantly. Same as omitting transition entirely." }
+      ]
+    },
+    "ToastColorValue": {
+      "kind": "enum",
+      "description": "Convenience color presets. color/theme fields accept any CSS color string, not just these.",
+      "values": [
+        { "value": "ToastColor.INFO (#28a6f5)", "description": "Default color for informational toasts." },
+        { "value": "ToastColor.SUCCESS (#4bb543)", "description": "For successful operations." },
+        { "value": "ToastColor.WARNING (#dfb200)", "description": "For warnings." },
+        { "value": "ToastColor.ERROR (#ff4433)", "description": "For errors/failures." }
+      ]
+    },
+    "ToastSeverityValue": {
+      "kind": "enum",
+      "description": "Semantic severity - the sole driver of a toast's role/aria-live. Independent of color: color is purely presentational and never affects accessibility semantics.",
+      "values": [
+        { "value": "ToastSeverity.INFO", "description": "role=\"status\"/aria-live=\"polite\". Default color ToastColor.INFO. The default severity." },
+        { "value": "ToastSeverity.SUCCESS", "description": "role=\"status\"/aria-live=\"polite\". Default color ToastColor.SUCCESS. Also promise()'s default success severity." },
+        { "value": "ToastSeverity.WARNING", "description": "role=\"alert\"/aria-live=\"assertive\". Default color ToastColor.WARNING. Also promise()'s default timeout severity." },
+        { "value": "ToastSeverity.ERROR", "description": "role=\"alert\"/aria-live=\"assertive\". Default color ToastColor.ERROR. Also promise()'s default error severity." }
+      ]
+    },
+    "ToastTheme": {
+      "kind": "object",
+      "description": "Extra color knobs beyond color: the toast's overall chrome, not just its accent bar. Each field mirrors a --bt-* CSS custom property, so plain CSS works too.",
+      "fields": [
+        { "name": "background", "type": "string", "default": "#333", "description": "Toast card background. CSS var --bt-background." },
+        { "name": "text", "type": "string", "default": "#fff", "description": "Toast text color. CSS var --bt-text." },
+        { "name": "detailsBackground", "type": "string", "default": "rgba(0,0,0,0.15)", "description": "Details block background. CSS var --bt-details-background." },
+        { "name": "actionColor", "type": "string", "default": "defaults to text", "description": "Action button/details toggle text color. CSS var --bt-action-color." },
+        { "name": "closeIcon", "type": "string", "default": "auto-computed for contrast", "description": "Close (x) icon color. Auto-picked dark/light against color unless set here. CSS var --bt-close-icon." }
+      ]
+    },
+    "ToastColorPalette": {
+      "kind": "object",
+      "description": "One default color string per severity (ToastSeverityValue key). Looked up when a toast's severity is known but color isn't set - never the other way around, so reskinning this never affects accessibility.",
+      "fields": [
+        { "name": "INFO", "type": "string", "default": "#28a6f5", "description": "Default color for ToastSeverity.INFO." },
+        { "name": "SUCCESS", "type": "string", "default": "#4bb543", "description": "Default color for ToastSeverity.SUCCESS; also promise()'s default success color." },
+        { "name": "WARNING", "type": "string", "default": "#dfb200", "description": "Default color for ToastSeverity.WARNING; also promise()'s default timeout color." },
+        { "name": "ERROR", "type": "string", "default": "#ff4433", "description": "Default color for ToastSeverity.ERROR; also promise()'s default error color." }
+      ]
+    },
+    "ToastProgressOptions": {
+      "kind": "object",
+      "description": "Configures the optional progress bar: synced to a toast's auto-dismiss countdown (fill/drain), or driven yourself (manual).",
+      "fields": [
+        { "name": "position", "type": "'top' | 'bottom'", "default": "'bottom'", "description": "Which edge of the toast card the bar sits on." },
+        { "name": "origin", "type": "'left' | 'right' | 'center'", "default": "'left'", "description": "Anchor point the bar grows from/shrinks toward. Always physical, not RTL-aware." },
+        { "name": "mode", "type": "'fill' | 'drain' | 'manual'", "default": "'drain'", "description": "fill starts empty and grows; drain starts full and shrinks; manual doesn't move on its own - call setToastProgress(id, value) yourself as real work progresses. Ignores the auto-dismiss timer entirely, so it stays visible on a sticky toast too." },
+        { "name": "value", "type": "number", "default": "0", "description": "Initial fill fraction (0-1) when mode: 'manual'. Ignored otherwise. Update later via setToastProgress(id, value)." },
+        { "name": "color", "type": "string", "default": "the toast's resolved color", "description": "Fill color." },
+        { "name": "trackColor", "type": "string", "default": "'transparent'", "description": "Color of the unfilled track." },
+        { "name": "height", "type": "number", "default": "3", "description": "Bar thickness in px." },
+        { "name": "label", "type": "string", "default": "resolved locale's \"Progress\"", "description": "Accessible name for the bar (role=\"progressbar\", with aria-valuemin/max/now kept in sync), e.g. \"Uploading file\"." }
+      ]
+    },
+    "ToastButton": {
+      "kind": "object",
+      "description": "One action button rendered on a toast (or a ToastDetailItem's own buttons).",
+      "fields": [
+        { "name": "label", "type": "string", "description": "Rendered as plain text; \\n/<br> still honored as line breaks." },
+        { "name": "onClick", "type": "(event, id) => void", "description": "Receives the click event and this toast's id." },
+        { "name": "className", "type": "string", "description": "Extra class name(s) appended alongside the built-in bt-toast-action class." }
+      ]
+    },
+    "ToastButtonStep": {
+      "kind": "object",
+      "description": "One step of a multi-step button's state machine (the primitive behind stepButton()/detailsCopyButton()).",
+      "fields": [
+        { "name": "label", "type": "string", "description": "Text shown while this step is active." },
+        { "name": "onClick", "type": "(event, id) => void | false | Promise<void | false>", "description": "Runs on click. Return false to stay on this step instead of advancing." },
+        { "name": "className", "type": "string", "description": "Extra class(es) applied only while this step is active." },
+        { "name": "revertAfterMs", "type": "number", "description": "Auto-advance to revertToStep this many ms after becoming active. No effect on steps[0]." },
+        { "name": "revertToStep", "type": "number", "default": "0", "description": "Step index revertAfterMs advances to." }
+      ]
+    },
+    "ToastConfirmButtonOptions": {
+      "kind": "object",
+      "description": "The third argument to confirmButton()/withConfirmButton() - customizes each step of the confirm flow (confirm, pending, done).",
+      "fields": [
+        { "name": "confirmMessage", "type": "string", "default": "\"Are you sure?\" (locale)", "description": "Message shown on the confirm step." },
+        { "name": "confirmColor", "type": "string", "default": "unchanged", "description": "Toast color during the confirm step." },
+        { "name": "yesLabel", "type": "string", "default": "\"Yes\" (locale)", "description": "Confirm step's confirm button label." },
+        { "name": "noLabel", "type": "string", "default": "\"No\" (locale)", "description": "Confirm step's cancel button label." },
+        { "name": "pendingMessage", "type": "string", "default": "undefined", "description": "Message shown while an async onConfirm is pending, replacing the buttons entirely. Unset keeps the confirm step's content and just disables the buttons instead." },
+        { "name": "pendingColor", "type": "string", "default": "unchanged", "description": "Toast color while an async onConfirm is pending." },
+        { "name": "doneMessage", "type": "string | null", "default": "\"Done\" (locale)", "description": "Message flashed after onConfirm succeeds. Pass null to skip the flash entirely." },
+        { "name": "doneColor", "type": "string", "default": "unchanged", "description": "Toast color during the done flash." },
+        { "name": "doneTimeoutMs", "type": "number", "default": "2000", "description": "How long the done flash stays up before doneAction runs." },
+        { "name": "doneAction", "type": "'restore' | 'close'", "default": "'restore'", "description": "What happens after the done flash (or immediately, if doneMessage is null): restore the original title/message/buttons/color, or close (dismiss) the toast." },
+        { "name": "className", "type": "string", "description": "Extra class name(s) on the button itself." }
+      ]
+    },
+    "ToastDetailItem": {
+      "kind": "object",
+      "description": "One line of a toast's expandable details block. A plain string is shorthand for { value }.",
+      "fields": [
+        { "name": "label", "type": "string", "description": "Optional label shown before the value, e.g. \"Status\"." },
+        { "name": "value", "type": "string", "description": "The detail line's text." },
+        { "name": "buttons", "type": "ToastButton[]", "description": "Extra action buttons rendered after this item's value, e.g. a Copy button." }
+      ]
+    }
+  },
+  "examples": [
+    {
+      "id": "positions",
+      "title": "All six stacking positions",
+      "description": "Fires one toast per screen edge/corner, showing that the stacking math handles every position the same way.",
+      "code": "Object.values(ToastPosition).forEach((position) => {\n  new ToastBuilder(`Anchored: ${position}`)\n    .withPosition(position)\n    .withDuration(4000)\n    .show();\n});"
+    },
+    {
+      "id": "confirm",
+      "title": "Confirm before acting",
+      "description": "Each step of the confirm flow gets its own color and message: confirm, a pending state while the (simulated) delete runs, then a success flash that closes the toast instead of reverting.",
+      "code": "new ToastBuilder(\"Delete this file?\")\n  .withColor(ToastColor.WARNING)\n  .withDuration(0)\n  .withConfirmButton(\n    \"Delete\",\n    (event, id) => new Promise((resolve) => setTimeout(resolve, 1500)),\n    {\n      confirmMessage: \"Are you sure you want to delete this file?\",\n      confirmColor: ToastColor.ERROR,\n      pendingMessage: \"Processing, it might take a while.\",\n      pendingColor: ToastColor.INFO,\n      doneMessage: \"File deleted successfully.\",\n      doneColor: ToastColor.SUCCESS,\n      doneTimeoutMs: 2000,\n      doneAction: \"close\",\n    }\n  )\n  .show();"
+    },
+    {
+      "id": "confirm-progress",
+      "title": "Confirm + live progress bar",
+      "description": "Combines confirmButton() with progress: { mode: 'manual' } - onConfirm reports real progress via setToastProgress(id, value) instead of the bar just tracking a duration.",
+      "code": "const id = new ToastBuilder(\"Upload this file?\")\n  .withColor(ToastColor.WARNING)\n  .withDuration(0)\n  .withProgress({ mode: \"manual\" })\n  .withConfirmButton(\n    \"Upload\",\n    async (event, confirmId) => {\n      for (let pct = 0; pct <= 1; pct += 0.25) {\n        await new Promise((resolve) => setTimeout(resolve, 400));\n        toasts.setToastProgress(confirmId, pct);\n      }\n    },\n    {\n      confirmColor: ToastColor.INFO,\n      pendingMessage: \"Uploading...\",\n      pendingColor: ToastColor.INFO,\n      doneMessage: \"Upload complete!\",\n      doneColor: ToastColor.SUCCESS,\n      doneAction: \"close\",\n    }\n  )\n  .show();"
+    },
+    {
+      "id": "step-button",
+      "title": "Multi-step buttons",
+      "description": "The general-purpose state machine behind detailsCopyButton(), walking through your own custom steps.",
+      "code": "new ToastBuilder(\"Copy the invite link?\")\n  .withDuration(0)\n  .withStepButton([\n    {\n      label: \"Copy link\",\n      onClick: () => navigator.clipboard.writeText(\"https://brentspine.de/r/topsecretrr\"),\n    },\n    { label: \"Copied!\", revertAfterMs: 2000 },\n  ])\n  .show();"
+    },
+    {
+      "id": "details",
+      "title": "Expandable details",
+      "description": "Attach extra collapsible lines to a toast without cluttering the main message.",
+      "code": "new ToastBuilder(\"Order shipped!\")\n  .withColor(ToastColor.SUCCESS)\n  .withDetails(\n    [\"Order #1234 shipped\", \"Tracking: 1Z999AA10123456784\"],\n    \"Show details\",\n    \"Hide details\"\n  )\n  .show();"
+    },
+    {
+      "id": "progress",
+      "title": "Progress bar",
+      "description": "A thin progress bar synced to the toast's auto-dismiss countdown.",
+      "code": "new ToastBuilder(\"Uploading...\")\n  .withDuration(6000)\n  .withProgress({ mode: \"drain\", color: \"#28a6f5\" })\n  .withOnClose(() => {\n    new ToastBuilder(\"Upload complete!\")\n      .withColor(ToastColor.SUCCESS)\n      .show();\n  })\n  .show();"
+    },
+    {
+      "id": "promise",
+      "title": "Promise-based toast",
+      "description": "toasts.promise() shows a sticky loading toast, then patches it to a success or error message (and color) once the promise settles - no manual updateToast() bookkeeping needed. Each outcome picks its own transition: a fade on success, a shake on error.",
+      "code": "const fetchPosts = () =>\n  new Promise((resolve, reject) => {\n    setTimeout(() => {\n      Math.random() > 0.3\n        ? resolve({ count: 12 })\n        : reject(new Error(\"Network error\"));\n    }, 1500);\n  });\n\ntoasts.promise(\n  fetchPosts(),\n  {\n    loading: \"Fetching posts...\",\n    success: (data) => ({\n      message: `Fetched ${data.count} posts`,\n      transition: ToastTransition.FADE,\n    }),\n    error: (err) => ({\n      message: `Failed to fetch posts: ${err.message}`,\n      transition: ToastTransition.SHAKE_LR,\n    }),\n  }\n);"
+    },
+    {
+      "id": "play-transition",
+      "title": "Play a transition on demand",
+      "description": "playToastTransition(id, transition) plays a transition with no content change - e.g. shaking a toast to signal a disallowed action instead of dismissing it.",
+      "code": "new ToastBuilder(\"Can't touch me\")\n  .withButton(\"Undo\", (event, id) => toasts.playToastTransition(id, ToastTransition.SHAKE_LR))\n  .show();"
+    },
+    {
+      "id": "reverse-order",
+      "title": "Reverse stacking order",
+      "description": "Insert a toast at the far end of the stack instead of nearest the anchor edge.",
+      "code": "new ToastBuilder(\"First\")\n  .withPosition(ToastPosition.TOP_RIGHT)\n  .show();\nnew ToastBuilder(\"Second\")\n  .withPosition(ToastPosition.TOP_RIGHT)\n  .show();\nnew ToastBuilder(\"Inserted at the far end\")\n  .withPosition(ToastPosition.TOP_RIGHT)\n  .andReverseOrder()\n  .show();"
+    },
+    {
+      "id": "theme",
+      "title": "Custom theme colors",
+      "description": "Override background, text, and action colors per toast without touching CSS.",
+      "code": "new ToastBuilder(\"Custom themed toast\")\n  .withTheme({\n    background: \"#1c1c1c\",\n    text: \"#f5f5f5\",\n    actionColor: \"#4bb543\"\n  })\n  .show();"
+    },
+    {
+      "id": "sticky",
+      "title": "Sticky toast with actions",
+      "description": "duration: 0 keeps a toast on screen until the user acts on it, instead of auto-dismissing.",
+      "code": "new ToastBuilder(\"Update available\")\n  .withDuration(0)\n  .withButton(\"Reload\", () => {\n    new ToastBuilder(\"Reloaded successfully!\")\n      .withColor(ToastColor.SUCCESS)\n      .show();\n  })\n  .withCloseButton(\"Dismiss\")\n  .show();"
+    },
+    {
+      "id": "html-content",
+      "title": "Rich HTML content",
+      "description": "Opt into HTML rendering for the message when plain text isn't enough.",
+      "code": "new ToastBuilder('Check out <b>this</b> and <a href=\"#\">this link</a>!')\n  .withAllowHtml(true)\n  .show();"
+    },
+    {
+      "id": "boss-fight",
+      "title": "Boss fight",
+      "description": "A more complex example combining multiple features",
+      "code": "function makeId() {\n  return Math.random().toString(16).slice(2);\n}\n\nfunction randInt(min, max) {\n  return Math.floor(Math.random() * (max - min + 1)) + min;\n}\n\nconst mobs = [\n  { mobId: makeId(), health: 100, maxHealth: 100, name: \"Cake of Doom\", slayMessage: \"The Cake of Doom has been conquered\", loot: [\"3 Empty Buckets\", \"A floppy disk\", \"Some brown substance\"] },\n  { mobId: makeId(), health: 80, maxHealth: 80, name: \"Ender Dragon\", slayMessage: \"Free The End, you killed the Ender Dragon\", loot: [\"12000 experience\"] },\n  { mobId: makeId(), health: 1, maxHealth: 100, name: \"Github\", slayMessage: \"And it's down\", loot: [\"1x downtime\"] },\n  { mobId: makeId(), health: 60, maxHealth: 70, name: \"Benjih\", slayMessage: \"\uD83D\uDE3F Poor Benjih, why would you do that?\", loot: [\"A lonely tear\"] },\n];\n\n// mobId -> Set<toastId>: every toast currently displaying a given mob.\nconst mobToasts = new Map();\n\nfunction getMobById(id) {\n  return mobs.find(mob => mob.mobId === id);\n}\n\nfunction updateMob(updatedMob) {\n  const index = mobs.findIndex(mob => mob.mobId === updatedMob.mobId);\n  if (index !== -1) {\n    mobs[index] = updatedMob;\n  }\n}\n\nfunction getColorForHealth(data) {\n  const percent = (data.health / data.maxHealth) * 100;\n  if (percent <= 25) return ToastColor.ERROR;\n  if (percent <= 50) return ToastColor.WARNING;\n  return ToastColor.SUCCESS;\n}\n\nfunction syncMob(mob) {\n  const ids = mobToasts.get(mob.mobId);\n  if (!ids) return;\n  for (const id of ids) {\n    toasts.setToastProgress(id, mob.health / mob.maxHealth);\n    toasts.updateToast(id, { color: getColorForHealth(mob) });\n  }\n}\n\nfunction killMob(mob) {\n  const ids = mobToasts.get(mob.mobId);\n  if (ids) for (const id of ids) toasts.removeToast(id);\n  mobToasts.delete(mob.mobId);\n  const index = mobs.findIndex(m => m.mobId === mob.mobId);\n  if (index !== -1) mobs.splice(index, 1);\n}\n\n//toasts.removeAllToasts()\n\nfor (let i = 0; i < 5; i++) {\n  spawn();\n}\n\nfunction spawn() {\n  const m = mobs[randInt(0, mobs.length - 1)];\n  const id = new ToastBuilder(\"Fight it!\")\n    .withTitle(m.name)\n    .withTitleMode(\"inline\")\n    .withColor(getColorForHealth(m))\n    .withData({ mobId: m.mobId })\n    .withButton('Damage', (event, toastId) => {\n      const data = getMobById(toasts.getToastData(toastId).mobId);\n      if (!data) return;\n      data.health -= 10;\n      if (data.health <= 0) {\n        killMob(data);\n        showSlayToast(data);\n        return;\n      }\n      updateMob(data);\n      syncMob(data);\n    })\n    .withButton('Heal', (event, toastId) => {\n      const data = getMobById(toasts.getToastData(toastId).mobId);\n      if (!data) return;\n      data.health = Math.min(data.health + 10, data.maxHealth);\n      updateMob(data);\n      syncMob(data);\n    })\n    .withProgress({ mode: 'manual', color: '#28a6f5', value: m.health / m.maxHealth, height: 3 })\n    .withDuration(0)\n    .withClosable(false)\n    .show();\n\n  if (!mobToasts.has(m.mobId)) mobToasts.set(m.mobId, new Set());\n  mobToasts.get(m.mobId).add(id);\n}\n\nfunction showSlayToast(mob) {\n  const loot = [...(mob.loot || [])]; // local queue, consumed as the player loots\n\n  new ToastBuilder(mob.slayMessage)\n    .withColor(ToastColor.SUCCESS)\n    .withDuration(0)\n    .withButton('Loot', (event, toastId) => offerNextLoot(toastId, loot))\n    .withButton('Move on', (event, toastId) => toasts.removeToast(toastId))\n    .show();\n}\n\nfunction offerNextLoot(id, loot) {\n  if (loot.length === 0) {\n    toasts.updateToast(id, {\n      message: 'No more loot here.',\n      buttons: [\n        { label: 'Close', onClick: (event, toastId) => toasts.removeToast(toastId) },\n      ],\n    });\n    return;\n  }\n\n  const item = loot.shift();\n  toasts.updateToast(id, {\n    message: `You found: ${item}`,\n    buttons: [\n      {\n        label: 'Take',\n        onClick: (event, toastId) => {\n          console.log('Looted:', item); // swap for real inventory logic\n          offerNextLoot(toastId, loot);\n        },\n      },\n      {\n        label: 'Leave it',\n        onClick: (event, toastId) => offerNextLoot(toastId, loot),\n      },\n      {\n        label: 'Skip rest',\n        onClick: (event, toastId) => toasts.removeToast(toastId),\n      },\n    ],\n  });\n}"
+    }
+  ]
+}
