@@ -11,7 +11,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { toasts, ToastBuilder, ToastColor, ToastPosition, ToastAnimation, ToastTransition } from 'brents-toasts';
+import { toasts, ToastBuilder, ToastColor, ToastSeverity, ToastPosition, ToastAnimation, ToastTransition } from 'brents-toasts';
 import { OptionsDataService } from '../../services/options-data';
 import { SectionService } from '../../services/section';
 import { TypeSpecPanel } from '../../shared/type-spec-panel';
@@ -19,7 +19,8 @@ import { CodeEditor } from '../../shared/code-editor';
 import { hasStoredConfigChanges } from '../config/config';
 import type { OptionDescriptor, PlaygroundExample } from '../../data/options.types';
 
-const IMPORT_LINE = "import { ToastBuilder, ToastColor, ToastPosition, ToastAnimation, ToastTransition } from 'brents-toasts';";
+const IMPORT_LINE =
+  "import { ToastBuilder, ToastColor, ToastSeverity, ToastPosition, ToastAnimation, ToastTransition } from 'brents-toasts';";
 const DEFAULT_CODE = 'new ToastBuilder("Something happened!")\n  .show();';
 const STORAGE_KEY = 'bt-demo:playground-code';
 
@@ -269,8 +270,17 @@ export class Playground {
   run(): void {
     this.runError.set(null);
     try {
-      const fn = new Function('toasts', 'ToastBuilder', 'ToastColor', 'ToastPosition', 'ToastAnimation', 'ToastTransition', this.code());
-      fn(toasts, ToastBuilder, ToastColor, ToastPosition, ToastAnimation, ToastTransition);
+      const fn = new Function(
+        'toasts',
+        'ToastBuilder',
+        'ToastColor',
+        'ToastSeverity',
+        'ToastPosition',
+        'ToastAnimation',
+        'ToastTransition',
+        this.code(),
+      );
+      fn(toasts, ToastBuilder, ToastColor, ToastSeverity, ToastPosition, ToastAnimation, ToastTransition);
     } catch (err) {
       this.runError.set(err instanceof Error ? err.message : String(err));
     }
