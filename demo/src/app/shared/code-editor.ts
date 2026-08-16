@@ -64,6 +64,7 @@ declare class ToastBuilder {
   withAnimation(animation: string): this;
   withOnClose(onClose: () => void): this;
   withPauseOnHover(pauseOnHover: boolean): this;
+  withPauseOnPageHidden(pauseOnPageHidden: boolean): this;
   withProgress(progress?: boolean | ToastProgressOptions): this;
   withData(data: unknown): this;
   withTheme(theme: ToastTheme): this;

@@ -111,6 +111,17 @@
 
     <div class="field checkbox">
       <label>
+        <input
+          type="checkbox"
+          [ngModel]="form().pauseOnPageHidden"
+          (ngModelChange)="updateForm('pauseOnPageHidden', $event)"
+        />
+        pauseOnPageHidden
+      </label>
+    </div>
+
+    <div class="field checkbox">
+      <label>
         <input type="checkbox" [ngModel]="form().progress" (ngModelChange)="updateForm('progress', $event)" />
         progress
       </label>

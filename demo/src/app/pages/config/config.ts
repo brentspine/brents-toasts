@@ -16,6 +16,7 @@ interface ConfigFormState {
   maxToasts: number;
   evictOldest: boolean;
   pauseOnHover: boolean;
+  pauseOnPageHidden: boolean;
   progress: boolean;
   locale: 'auto' | 'en' | 'de' | 'es' | 'fr';
   themeJson: string;
@@ -32,6 +33,7 @@ const DEFAULT_FORM_STATE: ConfigFormState = {
   maxToasts: 5,
   evictOldest: true,
   pauseOnHover: true,
+  pauseOnPageHidden: true,
   progress: false,
   locale: 'auto',
   themeJson: '',
@@ -134,6 +136,7 @@ export class Config {
       maxToasts: state.maxToasts,
       evictOldest: state.evictOldest,
       pauseOnHover: state.pauseOnHover,
+      pauseOnPageHidden: state.pauseOnPageHidden,
       progress: state.progress,
       locale: state.locale === 'auto' ? undefined : state.locale,
       theme,
@@ -172,6 +175,7 @@ export class Config {
       `  maxToasts: ${state.maxToasts},`,
       `  evictOldest: ${state.evictOldest},`,
       `  pauseOnHover: ${state.pauseOnHover},`,
+      `  pauseOnPageHidden: ${state.pauseOnPageHidden},`,
       `  progress: ${state.progress},`,
       state.locale !== 'auto' ? `  locale: "${state.locale}",` : undefined,
       theme ? `  theme: ${JSON.stringify(theme)},` : undefined,
