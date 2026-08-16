@@ -26,6 +26,12 @@ npm install brents-toasts
 import { toasts, ToastColor, ToastBuilder } from 'brents-toasts';
 ```
 
+**yarn** - same package, if you'd rather use yarn instead of npm:
+
+```bash
+yarn add brents-toasts
+```
+
 **CDN / script tag** ![recommended](https://img.shields.io/badge/-recommended-2ea44f?style=flat-square)
 
 No build step, no module system required - served via [jsDelivr](https://www.jsdelivr.com/):

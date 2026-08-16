@@ -14,6 +14,7 @@
   ],
   "install": {
     "npm": "npm install brents-toasts",
+    "yarn": "yarn add brents-toasts",
     "cdn": "<script src=\"https://cdn.jsdelivr.net/npm/brents-toasts@{{VERSION}}/dist/index.umd.min.js\"></script>\n<script>\n  BrentsToasts.toasts.showToast(\"Hello world!\", {\n    color: BrentsToasts.ToastColor.SUCCESS\n  });\n</script>",
     "cdnAlt": "<script src=\"https://unpkg.com/brents-toasts@{{VERSION}}/dist/index.umd.min.js\"></script>\n<script>\n  BrentsToasts.toasts.showToast(\"Hello world!\", {\n    color: BrentsToasts.ToastColor.SUCCESS\n  });\n</script>"
   },

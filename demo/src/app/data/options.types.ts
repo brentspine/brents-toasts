@@ -17,6 +17,7 @@ export interface Feature {
 
 export interface InstallSnippets {
     npm: string;
+    yarn: string;
     /** `{{VERSION}}` is substituted at runtime from the build-time-generated version.json. */
     cdn: string;
     /** Alternative CDN (unpkg) snippet, same `{{VERSION}}` substitution as `cdn`. */

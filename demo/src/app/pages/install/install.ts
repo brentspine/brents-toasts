@@ -18,6 +18,7 @@ export class Install {
   private readonly snippets = this.optionsData.data.install;
 
   protected readonly npmSnippet = computed(() => this.snippets.npm);
+  protected readonly yarnSnippet = computed(() => this.snippets.yarn);
   protected readonly cdnSnippet = computed(() => this.withVersion(this.snippets.cdn));
   protected readonly cdnAltSnippet = computed(() => this.withVersion(this.snippets.cdnAlt));
 
