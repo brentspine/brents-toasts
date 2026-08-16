@@ -7,16 +7,6 @@
   color: var(--muted);
 }
 
-.coming-soon {
-  margin-top: 20px;
-}
-
-.coming-soon p {
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.6;
-}
-
 .method {
   margin-top: 32px;
 }
@@ -32,15 +22,10 @@
 .badge {
   font-size: 0.7rem;
   font-weight: 500;
-  color: var(--warning);
-  border: 1px solid var(--warning);
+  color: var(--success);
+  border: 1px solid var(--success);
   border-radius: 999px;
   padding: 2px 8px;
-}
-
-.badge.available {
-  color: var(--success);
-  border-color: var(--success);
 }
 
 .method p {
