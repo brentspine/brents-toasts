@@ -51,9 +51,14 @@
 }
 .bt-toast-close span { opacity: 0; color: var(--bt-close-icon, inherit); }
 /* :not(:has(...)) keeps hovering an action button from suggesting the
-   toast is about to dismiss - clicking a button never does that. */
-.bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-close span { opacity: 1; }
-.bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-close {
+   toast is about to dismiss - clicking a button never does that. Keyboard
+   focus (:focus-visible) gets the same reveal as :hover - a sighted keyboard
+   user tabbing to the row needs the same visual affordance a mouse user gets,
+   not just a bare focus outline with no hint of what activating it does. */
+.bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-close span,
+.bt-toast-row.bt-closable:focus-visible .bt-toast-close span { opacity: 1; }
+.bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-close,
+.bt-toast-row.bt-closable:focus-visible .bt-toast-close {
     cursor: pointer;
     width: 20px;
 }
@@ -66,7 +71,8 @@
    the message otherwise; collapses to 0 exactly as the close bar grows, so
    the two motions cancel out instead of one of them ever widening the row. */
 .bt-toast-row.bt-closable .bt-toast-content { margin-right: 15.5px; transition: margin-right 0.2s; }
-.bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-content { margin-right: 0; }
+.bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-content,
+.bt-toast-row.bt-closable:focus-visible .bt-toast-content { margin-right: 0; }
 /* persistent-close-right layout (ToastLayout.PERSISTENT_CLOSE_RIGHT): close
    button always visible, pinned to the row's trailing edge instead of a
    hover-revealed leading accent bar - pure flex `order` reordering, .bt-toast-row

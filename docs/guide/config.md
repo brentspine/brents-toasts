@@ -13,6 +13,12 @@ toasts.configure({ duration: 4000, position: ToastPosition.BOTTOM_CENTER });
 Per-call `showToast`/`ToastBuilder` options still take precedence over
 whatever `configure()` set.
 
+`toasts.resetConfig()` reverts every `configure()` change back to the
+library's built-in defaults (also exported directly as `DEFAULT_CONFIG`, for
+reading a specific default without constructing a throwaway instance) - e.g.
+to restore defaults between tests. It only resets `config`; per-position
+overrides set via `configurePosition()` are untouched.
+
 `ToastsConfig` fields and their defaults (`Toasts.ts`'s `DEFAULT_CONFIG`):
 
 | Field | Default | Notes |
@@ -57,9 +63,17 @@ only, a no-op passed to `updateToast`).
 `ERROR`) is the sole source of a toast's `role`/`aria-live`:
 `WARNING`/`ERROR` render `role="alert"`/`aria-live="assertive"`;
 `INFO`/`SUCCESS` (or no `severity` at all) render `role="status"`/
-`aria-live="polite"`. `color` is purely presentational and has **no**
-bearing on this - unlike versions before this, nothing ever inspects a
-`color` value to guess what it means.
+`aria-live="polite"`. Every toast also gets `aria-atomic="true"`, so a
+screen reader re-announces the toast's whole content on a later
+`updateToast`, not just whichever text node happened to change. `color` is
+purely presentational and has **no** bearing on any of this - unlike
+versions before this, nothing ever inspects a `color` value to guess what
+it means.
+
+A `closable` toast's row (see `ToastOptions.closable`) is focusable with
+`role="button"` and an accessible name (the localized "Close" string),
+dismissible with Enter/Space while the row itself is focused or Escape from
+anywhere inside the toast - not just mouse-clickable.
 
 `severity` also picks this toast's default `color`, via `configure()`'s
 `colors` palette, when `color` itself is left unset - so

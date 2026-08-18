@@ -49,6 +49,10 @@ export function applyColor(toastClose: HTMLElement, toast: HTMLElement, color: s
     const role = SEVERITY_ROLE[severity];
     toast.setAttribute('role', role);
     toast.setAttribute('aria-live', role === 'alert' ? 'assertive' : 'polite');
+    // Always the whole toast, never just the changed fragment - otherwise a screen reader may
+    // only announce whatever text node changed on a later `updateToast` (e.g. just a new title),
+    // dropping context a listener needs to make sense of it.
+    toast.setAttribute('aria-atomic', 'true');
     applyThemeVars(toast, theme);
     // Always set explicitly (never left to plain CSS) - this is the one
     // theme field whose whole point is computing something CSS can't:

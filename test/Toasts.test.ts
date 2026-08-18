@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Toasts } from '../src/Toasts';
+import { Toasts, DEFAULT_CONFIG } from '../src/Toasts';
 import { ToastBuilder } from '../src/ToastBuilder';
 import { ToastColor, ToastSeverity } from '../src/ToastColor';
 import { ToastPosition } from '../src/ToastPosition';
@@ -48,6 +48,13 @@ describe('showToast call shapes', () => {
         expect(document.getElementById(id)).not.toBeNull();
         t.removeToast(id);
         expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('ids are guaranteed unique via a monotonic sequence, not just probabilistically via randomness (#96)', () => {
+        const t = new Toasts();
+        const ids = new Set<string>();
+        for (let i = 0; i < 50; i++) ids.add(t.showToast('x', { duration: 0 }));
+        expect(ids.size).toBe(50);
     });
 });
 
@@ -166,6 +173,49 @@ describe('dismissal (click/keyboard)', () => {
         t.updateToast(id, { closable: true });
         document.getElementById(id)!.querySelector('.bt-toast-row')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('a closable row is focusable with role="button" and an accessible name; a non-closable one is neither (#41)', () => {
+        const t = new Toasts();
+        const closableId = t.showToast('x', { closable: true, duration: 0 });
+        const closableRow = document.getElementById(closableId)!.querySelector('.bt-toast-row')!;
+        expect(closableRow.getAttribute('tabindex')).toBe('0');
+        expect(closableRow.getAttribute('role')).toBe('button');
+        expect(closableRow.getAttribute('aria-label')).toBeTruthy();
+
+        const nonClosableId = t.showToast('x', { closable: false, duration: 0 });
+        const nonClosableRow = document.getElementById(nonClosableId)!.querySelector('.bt-toast-row')!;
+        expect(nonClosableRow.getAttribute('tabindex')).toBeNull();
+        expect(nonClosableRow.getAttribute('role')).toBeNull();
+        expect(nonClosableRow.getAttribute('aria-label')).toBeNull();
+    });
+
+    it('updateToast keeps role/aria-label in sync when closable flips (#41)', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { closable: false, duration: 0 });
+        const row = document.getElementById(id)!.querySelector('.bt-toast-row')!;
+        t.updateToast(id, { closable: true });
+        expect(row.getAttribute('role')).toBe('button');
+        expect(row.getAttribute('aria-label')).toBeTruthy();
+        t.updateToast(id, { closable: false });
+        expect(row.getAttribute('role')).toBeNull();
+        expect(row.getAttribute('aria-label')).toBeNull();
+    });
+
+    it('Escape dismisses when focus is anywhere inside a closable toast (#78)', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { closable: true, duration: 0, buttons: [{ label: 'Undo', onClick: () => {} }] });
+        const container = document.getElementById(id)!;
+        const actionButton = container.querySelector<HTMLButtonElement>('.bt-toast-actions button')!;
+        actionButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        expect(container.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('Escape does nothing when not closable (#78)', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { closable: false, duration: 0 });
+        document.getElementById(id)!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
     });
 
     it('clicks inside the details block never trigger dismissal (structural sibling, not descendant, of the row)', () => {
@@ -833,6 +883,9 @@ describe('locale resolution', () => {
         const t = new Toasts();
         t.configure({ translations: { close: 'Dismiss' } });
         expect(t.closeButton().label).toBe('Dismiss');
+        // The closable row's accessible name (#41) reuses the same translated string.
+        const id = t.showToast('x', { closable: true, duration: 0 });
+        expect(document.getElementById(id)!.querySelector('.bt-toast-row')!.getAttribute('aria-label')).toBe('Dismiss');
     });
 });
 
@@ -870,6 +923,17 @@ describe('role/aria-live derivation from severity (#56)', () => {
         expect(roleOf(t.showToast('x', { severity: ToastSeverity.SUCCESS, duration: 0 }))).toEqual({ role: 'status', ariaLive: 'polite' });
         // No severity at all defaults to INFO, same as no color did pre-#56.
         expect(roleOf(t.showToast('x', { duration: 0 }))).toEqual({ role: 'status', ariaLive: 'polite' });
+    });
+
+    it('every toast gets aria-atomic="true", so a screen reader re-announces the whole toast on later updates (#90)', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0 });
+        const toast = document.getElementById(id)!.querySelector<HTMLElement>('.bt-toast')!;
+        expect(toast.getAttribute('aria-atomic')).toBe('true');
+        // Still set after an update that doesn't touch color/severity/theme - it was already
+        // applied at creation and is never removed.
+        t.updateToast(id, { title: 'new title' });
+        expect(toast.getAttribute('aria-atomic')).toBe('true');
     });
 
     it('an arbitrary custom color, with no severity set, never implies an alert role - color and severity are independent axes', () => {
@@ -1936,6 +2000,15 @@ describe('error handling / dev diagnostics', () => {
         expect(active.length).toBe(7); // fell back to the global maxToasts, not unbounded
         expect(warnSpy).toHaveBeenCalledTimes(1);
         warnSpy.mockRestore();
+    });
+
+    it('resetConfig() reverts configure() changes back to DEFAULT_CONFIG, leaving positionConfig untouched (#70)', () => {
+        const t = new Toasts();
+        t.configure({ duration: 9999, closable: false, maxToasts: 2 });
+        t.configurePosition(ToastPosition.TOP_RIGHT, { maxToasts: 1 });
+        t.resetConfig();
+        expect(t.config).toEqual(DEFAULT_CONFIG);
+        expect(t.positionConfig.get(ToastPosition.TOP_RIGHT)).toEqual({ maxToasts: 1 });
     });
 
     it('an invalid duration (negative or NaN) warns once per bad value and falls back to the configured default', () => {

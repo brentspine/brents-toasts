@@ -86,7 +86,10 @@ export interface ToastOptions {
     color?: string;
     /** Auto-dismiss after ms. Use `0` to disable. Defaults to `3000` or the configured default. A negative or `NaN` value is invalid - warns once and falls back to the configured default. */
     duration?: number;
-    /** Whether clicking the toast dismisses it. Defaults to `true` or the configured default. */
+    /** Whether clicking the toast dismisses it. Also governs keyboard dismissal - a closable
+     *  toast's row is focusable (`tabindex="0"`) with `role="button"` and an accessible name,
+     *  and can be dismissed with Enter/Space while the row itself is focused, or Escape while
+     *  focus is anywhere inside the toast. Defaults to `true` or the configured default. */
     closable?: boolean;
     /** If true, `message` is rendered as HTML. XSS: sanitize input yourself if it may contain user-controlled content. */
     allowHtml?: boolean;
@@ -197,8 +200,9 @@ export interface ToastsConfig {
 /**
  * Why a toast was dismissed - passed to `ToastOptions.onClose` and the `'close'`/`'remove'`
  * lifecycle events (see `ToastEventMap`). `'user'` covers every direct human interaction (row
- * click, Enter/Space on a focused row, the built-in close button, a built-in button's own
- * close-on-done step, e.g. `confirmButton({ doneAction: 'close' })`); `'timeout'` is the
+ * click, Enter/Space on a focused row, Escape while focus is anywhere inside the toast, the
+ * built-in close button, a built-in button's own close-on-done step, e.g.
+ * `confirmButton({ doneAction: 'close' })`); `'timeout'` is the
  * toast's own `duration` timer expiring; `'evicted'` is `maxToasts`+`evictOldest` removing the
  * oldest toast to make room for a new one; `'promise'` is `promise()` auto-closing its loading
  * toast (including its own `timeout` option elapsing) because no message was configured for
@@ -303,7 +307,14 @@ export type ToastUpdateOptions = Partial<ToastOptions> & { message?: string | No
 // `showToast` returns.
 type ToastState = ResolvedToastOptions & { message: string | Node };
 
-const DEFAULT_CONFIG: ToastsConfig = {
+/**
+ * The library's built-in `ToastsConfig` defaults - what a fresh `Toasts` instance starts with,
+ * and what `resetConfig()` reverts `configure()`'s changes back to. Exported (read-only in
+ * practice - mutate it and every instance that hasn't overridden the field you touched would
+ * see the change) so a consumer can diff against it or read a specific default without
+ * constructing a throwaway `Toasts` instance just to inspect `.config`.
+ */
+export const DEFAULT_CONFIG: ToastsConfig = {
     severity: ToastSeverity.INFO,
     duration: 3000,
     closable: true,
@@ -540,6 +551,17 @@ export class Toasts {
         this.positionConfig.set(position, { ...this.positionConfig.get(position), ...config });
     }
 
+    /**
+     * Reverts every `configure()` change back to the library's built-in defaults (see
+     * `DEFAULT_CONFIG`) - the inverse of `configure()`, for e.g. restoring defaults between
+     * tests. Only affects `config`; per-position overrides set via `configurePosition()` are
+     * untouched (call that again with the fields you want reset, same as `configure()` itself
+     * never touches `positionConfig`).
+     */
+    resetConfig(): void {
+        this.config = { ...DEFAULT_CONFIG };
+    }
+
     // Lazy init - sicher für SSR / Node-Umgebungen
     private _init(): void {
         if (this._initialized) return;
@@ -599,7 +621,12 @@ export class Toasts {
         const t = this._getTranslations();
         // Generated up front (rather than down where the DOM element is built) purely so `show`
         // can be emitted with a real `id` before anything is rendered - see `ToastEventMap.show`.
-        const id = `toast-${Math.random().toString(36).slice(2, 11)}`;
+        // The `seq` component (shared, monotonically increasing across every `Toasts` instance -
+        // see `toastSeq` above) makes a collision impossible outright, rather than merely
+        // unlikely - two toasts can never be assigned the same `seq`, regardless of how
+        // improbable a random-suffix collision would already be on its own.
+        const seq = seqCounter++;
+        const id = `toast-${seq}-${Math.random().toString(36).slice(2, 11)}`;
         this._emit('show', { id, severity: opts.severity, message: typeof message === 'string' ? message : (message?.textContent ?? '') });
 
         if (opts.removeOtherToasts) {
@@ -627,9 +654,9 @@ export class Toasts {
             let oldest: Element | undefined;
             let oldestSeq = Infinity;
             for (const el of activeToasts) {
-                const seq = toastSeq.get(el as HTMLElement) ?? -1;
-                if (seq < oldestSeq) {
-                    oldestSeq = seq;
+                const elSeq = toastSeq.get(el as HTMLElement) ?? -1;
+                if (elSeq < oldestSeq) {
+                    oldestSeq = elSeq;
                     oldest = el;
                 }
             }
@@ -643,7 +670,7 @@ export class Toasts {
         toastContainer.id = id;
         this._toastAnimations.set(toastContainer, animationDef);
         toastOwners.set(toastContainer, this);
-        toastSeq.set(toastContainer, seqCounter++);
+        toastSeq.set(toastContainer, seq);
         if (opts.onClose) this._onCloseCallbacks.set(toastContainer, opts.onClose);
         if (opts.data !== undefined) this._data.set(toastContainer, opts.data);
         this._toastState.set(toastContainer, { ...opts, message });
@@ -657,12 +684,17 @@ export class Toasts {
         // sibling of this row, not a descendant) is structurally outside the
         // dismiss listener's reach and can never trigger it.
         const toastRow = document.createElement('div');
-        toastRow.className = `bt-toast-row${opts.closable ? ' bt-closable' : ''}`;
+        toastRow.className = 'bt-toast-row';
+        this._applyClosableAttrs(toastRow, opts.closable, t);
 
         const toastClose = document.createElement('div');
         toastClose.className = 'bt-toast-close';
         const closeSpan = document.createElement('span');
         closeSpan.innerHTML = '&times;';
+        // Purely a visual glyph - the row itself already carries the accessible
+        // name/role for the dismiss action (see `_applyClosableAttrs`), so this
+        // would otherwise just be redundant, unlabeled noise to a screen reader.
+        closeSpan.setAttribute('aria-hidden', 'true');
         toastClose.appendChild(closeSpan);
         applyColor(toastClose, toast, opts.color, opts.severity, opts.theme);
 
@@ -743,12 +775,23 @@ export class Toasts {
         // (opts.pauseOnHover)`) and read the live flag from `_toastState` at
         // event time - not a value captured here at creation - so `updateToast`
         // can flip `closable`/`pauseOnHover` on an already-rendered toast.
-        if (opts.closable) toastRow.setAttribute('tabindex', '0');
+        // `tabindex`/`role`/`aria-label` themselves are set by `_applyClosableAttrs`
+        // above (and again on any `updateToast({ closable })`), not here.
         toastRow.addEventListener('click', () => {
             if (this._toastState.get(toastContainer)?.closable) this.removeToast(id, 'user');
         });
         toastRow.addEventListener('keydown', (e: KeyboardEvent) => {
             if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+            if (!this._toastState.get(toastContainer)?.closable) return;
+            e.preventDefault();
+            this.removeToast(id, 'user');
+        });
+        // Escape dismisses from anywhere inside the toast (the row itself, an
+        // action button, the details toggle, ...) - attached on the container
+        // rather than `toastRow` so it fires regardless of which descendant
+        // currently has focus, via the same live `closable` read as click/Enter/Space.
+        toastContainer.addEventListener('keydown', (e: KeyboardEvent) => {
+            if (e.key !== 'Escape') return;
             if (!this._toastState.get(toastContainer)?.closable) return;
             e.preventDefault();
             this.removeToast(id, 'user');
@@ -949,9 +992,7 @@ export class Toasts {
             else this._onCloseCallbacks.delete(toastContainer);
         }
         if ('closable' in update) {
-            toastRow.classList.toggle('bt-closable', !!state.closable);
-            if (state.closable) toastRow.setAttribute('tabindex', '0');
-            else toastRow.removeAttribute('tabindex');
+            this._applyClosableAttrs(toastRow, !!state.closable, this._getTranslations());
         }
         if ('layout' in update) toast.dataset.btLayout = this._resolveLayout(state.layout);
         if ('duration' in update) {
@@ -1756,6 +1797,29 @@ export class Toasts {
     private _getTranslations(): ToastTranslations {
         const base = ToastLocales[this._resolveLocaleKey()]!;
         return this.config.translations ? { ...base, ...this.config.translations } : base;
+    }
+
+    // Shared by showToast (creation) and updateToast's `closable` branch -
+    // keeps the row's focusability, its `role`/accessible-name pair, and the
+    // `bt-closable` class (which drives the hover/focus-visible CSS in
+    // toasts.css) all in sync with each other, so a closable toast is never
+    // left focusable-but-unlabeled or labeled-but-unfocusable. `role="button"`
+    // plus `aria-label` (reusing the same localized "Close" string a real
+    // close-labeled button would use) is what gives the row a programmatically
+    // determinable name/role - without it, a screen reader only ever
+    // encounters a generic focusable container that happens to act like a
+    // button (see #41).
+    private _applyClosableAttrs(toastRow: HTMLElement, closable: boolean, t: ToastTranslations): void {
+        toastRow.classList.toggle('bt-closable', closable);
+        if (closable) {
+            toastRow.setAttribute('tabindex', '0');
+            toastRow.setAttribute('role', 'button');
+            toastRow.setAttribute('aria-label', t.close);
+        } else {
+            toastRow.removeAttribute('tabindex');
+            toastRow.removeAttribute('role');
+            toastRow.removeAttribute('aria-label');
+        }
     }
 
     private _warnUnimplemented(kind: string, value: string, fallback: string): void {

@@ -1,4 +1,4 @@
-export { Toasts, toasts, toasts as default } from './Toasts';
+export { Toasts, toasts, toasts as default, DEFAULT_CONFIG } from './Toasts';
 export type { ToastOptions, ToastsConfig, ToastButton, ToastButtonStep, ToastDetailItem, ToastTimerInfo, ToastUpdateOptions, PositionConfig, ToastProgressOptions, ToastPromiseOptions, ToastTheme, ToastEventMap, ToastEventName, ToastEventHandler, ToastCloseReason } from './Toasts';
 export { ToastLocales } from './ToastLocale';
 export type { ToastTranslations } from './ToastLocale';

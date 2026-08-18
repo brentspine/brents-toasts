@@ -107,13 +107,16 @@ cases, and worked examples before implementing anything non-trivial with it.
 - **Localization** - bundled `en`/`de`/`es`/`fr` chrome text (`configure({ locale })`), only
   affects the library's own labels, never your `title`/`message`. `ToastQuickActions` gives
   separate pre-translated common words. → [guide/localization.md](guide/localization.md)
-- **Config** - `configure()`/`configurePosition()` for defaults, six stacking positions,
-  `maxToasts`/`evictOldest`, responsive collapsing below `responsiveBreakpoint`. Scope defaults
-  to one page/section with `new Toasts()` instead of the shared singleton. `role`/`aria-live`
-  come from `ToastOptions.severity` alone (`WARNING`/`ERROR` → `alert`/`assertive`,
-  `INFO`/`SUCCESS` → `status`/`polite`) - `color` is purely visual and never affects them. An
-  unset `color` defaults to `configure()`'s `colors[severity]` (default bundled `ToastColor`),
-  so `severity: ToastSeverity.WARNING` alone gets both the right look and the right role.
+- **Config** - `configure()`/`configurePosition()` for defaults, `resetConfig()` (or the exported
+  `DEFAULT_CONFIG`) to revert `configure()`, six stacking positions, `maxToasts`/`evictOldest`,
+  responsive collapsing below `responsiveBreakpoint`. Scope defaults to one page/section with
+  `new Toasts()` instead of the shared singleton. `role`/`aria-live`/`aria-atomic` come from
+  `ToastOptions.severity` alone (`WARNING`/`ERROR` → `alert`/`assertive`, `INFO`/`SUCCESS` →
+  `status`/`polite`) - `color` is purely visual and never affects them. An unset `color` defaults
+  to `configure()`'s `colors[severity]` (default bundled `ToastColor`), so
+  `severity: ToastSeverity.WARNING` alone gets both the right look and the right role. A
+  `closable` toast's row is focusable (`role="button"`, accessible name) and dismissible via
+  Enter/Space (focused row) or Escape (focus anywhere inside the toast), not just click.
   → [guide/config.md](guide/config.md)
 - **Per-toast data** - `setToastData`/`getToastData(id)`: attach a payload so one shared button
   handler can act on many toasts. Not general app state. → [guide/data.md](guide/data.md)

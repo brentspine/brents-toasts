@@ -99,7 +99,7 @@ toasts.showToast('Uploading...', {
 
 | Reason | Meaning |
 |---|---|
-| `'user'` | A direct human interaction - clicking the row, Enter/Space on a focused row, the built-in close button, or a built-in button's own close-on-done step (e.g. `confirmButton({ doneAction: 'close' })`). |
+| `'user'` | A direct human interaction - clicking the row, Enter/Space on a focused row, Escape while focus is anywhere inside the toast, the built-in close button, or a built-in button's own close-on-done step (e.g. `confirmButton({ doneAction: 'close' })`). |
 | `'timeout'` | The toast's own `duration` timer expired on its own. |
 | `'evicted'` | `maxToasts` + `evictOldest` removed the oldest toast to make room for a new one - see "Capacity and eviction" in [Config](config.md). |
 | `'promise'` | `promise()` auto-closed its loading toast (including its own `timeout` option elapsing) because no message was configured for that outcome. |
