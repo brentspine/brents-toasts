@@ -116,9 +116,33 @@ tr.selected {
 }
 
 .import-line {
+  display: block;
+  min-width: 0;
+  flex: 1 1 auto;
   color: var(--muted);
   font-size: 12px;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+.import-line::-webkit-scrollbar {
+  height: 6px;
+}
+
+.import-line::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.import-line::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 3px;
+}
+
+.import-line::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }
 
 .actions {
