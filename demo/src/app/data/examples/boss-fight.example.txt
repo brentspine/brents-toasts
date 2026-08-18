@@ -1,0 +1,138 @@
+function makeId() {
+  return Math.random().toString(16).slice(2);
+}
+
+function randInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+const mobs = [
+  { mobId: makeId(), health: 100, maxHealth: 100, name: "Cake of Doom", slayMessage: "The Cake of Doom has been conquered", loot: ["3 Empty Buckets", "A floppy disk", "Some brown substance"] },
+  { mobId: makeId(), health: 80, maxHealth: 80, name: "Ender Dragon", slayMessage: "Free The End, you killed the Ender Dragon", loot: ["12000 experience"] },
+  { mobId: makeId(), health: 1, maxHealth: 100, name: "Github", slayMessage: "And it's down", loot: ["1x downtime"] },
+  { mobId: makeId(), health: 60, maxHealth: 70, name: "Benjih", slayMessage: "😿 Poor Benjih, why would you do that?", loot: ["A lonely tear"] },
+];
+
+// mobId -> Set<toastId>: every toast currently displaying a given mob.
+const mobToasts = new Map();
+
+function getMobById(id) {
+  return mobs.find(mob => mob.mobId === id);
+}
+
+function updateMob(updatedMob) {
+  const index = mobs.findIndex(mob => mob.mobId === updatedMob.mobId);
+  if (index !== -1) {
+    mobs[index] = updatedMob;
+  }
+}
+
+function getColorForHealth(data) {
+  const percent = (data.health / data.maxHealth) * 100;
+  if (percent <= 25) return ToastColor.ERROR;
+  if (percent <= 50) return ToastColor.WARNING;
+  return ToastColor.SUCCESS;
+}
+
+function syncMob(mob) {
+  const ids = mobToasts.get(mob.mobId);
+  if (!ids) return;
+  for (const id of ids) {
+    toasts.setToastProgress(id, mob.health / mob.maxHealth);
+    toasts.updateToast(id, { color: getColorForHealth(mob) });
+  }
+}
+
+function killMob(mob) {
+  const ids = mobToasts.get(mob.mobId);
+  if (ids) for (const id of ids) toasts.removeToast(id);
+  mobToasts.delete(mob.mobId);
+  const index = mobs.findIndex(m => m.mobId === mob.mobId);
+  if (index !== -1) mobs.splice(index, 1);
+}
+
+//toasts.removeAllToasts()
+
+for (let i = 0; i < 5; i++) {
+  spawn();
+}
+
+function spawn() {
+  const m = mobs[randInt(0, mobs.length - 1)];
+  const id = new ToastBuilder("Fight it!")
+    .withTitle(m.name)
+    .withTitleMode("inline")
+    .withColor(getColorForHealth(m))
+    .withData({ mobId: m.mobId })
+    .withButton('Damage', (event, toastId) => {
+      const data = getMobById(toasts.getToastData(toastId).mobId);
+      if (!data) return;
+      data.health -= 10;
+      if (data.health <= 0) {
+        killMob(data);
+        showSlayToast(data);
+        return;
+      }
+      updateMob(data);
+      syncMob(data);
+    })
+    .withButton('Heal', (event, toastId) => {
+      const data = getMobById(toasts.getToastData(toastId).mobId);
+      if (!data) return;
+      data.health = Math.min(data.health + 10, data.maxHealth);
+      updateMob(data);
+      syncMob(data);
+    })
+    .withProgress({ mode: 'manual', color: '#28a6f5', value: m.health / m.maxHealth, height: 3 })
+    .withDuration(0)
+    .withClosable(false)
+    .show();
+
+  if (!mobToasts.has(m.mobId)) mobToasts.set(m.mobId, new Set());
+  mobToasts.get(m.mobId).add(id);
+}
+
+function showSlayToast(mob) {
+  const loot = [...(mob.loot || [])]; // local queue, consumed as the player loots
+
+  new ToastBuilder(mob.slayMessage)
+    .withColor(ToastColor.SUCCESS)
+    .withDuration(0)
+    .withButton('Loot', (event, toastId) => offerNextLoot(toastId, loot))
+    .withButton('Move on', (event, toastId) => toasts.removeToast(toastId))
+    .show();
+}
+
+function offerNextLoot(id, loot) {
+  if (loot.length === 0) {
+    toasts.updateToast(id, {
+      message: 'No more loot here.',
+      buttons: [
+        { label: 'Close', onClick: (event, toastId) => toasts.removeToast(toastId) },
+      ],
+    });
+    return;
+  }
+
+  const item = loot.shift();
+  toasts.updateToast(id, {
+    message: `You found: ${item}`,
+    buttons: [
+      {
+        label: 'Take',
+        onClick: (event, toastId) => {
+          console.log('Looted:', item); // swap for real inventory logic
+          offerNextLoot(toastId, loot);
+        },
+      },
+      {
+        label: 'Leave it',
+        onClick: (event, toastId) => offerNextLoot(toastId, loot),
+      },
+      {
+        label: 'Skip rest',
+        onClick: (event, toastId) => toasts.removeToast(toastId),
+      },
+    ],
+  });
+}

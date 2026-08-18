@@ -1,0 +1,3 @@
+new ToastBuilder('Check out <b>this</b> and <a href="#">this link</a>!')
+  .withAllowHtml(true)
+  .show();

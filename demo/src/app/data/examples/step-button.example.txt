@@ -1,0 +1,10 @@
+new ToastBuilder("Copy the invite link?")
+  .withDuration(0)
+  .withStepButton([
+    {
+      label: "Copy link",
+      onClick: () => navigator.clipboard.writeText("https://brentspine.de/r/topsecretrr"),
+    },
+    { label: "Copied!", revertAfterMs: 2000 },
+  ])
+  .show();

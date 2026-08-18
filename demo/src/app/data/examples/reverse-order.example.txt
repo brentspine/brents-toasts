@@ -1,0 +1,10 @@
+new ToastBuilder("First")
+  .withPosition(ToastPosition.TOP_RIGHT)
+  .show();
+new ToastBuilder("Second")
+  .withPosition(ToastPosition.TOP_RIGHT)
+  .show();
+new ToastBuilder("Inserted at the far end")
+  .withPosition(ToastPosition.TOP_RIGHT)
+  .andReverseOrder()
+  .show();

@@ -53,7 +53,8 @@ function scrollToId(id: string): void {
   styleUrl: './playground.css',
 })
 export class Playground {
-  private readonly optionsData = inject(OptionsDataService).data;
+  private readonly optionsDataService = inject(OptionsDataService);
+  private readonly optionsData = this.optionsDataService.data;
   private readonly destroyRef = inject(DestroyRef);
   protected readonly section = inject(SectionService);
 
@@ -63,7 +64,7 @@ export class Playground {
   readonly code = signal(loadStoredCode());
   readonly runError = signal<string | null>(null);
   readonly copied = signal(false);
-  readonly examples: PlaygroundExample[] = this.optionsData.examples;
+  readonly examples: PlaygroundExample[] = this.optionsDataService.examples;
 
   // Set right before an example/undo overwrites the editor, so a "Try it out" click is
   // one step reversible instead of silently discarding whatever the user had.

@@ -1,0 +1,6 @@
+Object.values(ToastPosition).forEach((position) => {
+  new ToastBuilder(`Anchored: ${position}`)
+    .withPosition(position)
+    .withDuration(4000)
+    .show();
+});

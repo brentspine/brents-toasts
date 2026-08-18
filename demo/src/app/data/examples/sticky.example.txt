@@ -1,0 +1,9 @@
+new ToastBuilder("Update available")
+  .withDuration(0)
+  .withButton("Reload", () => {
+    new ToastBuilder("Reloaded successfully!")
+      .withColor(ToastColor.SUCCESS)
+      .show();
+  })
+  .withCloseButton("Dismiss")
+  .show();

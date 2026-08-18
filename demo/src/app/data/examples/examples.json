@@ -1,0 +1,67 @@
+[
+  {
+    "id": "positions",
+    "title": "All six stacking positions",
+    "description": "Fires one toast per screen edge/corner, showing that the stacking math handles every position the same way."
+  },
+  {
+    "id": "confirm",
+    "title": "Confirm before acting",
+    "description": "Each step of the confirm flow gets its own color and message: confirm, a pending state while the (simulated) delete runs, then a success flash that closes the toast instead of reverting."
+  },
+  {
+    "id": "confirm-progress",
+    "title": "Confirm + live progress bar",
+    "description": "Combines confirmButton() with progress: { mode: 'manual' } - onConfirm reports real progress via setToastProgress(id, value) instead of the bar just tracking a duration."
+  },
+  {
+    "id": "step-button",
+    "title": "Multi-step buttons",
+    "description": "The general-purpose state machine behind detailsCopyButton(), walking through your own custom steps."
+  },
+  {
+    "id": "details",
+    "title": "Expandable details",
+    "description": "Attach extra collapsible lines to a toast without cluttering the main message."
+  },
+  {
+    "id": "progress",
+    "title": "Progress bar",
+    "description": "A thin progress bar synced to the toast's auto-dismiss countdown."
+  },
+  {
+    "id": "promise",
+    "title": "Promise-based toast",
+    "description": "toasts.promise() shows a sticky loading toast, then patches it to a success or error message (and color) once the promise settles - no manual updateToast() bookkeeping needed. Each outcome picks its own transition: a fade on success, a shake on error."
+  },
+  {
+    "id": "play-transition",
+    "title": "Play a transition on demand",
+    "description": "playToastTransition(id, transition) plays a transition with no content change - e.g. shaking a toast to signal a disallowed action instead of dismissing it."
+  },
+  {
+    "id": "reverse-order",
+    "title": "Reverse stacking order",
+    "description": "Insert a toast at the far end of the stack instead of nearest the anchor edge."
+  },
+  {
+    "id": "theme",
+    "title": "Custom theme colors",
+    "description": "Override background, text, and action colors per toast without touching CSS."
+  },
+  {
+    "id": "sticky",
+    "title": "Sticky toast with actions",
+    "description": "duration: 0 keeps a toast on screen until the user acts on it, instead of auto-dismissing."
+  },
+  {
+    "id": "html-content",
+    "title": "Rich HTML content",
+    "description": "Opt into HTML rendering for the message when plain text isn't enough."
+  },
+  {
+    "id": "boss-fight",
+    "title": "Boss fight",
+    "description": "A more complex example combining multiple features"
+  }
+]

@@ -1,0 +1,23 @@
+const fetchPosts = () =>
+  new Promise((resolve, reject) => {
+    setTimeout(() => {
+      Math.random() > 0.3
+        ? resolve({ count: 12 })
+        : reject(new Error("Network error"));
+    }, 1500);
+  });
+
+toasts.promise(
+  fetchPosts(),
+  {
+    loading: "Fetching posts...",
+    success: (data) => ({
+      message: `Fetched ${data.count} posts`,
+      transition: ToastTransition.FADE,
+    }),
+    error: (err) => ({
+      message: `Failed to fetch posts: ${err.message}`,
+      transition: ToastTransition.SHAKE_LR,
+    }),
+  }
+);

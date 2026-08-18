@@ -26,7 +26,10 @@
             ],
             "styles": [
               "src/styles.css"
-            ]
+            ],
+            "loader": {
+              ".txt": "text"
+            }
           },
           "configurations": {
             "production": {
@@ -67,7 +70,8 @@
         "test": {
           "builder": "@angular/build:unit-test",
           "options": {
-            "setupFiles": ["src/test-setup.ts"]
+            "setupFiles": ["src/test-setup.ts"],
+            "runnerConfig": "vitest.config.ts"
           }
         }
       }

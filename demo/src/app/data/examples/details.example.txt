@@ -1,0 +1,8 @@
+new ToastBuilder("Order shipped!")
+  .withColor(ToastColor.SUCCESS)
+  .withDetails(
+    ["Order #1234 shipped", "Tracking: 1Z999AA10123456784"],
+    "Show details",
+    "Hide details"
+  )
+  .show();

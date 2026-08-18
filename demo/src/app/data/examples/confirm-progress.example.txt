@@ -1,0 +1,22 @@
+const id = new ToastBuilder("Upload this file?")
+  .withColor(ToastColor.WARNING)
+  .withDuration(0)
+  .withProgress({ mode: "manual" })
+  .withConfirmButton(
+    "Upload",
+    async (event, confirmId) => {
+      for (let pct = 0; pct <= 1; pct += 0.25) {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        toasts.setToastProgress(confirmId, pct);
+      }
+    },
+    {
+      confirmColor: ToastColor.INFO,
+      pendingMessage: "Uploading...",
+      pendingColor: ToastColor.INFO,
+      doneMessage: "Upload complete!",
+      doneColor: ToastColor.SUCCESS,
+      doneAction: "close",
+    }
+  )
+  .show();

@@ -24,11 +24,22 @@ export interface InstallSnippets {
     cdnAlt: string;
 }
 
-/** One curated card in the Playground's "Browse examples" section. */
-export interface PlaygroundExample {
+/**
+ * Metadata for one curated card in the Playground's "Browse examples" section.
+ * Sourced from `demo/src/app/data/examples/examples.json` - the runnable `code` itself
+ * lives in a sibling `<id>.example.txt` file rather than inline here, so example snippets
+ * stay real, multi-line source instead of an escaped JSON string.
+ * See `demo/src/app/data/examples/index.ts`, which stitches this metadata back together
+ * with its code into a full `PlaygroundExample`.
+ */
+export interface PlaygroundExampleMeta {
     id: string;
     title: string;
     description: string;
+}
+
+/** One curated card in the Playground's "Browse examples" section, code included. */
+export interface PlaygroundExample extends PlaygroundExampleMeta {
     /** Full runnable snippet, same shape as the Playground's own code editor content. */
     code: string;
 }
@@ -82,6 +93,4 @@ export interface OptionsData {
     /** `ToastsConfig` fields, shown in the Config route. */
     configOptions: OptionDescriptor[];
     typeSpecs: Record<string, TypeSpec>;
-    /** Curated cards shown in the Playground's "Browse examples" section. */
-    examples: PlaygroundExample[];
 }

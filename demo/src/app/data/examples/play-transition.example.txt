@@ -1,0 +1,3 @@
+new ToastBuilder("Can't touch me")
+  .withButton("Undo", (event, id) => toasts.playToastTransition(id, ToastTransition.SHAKE_LR))
+  .show();
