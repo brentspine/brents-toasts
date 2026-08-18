@@ -29,6 +29,7 @@
     { "name": "allowLineBreaks", "type": "boolean", "default": "true", "description": "Whether \\n or literal <br> in message/title/button labels/details renders as a real line break.", "builderCall": ".withAllowLineBreaks(false)" },
     { "name": "position", "type": "ToastPositionValue", "typeRef": "ToastPositionValue", "default": "ToastPosition.BOTTOM_CENTER", "description": "Which screen edge/corner this toast stacks from.", "builderCall": ".withPosition(ToastPosition.TOP_RIGHT)" },
     { "name": "animation", "type": "ToastAnimationValue", "typeRef": "ToastAnimationValue", "default": "ToastAnimation.SLIDE", "description": "Entry/exit animation. slide, fade, none, or a name registered via registerToastAnimation().", "builderCall": ".withAnimation(ToastAnimation.FADE)" },
+    { "name": "layout", "type": "ToastLayoutValue", "typeRef": "ToastLayoutValue", "default": "ToastLayout.DEFAULT", "description": "Structural (non-color) look: close button position/visibility, etc. default, persistent-close-right, or a name registered via registerToastLayout().", "builderCall": ".withLayout(ToastLayout.PERSISTENT_CLOSE_RIGHT)" },
     { "name": "onClose", "type": "() => void", "default": "undefined", "description": "Called as soon as the toast starts closing, manually or via duration timeout.", "builderCall": ".withOnClose(() => console.log(\"closed\"))" },
     { "name": "removeOtherToasts", "type": "boolean", "default": "false", "description": "If true, dismisses every other currently-visible toast before showing this one.", "builderCall": ".andRemoveOtherToasts()" },
     { "name": "reverseOrder", "type": "boolean", "default": "false", "description": "If true, inserts this toast at the far end of its position's stack instead of nearest the anchor edge. Creation-time only.", "builderCall": ".andReverseOrder()" },
@@ -56,6 +57,7 @@
     { "name": "position", "type": "ToastPositionValue", "typeRef": "ToastPositionValue", "default": "ToastPosition.BOTTOM_CENTER", "description": "Library-wide default stacking position.", "control": "select", "selectOptions": ["bottom-center", "top-center", "top-left", "top-right", "bottom-left", "bottom-right"] },
     { "name": "responsiveBreakpoint", "type": "number", "default": "800", "description": "Below this viewport width (px), *-left/*-right positions collapse into their edge's *-center position and share one stack. Re-evaluated live on resize. Set to 0 to disable collapsing entirely.", "control": "number" },
     { "name": "animation", "type": "ToastAnimationValue", "typeRef": "ToastAnimationValue", "default": "ToastAnimation.SLIDE", "description": "Library-wide default entry/exit animation.", "control": "select", "selectOptions": ["slide", "fade", "none"] },
+    { "name": "layout", "type": "ToastLayoutValue", "typeRef": "ToastLayoutValue", "default": "ToastLayout.DEFAULT", "description": "Library-wide default structural (non-color) look.", "control": "select", "selectOptions": ["default", "persistent-close-right"] },
     { "name": "maxToasts", "type": "number", "default": "5", "description": "Maximum toasts visible at once (per position, unless overridden via configurePosition()).", "control": "number" },
     { "name": "evictOldest", "type": "boolean", "default": "true", "description": "When maxToasts is exceeded, evict the oldest toast to make room instead of blocking new ones.", "control": "boolean" },
     { "name": "pauseOnHover", "type": "boolean", "default": "true", "description": "Library-wide default for whether hovering/focusing a toast pauses its timer.", "control": "boolean" },
@@ -87,6 +89,14 @@
         { "value": "slide", "description": "Slides in/out from its stacking edge while fading. The default." },
         { "value": "fade", "description": "Opacity-only - appears already at its resting position, nothing slides." },
         { "value": "none", "description": "No transition at all: appears, disappears, and reflows instantly." }
+      ]
+    },
+    "ToastLayoutValue": {
+      "kind": "enum",
+      "description": "Structural (non-color) look: close button position/visibility, etc. Passing an unregistered value falls back to default with a one-time console warning. Custom layouts can be added via registerToastLayout() plus your own [data-bt-layout=\"name\"] CSS.",
+      "values": [
+        { "value": "default", "description": "Close button is a thin accent bar on the left, hidden until the toast is hovered. The default." },
+        { "value": "persistent-close-right", "description": "Close button is always visible, pinned to the right edge of the row." }
       ]
     },
     "ToastTransitionValue": {

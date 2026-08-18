@@ -4,6 +4,7 @@ import { ToastBuilder } from '../src/ToastBuilder';
 import { ToastColor, ToastSeverity } from '../src/ToastColor';
 import { ToastPosition } from '../src/ToastPosition';
 import { ToastAnimation, registerToastAnimation, getToastAnimation } from '../src/ToastAnimation';
+import { ToastLayout, registerToastLayout } from '../src/ToastLayout';
 import { ToastTransition, registerToastTransition } from '../src/ToastTransition';
 import { recalculatePositions } from '../src/ToastStacking';
 import { ToastQuickActions } from '../src/ToastQuickActions';
@@ -1094,6 +1095,58 @@ describe('animations', () => {
         recalculatePositions(el.parentElement!);
 
         expect(el.style.transition).toBe(ownTransition);
+    });
+});
+
+describe('layouts', () => {
+    afterEach(cleanup);
+
+    function layoutOf(id: string): string | undefined {
+        return document.getElementById(id)!.querySelector<HTMLElement>('.bt-toast')!.dataset.btLayout;
+    }
+
+    it('defaults to ToastLayout.DEFAULT when unset', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0 });
+        expect(layoutOf(id)).toBe(ToastLayout.DEFAULT);
+    });
+
+    it('stamps data-bt-layout from an explicit layout option', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, layout: ToastLayout.PERSISTENT_CLOSE_RIGHT });
+        expect(layoutOf(id)).toBe(ToastLayout.PERSISTENT_CLOSE_RIGHT);
+    });
+
+    it('falls back to default and warns only once for an unrecognized layout value', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        const id1 = t.showToast('1', { duration: 0, layout: 'nope' });
+        const id2 = t.showToast('2', { duration: 0, layout: 'nope' });
+        expect(layoutOf(id1)).toBe(ToastLayout.DEFAULT);
+        expect(layoutOf(id2)).toBe(ToastLayout.DEFAULT);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        warnSpy.mockRestore();
+    });
+
+    it('registerToastLayout() lets a custom name through with no warning', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        registerToastLayout('custom-layout-test');
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, layout: 'custom-layout-test' });
+        expect(layoutOf(id)).toBe('custom-layout-test');
+        expect(warnSpy).not.toHaveBeenCalled();
+        warnSpy.mockRestore();
+    });
+
+    it('updateToast() changes an already-rendered toast\'s layout without touching message/buttons', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, buttons: [{ label: 'Undo', onClick: () => {} }] });
+        expect(layoutOf(id)).toBe(ToastLayout.DEFAULT);
+        t.updateToast(id, { layout: ToastLayout.PERSISTENT_CLOSE_RIGHT });
+        expect(layoutOf(id)).toBe(ToastLayout.PERSISTENT_CLOSE_RIGHT);
+        const toast = document.getElementById(id)!;
+        expect(toast.querySelector('.bt-toast-message')!.textContent).toBe('x');
+        expect(toast.querySelectorAll('.bt-toast-action').length).toBe(1);
     });
 });
 

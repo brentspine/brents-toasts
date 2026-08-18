@@ -39,6 +39,13 @@ export interface ResolvedProgress {
 // accessibility semantics.
 export function applyColor(toastClose: HTMLElement, toast: HTMLElement, color: string, severity: ToastSeverityValue, theme?: ToastTheme): void {
     toastClose.style.setProperty('--data-background', color);
+    // Also set on `toast` (the root), not just `toastClose` - makes the color
+    // available to layout CSS keyed off `.bt-toast` itself (see the
+    // persistent-close-right layout in toasts.css, which paints the whole
+    // card from this instead of just the accent bar). Setting it on both
+    // elements rather than relying on inheritance from `toast` alone keeps
+    // `.bt-toast-close`'s own inline value exactly as before.
+    toast.style.setProperty('--data-background', color);
     const role = SEVERITY_ROLE[severity];
     toast.setAttribute('role', role);
     toast.setAttribute('aria-live', role === 'alert' ? 'assertive' : 'polite');

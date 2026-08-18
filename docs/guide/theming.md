@@ -64,3 +64,7 @@ toasts.showToast('Heads up.', {
 ```
 
 Builder equivalent: `.withTheme(theme)`.
+
+For structural changes rather than color - close button position/visibility,
+title placement, and so on - see [layouts.md](layouts.md)'s `layout` option
+instead.

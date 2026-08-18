@@ -94,6 +94,9 @@ cases, and worked examples before implementing anything non-trivial with it.
 - **Theming** - every color is a `--bt-*` CSS custom property; override via `theme:` on
   `configure()`/a single toast, or with plain CSS on `.bt-toast`.
   → [guide/theming.md](guide/theming.md)
+- **Layouts** - structural (non-color) looks - close button position/visibility, etc. -
+  via `layout: ToastLayout.DEFAULT | PERSISTENT_CLOSE_RIGHT`, or `registerToastLayout(name)`
+  plus your own `[data-bt-layout="name"]` CSS for a custom one. → [guide/layouts.md](guide/layouts.md)
 - **Localization** - bundled `en`/`de`/`es`/`fr` chrome text (`configure({ locale })`), only
   affects the library's own labels, never your `title`/`message`. `ToastQuickActions` gives
   separate pre-translated common words. → [guide/localization.md](guide/localization.md)

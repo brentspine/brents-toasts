@@ -8,6 +8,7 @@
 import { ToastColor, ToastSeverity, type ToastColorPalette, type ToastSeverityValue } from './ToastColor';
 import { ToastPosition, IMPLEMENTED_POSITIONS, POSITION_EDGE, collapsedPosition, DEFAULT_RESPONSIVE_BREAKPOINT, type ToastPositionValue } from './ToastPosition';
 import { ToastAnimation, getToastAnimation, type ToastAnimationValue, type ToastAnimationDefinition } from './ToastAnimation';
+import { ToastLayout, isKnownLayout, type ToastLayoutValue } from './ToastLayout';
 import { ToastTransition, getToastTransition, type ToastTransitionValue } from './ToastTransition';
 import { createStepButton, type ToastButton, type ToastButtonStep } from './ToastButton';
 import { ToastLocales, matchToastLocale, detectBrowserLocales, type ToastTranslations } from './ToastLocale';
@@ -99,6 +100,8 @@ export interface ToastOptions {
     position?: ToastPositionValue;
     /** See `ToastAnimation`/`docs/guide/animations.md`. `slide` (default), `fade`, `none`, or a name registered via `registerToastAnimation`. */
     animation?: ToastAnimationValue;
+    /** Structural "look" - close button position/visibility and other non-color layout differences. See `ToastLayout`/`docs/guide/layouts.md`. `'default'` (today's hover-revealed left accent bar) or `'persistent-close-right'` (always-visible close button pinned to the right), or a name registered via `registerToastLayout`. Independent of `theme` (color) and `titleMode` (title DOM shape) - any combination works. Defaults to `'default'` or the configured default. */
+    layout?: ToastLayoutValue;
     /** Called as soon as the toast starts closing (manually or via duration timeout). A throwing `onClose` is caught and warned about, not propagated - the rest of `removeToast`'s cleanup (timer/animation/DOM removal) always still runs. */
     onClose?: () => void;
     /** If true, dismisses every other currently-visible toast before showing this one. */
@@ -162,6 +165,8 @@ export interface ToastsConfig {
     /** Viewport width (px) at/below which `*-left`/`*-right` positions collapse into their edge's `*-center` equivalent, so they share one container/stack instead of visually overlapping on narrow (mobile) screens. Re-evaluated live on window resize/orientation-change, moving already-shown toasts into the right container. `0` disables collapsing entirely. Defaults to `800`. See `collapsedPosition`. */
     responsiveBreakpoint: number;
     animation: ToastAnimationValue;
+    /** Library-wide default for `ToastOptions.layout`. See there. */
+    layout: ToastLayoutValue;
     /** Caps visible toasts per position (see "Capacity and eviction" in `docs/guide/config.md`). A value below `1` is invalid - warns once and falls back to the previous default. */
     maxToasts: number;
     evictOldest: boolean;
@@ -198,6 +203,7 @@ interface ResolvedToastOptions {
     allowLineBreaks: boolean;
     position: ToastPositionValue;
     animation: ToastAnimationValue;
+    layout: ToastLayoutValue;
     title?: string;
     titleMode: 'inline' | 'stacked';
     onClose?: () => void;
@@ -238,6 +244,7 @@ const DEFAULT_CONFIG: ToastsConfig = {
     position: ToastPosition.BOTTOM_CENTER,
     responsiveBreakpoint: DEFAULT_RESPONSIVE_BREAKPOINT,
     animation: ToastAnimation.SLIDE,
+    layout: ToastLayout.DEFAULT,
     maxToasts: MAX_TOASTS,
     evictOldest: true,
     pauseOnHover: true,
@@ -514,6 +521,7 @@ export class Toasts {
 
         const toast = document.createElement('div');
         toast.className = 'bt-toast';
+        toast.dataset.btLayout = this._resolveLayout(opts.layout);
 
         // Everything that dismisses the toast on click/Enter/Space lives on
         // this row, not on `toast` itself - so the details block below (a
@@ -792,6 +800,7 @@ export class Toasts {
             if (state.closable) toastRow.setAttribute('tabindex', '0');
             else toastRow.removeAttribute('tabindex');
         }
+        if ('layout' in update) toast.dataset.btLayout = this._resolveLayout(state.layout);
         if ('duration' in update) {
             if (state.duration <= 0) {
                 this.removeToastTimer(id);
@@ -1477,6 +1486,7 @@ export class Toasts {
             allowLineBreaks: this.config.allowLineBreaks,
             position: this.config.position,
             animation: this.config.animation,
+            layout: this.config.layout,
             title: undefined,
             titleMode: this.config.titleMode,
             onClose: undefined,
@@ -1556,6 +1566,12 @@ export class Toasts {
         if (getToastAnimation(animation)) return animation;
         this._warnUnimplemented('animation', animation, ToastAnimation.SLIDE);
         return ToastAnimation.SLIDE;
+    }
+
+    private _resolveLayout(layout: ToastLayoutValue): ToastLayoutValue {
+        if (isKnownLayout(layout)) return layout;
+        this._warnUnimplemented('layout', layout, ToastLayout.DEFAULT);
+        return ToastLayout.DEFAULT;
     }
 
     private _resolveTransition(transition: ToastTransitionValue): ToastTransitionValue {

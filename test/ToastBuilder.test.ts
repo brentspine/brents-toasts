@@ -4,6 +4,7 @@ import { ToastBuilder } from '../src/ToastBuilder';
 import { ToastColor } from '../src/ToastColor';
 import { ToastPosition } from '../src/ToastPosition';
 import { ToastAnimation } from '../src/ToastAnimation';
+import { ToastLayout } from '../src/ToastLayout';
 import { ToastTransition } from '../src/ToastTransition';
 
 function cleanup(): void {
@@ -111,6 +112,13 @@ describe('ToastBuilder', () => {
         const t = new Toasts();
         const id = new ToastBuilder('m', t).withAnimation(ToastAnimation.FADE).withDuration(0).show();
         expect(document.getElementById(id)).not.toBeNull();
+    });
+
+    it('withLayout sets data-bt-layout on the rendered toast', () => {
+        const t = new Toasts();
+        const id = new ToastBuilder('m', t).withLayout(ToastLayout.PERSISTENT_CLOSE_RIGHT).withDuration(0).show();
+        const toast = document.getElementById(id)!.querySelector<HTMLElement>('.bt-toast')!;
+        expect(toast.dataset.btLayout).toBe(ToastLayout.PERSISTENT_CLOSE_RIGHT);
     });
 
     it('withOnClose is invoked when the toast is removed', () => {

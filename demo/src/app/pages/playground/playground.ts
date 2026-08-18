@@ -11,7 +11,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { toasts, ToastBuilder, ToastColor, ToastSeverity, ToastPosition, ToastAnimation, ToastTransition } from 'brents-toasts';
+import { toasts, ToastBuilder, ToastColor, ToastSeverity, ToastPosition, ToastAnimation, ToastLayout, ToastTransition } from 'brents-toasts';
 import { OptionsDataService } from '../../services/options-data';
 import { SectionService } from '../../services/section';
 import { TypeSpecPanel } from '../../shared/type-spec-panel';
@@ -20,7 +20,7 @@ import { hasStoredConfigChanges } from '../config/config';
 import type { OptionDescriptor, PlaygroundExample } from '../../data/options.types';
 
 const IMPORT_LINE =
-  "import { ToastBuilder, ToastColor, ToastSeverity, ToastPosition, ToastAnimation, ToastTransition } from 'brents-toasts';";
+  "import { ToastBuilder, ToastColor, ToastSeverity, ToastPosition, ToastAnimation, ToastLayout, ToastTransition } from 'brents-toasts';";
 const DEFAULT_CODE = 'new ToastBuilder("Something happened!")\n  .show();';
 const STORAGE_KEY = 'bt-demo:playground-code';
 
@@ -277,10 +277,11 @@ export class Playground {
         'ToastSeverity',
         'ToastPosition',
         'ToastAnimation',
+        'ToastLayout',
         'ToastTransition',
         this.code(),
       );
-      fn(toasts, ToastBuilder, ToastColor, ToastSeverity, ToastPosition, ToastAnimation, ToastTransition);
+      fn(toasts, ToastBuilder, ToastColor, ToastSeverity, ToastPosition, ToastAnimation, ToastLayout, ToastTransition);
     } catch (err) {
       this.runError.set(err instanceof Error ? err.message : String(err));
     }

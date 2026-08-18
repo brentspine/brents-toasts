@@ -67,6 +67,47 @@
    the two motions cancel out instead of one of them ever widening the row. */
 .bt-toast-row.bt-closable .bt-toast-content { margin-right: 15.5px; transition: margin-right 0.2s; }
 .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-content { margin-right: 0; }
+/* persistent-close-right layout (ToastLayout.PERSISTENT_CLOSE_RIGHT): close
+   button always visible, pinned to the row's trailing edge instead of a
+   hover-revealed leading accent bar - pure flex `order` reordering, .bt-toast-row
+   is already display:flex so no DOM change is needed. The `[data-bt-layout]`
+   attribute selector gives every rule here equal-or-higher specificity than
+   the default layout's plain `.bt-toast-close`/`:hover` rules above, so they
+   win outright rather than relying on source order. */
+.bt-toast[data-bt-layout="persistent-close-right"] {
+    /* The whole card is painted from the toast's own color instead of the
+       default flat --bt-background - --bt-background (unset unless a theme
+       explicitly overrides it) still wins when present, so an explicit
+       per-toast/config theme.background stays an override rather than being
+       silently swallowed by this layout. */
+    background-color: var(--bt-background, var(--data-background, #333));
+}
+.bt-toast[data-bt-layout="persistent-close-right"] .bt-toast-close {
+    order: 3;
+    width: 28px;
+    opacity: 1;
+    /* No swatch of its own here (unlike the default layout's accent bar) -
+       the color already shows via the card background above, so the close
+       button just blends into it. */
+    background-color: transparent;
+    border-radius: 0 2px 2px 0;
+    transition: none;
+}
+.bt-toast[data-bt-layout="persistent-close-right"] .bt-toast-close span { opacity: 1; }
+.bt-toast[data-bt-layout="persistent-close-right"] .bt-toast-row .bt-toast-content {
+    order: 1;
+    margin-right: 10px;
+    transition: none;
+}
+.bt-toast[data-bt-layout="persistent-close-right"] .bt-toast-actions { order: 2; }
+.bt-toast[data-bt-layout="persistent-close-right"] .bt-toast-row.bt-closable:hover .bt-toast-close {
+    width: 28px;
+    cursor: pointer;
+}
+.bt-toast[data-bt-layout="persistent-close-right"] .bt-toast-row.bt-closable:hover .bt-toast-content {
+    margin-right: 10px;
+}
+
 .bt-toast-row .bt-toast-title { font-weight: 600; }
 /* align-self: stretch makes this column span the row's full height, and
    padding (not margin) folds the former side gaps into the hoverable box
