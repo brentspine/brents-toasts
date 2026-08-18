@@ -7,7 +7,7 @@ option instead of building a custom `Node`; it renders as plain, underlined
 clickable text (not a native-looking button, by design), vertically centered
 regardless of whether `title` is present:
 
-```ts
+```ts live
 toasts.showToast('Item deleted.', {
   title: 'Item deleted',
   buttons: [
@@ -37,7 +37,7 @@ For the common case of a button that just dismisses the toast, use
 `toasts.closeButton(label?, className?)` instead of writing the `onClick`
 yourself:
 
-```ts
+```ts live
 toasts.showToast('Saved.', { buttons: [toasts.closeButton()] });
 ```
 
@@ -54,7 +54,7 @@ For an action that shouldn't fire on a single accidental click, use
 `toasts.confirmButton(label, onConfirm, options?)` instead of hand-rolling
 a "click once to arm, click again to confirm" button:
 
-```ts
+```ts live
 toasts.showToast('3 items selected.', {
   buttons: [
     toasts.confirmButton('Delete', async (event, id) => {
@@ -85,7 +85,7 @@ step can show its own message instead of just disabling the buttons, handy
 for something like a delete confirmation, where reverting to "Delete this
 file?" after the file is already gone doesn't make sense:
 
-```ts
+```ts live
 toasts.showToast('Delete this file?', {
   severity: ToastSeverity.WARNING,
   duration: 0,
@@ -142,7 +142,7 @@ className?)`, the same general-purpose primitive `detailsCopyButton()`
 to) `false` to stay on that step instead of advancing to the next one,
 e.g. a guard that isn't met, or an action that failed:
 
-```ts
+```ts live
 toasts.showToast('Draft ready.', {
   buttons: [
     toasts.stepButton([
@@ -173,7 +173,7 @@ current step. Builder equivalent: `.withStepButton(steps, className?)`.
 pre-translated common words like `"Yes"`/`"Cancel"`/`"Undo"` for your own
 button labels, independent of `configure()`'s locale:
 
-```ts
+```ts live
 import { ToastQuickActions } from 'brents-toasts';
 
 toasts.showToast('Delete this item?', {

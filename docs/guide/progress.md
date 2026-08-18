@@ -5,7 +5,7 @@ the toast card. By default it's synced to the toast's own auto-dismiss
 countdown via the same timer state [`getToastTimer`/`pauseToastTimer`/etc.](timers.md)
 use; no extra wiring needed:
 
-```ts
+```ts live
 toasts.showToast('Uploading…', {
   duration: 6000,
   progress: { mode: 'drain', color: ToastColor.INFO },

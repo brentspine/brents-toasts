@@ -38,7 +38,7 @@ a toast is shown.
 from a single argument up to full control, in whatever form fits the call
 site:
 
-```ts
+```ts live
 // 1. Just a message
 toasts.showToast('Saved!');
 
@@ -94,14 +94,14 @@ Set `allowLineBreaks: false` (per-toast, or as a `configure()` default) to
 turn that off: `\n`/`<br>` then render as inert text everywhere above,
 same as any other character:
 
-```ts
+```ts live
 toasts.showToast('literal \\n stays as text', { allowLineBreaks: false });
 ```
 
 For a simple HTML string, opt in with `allowHtml` (sanitize the input
 yourself; this renders via `innerHTML`):
 
-```ts
+```ts live
 toasts.showToast('<b>Saved!</b> Undo?', { allowHtml: true });
 ```
 
@@ -109,7 +109,7 @@ For fully custom, interactive content (buttons, links, anything), pass a
 real DOM node instead of a string. It's appended directly: no `innerHTML`,
 no `allowHtml`, no XSS surface:
 
-```ts
+```ts live
 const content = document.createElement('span');
 content.textContent = 'Undo? ';
 const undoBtn = document.createElement('button');
@@ -134,7 +134,7 @@ standalone `ToastBuilder.withTitleMode('inline')`, or as a `configure()`
 default) to have it share the message's own line instead, as a bold lead-in,
 conceptually `<b>Title</b> message`:
 
-```ts
+```ts live
 toasts.showToast('has been saved.', { title: 'File', titleMode: 'inline' });
 // or:
 new ToastBuilder('has been saved.').withTitle('File', 'inline').show();
@@ -154,6 +154,7 @@ is never affected by `allowHtml`.
 - [Per-toast data](data.md): a shared handler instead of one closure per toast
 - [Progress bar](progress.md)
 - [Animations](animations.md): entrance/exit animation engine
+- [Layouts](layouts.md): structural, non-color close-button placement
 - [Config](config.md): library-wide/page-scoped defaults, positions
 - [Theming](theming.md)
 - [Localization](localization.md)

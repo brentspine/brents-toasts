@@ -6,7 +6,7 @@ know *which* item to restore), you don't have to give each toast its own
 `showToast()` time, then read it back by `id` inside a single handler
 reused across every toast:
 
-```ts
+```ts live
 // Defined once: reused by every toast's Undo button, not recreated per toast.
 function handleUndo(event, id) {
   const item = toasts.getToastData(id);

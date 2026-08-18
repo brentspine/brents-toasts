@@ -6,7 +6,7 @@
 for project-wide defaults (e.g. every toast in your app defaults to
 `duration: 4000`):
 
-```ts
+```ts live
 toasts.configure({ duration: 4000, position: ToastPosition.BOTTOM_CENTER });
 ```
 
@@ -26,6 +26,7 @@ whatever `configure()` set.
 | `position` | `ToastPosition.BOTTOM_CENTER` | |
 | `responsiveBreakpoint` | `800` | px; see "Positions on narrow screens" below |
 | `animation` | `ToastAnimation.SLIDE` | see [Animations](animations.md) |
+| `layout` | `ToastLayout.DEFAULT` | see [Layouts](layouts.md) |
 | `maxToasts` | `5` | see "Capacity and eviction" below |
 | `evictOldest` | `true` | |
 | `pauseOnHover` | `true` | also governs focus-to-pause; see [Timers](timers.md) |
@@ -59,7 +60,7 @@ bearing on this - unlike versions before this, nothing ever inspects a
 `severity: ToastSeverity.WARNING` alone gets you both the right look and
 the right role for free:
 
-```ts
+```ts live
 toasts.showToast('Please sign in to use this feature.', {
   severity: ToastSeverity.WARNING,
 });
@@ -68,7 +69,7 @@ toasts.showToast('Please sign in to use this feature.', {
 Pass `color` too if you want a custom look with the same semantics - it
 overrides just the visual, `severity` still drives the role:
 
-```ts
+```ts live
 toasts.showToast('Please sign in to use this feature.', {
   severity: ToastSeverity.WARNING,
   color: '#ffc107', // your app's own warning color
@@ -81,7 +82,7 @@ ERROR }`) and also supplies the default `color` `promise()` applies to its
 matching `severity` - see [Lifecycle](lifecycle.md)). Reskinning your
 palette is just:
 
-```ts
+```ts live
 toasts.configure({
   colors: { WARNING: '#ffc107', ERROR: '#dc3545' },
 });
@@ -120,7 +121,7 @@ just those two settings for one position, layered on top of the
 library-wide defaults from `configure()`, e.g. a small `TOP_RIGHT`
 notification stack alongside a larger default `BOTTOM_CENTER` one:
 
-```ts
+```ts live
 toasts.configurePosition(ToastPosition.TOP_RIGHT, { maxToasts: 2 });
 ```
 
@@ -146,7 +147,7 @@ change, so toasts already on screen move into (or back out of) the shared
 container as the breakpoint is crossed. Set `responsiveBreakpoint: 0` to
 disable collapsing entirely:
 
-```ts
+```ts live
 toasts.configure({ responsiveBreakpoint: 0 }); // always keep positions distinct
 ```
 
@@ -161,7 +162,7 @@ and configure that instead. It renders into the same on-screen snackbar
 (same-position instances share one physical container, see below), so you
 get different defaults without a second visual container:
 
-```ts
+```ts live
 import { Toasts } from 'brents-toasts';
 
 const pageToasts = new Toasts();

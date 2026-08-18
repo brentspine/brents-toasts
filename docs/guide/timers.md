@@ -34,7 +34,7 @@ action is running, pause while a dropdown opened from the toast is open), call
 the same timer controls the built-in hover behavior is built on, using the
 toast's own `id`:
 
-```ts
+```ts live
 const id = toasts.showToast('Uploading…', { duration: 5000 });
 
 toasts.pauseToastTimer(id);   // stop the countdown, remembering time left

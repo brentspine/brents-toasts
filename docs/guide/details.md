@@ -9,7 +9,7 @@ dismissable part of the toast (`.bt-toast-details` is a DOM *sibling* of
 `.bt-toast-row`, not a descendant of it), so it never accidentally triggers
 dismissal:
 
-```ts
+```ts live
 toasts.showToast('Account settings could not be updated.', {
   title: 'Action Failed',
   severity: ToastSeverity.ERROR,
@@ -27,7 +27,7 @@ opt-in via `toasts.detailsCopyButton(text, label?, copiedLabel?,
 className?)`, appended to a specific item's `buttons` (or every item's, via
 `.map()`) rather than happening automatically:
 
-```ts
+```ts live
 toasts.showToast('Account settings could not be updated.', {
   title: 'Action Failed',
   severity: ToastSeverity.ERROR,
@@ -58,7 +58,7 @@ Each detail item's `buttons` works like the top-level `buttons` option;
 `detailsCopyButton()` is just the first ready-made entry for it, mix in your
 own alongside it:
 
-```ts
+```ts live
 toasts.showToast('Payment failed.', {
   title: 'Payment Failed',
   severity: ToastSeverity.ERROR,

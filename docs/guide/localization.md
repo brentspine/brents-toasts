@@ -22,14 +22,14 @@ announcing several identically-named "Notifications" landmarks.
 
 To force a specific bundled pack instead of auto-detecting:
 
-```ts
+```ts live
 toasts.configure({ locale: 'de' });
 ```
 
 To add a language that isn't bundled, or tweak individual strings, layer a
 partial override on top of the resolved pack:
 
-```ts
+```ts live
 toasts.configure({ translations: { close: 'Schließen', done: 'Erledigt' } });
 ```
 
@@ -60,7 +60,7 @@ changes any instance's locale, and it ships its own small bundle of `en`/
 `src/locales/quick-actions/*.json`), separate from `ToastLocales`; adding a
 bundled language to one never silently affects the other.
 
-```ts
+```ts live
 import { ToastQuickActions } from 'brents-toasts';
 
 toasts.showToast('Delete this item?', {

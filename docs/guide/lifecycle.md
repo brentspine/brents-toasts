@@ -6,7 +6,7 @@
 `showToast`. To clear everything at once, across all positions, use
 `toasts.removeAllToasts()`:
 
-```ts
+```ts live
 const id = toasts.showToast('Uploading...', { duration: 0 });
 // ...
 toasts.removeAllToasts(); // fades out every currently visible toast
@@ -28,7 +28,7 @@ instead of removing it and showing a new one. `update` is the same shape as
 first argument); only the keys you pass change, everything else about the
 toast stays as it was:
 
-```ts
+```ts live
 const id = toasts.showToast('Uploading…', { color: ToastColor.INFO, duration: 5000 });
 
 toasts.updateToast(id, {
@@ -141,7 +141,7 @@ each accept a plain message (shorthand for `{ message }`), a full
 of the resolved value/rejection reason returning either, for outcome
 messages that depend on the result:
 
-```ts
+```ts live
 toasts.promise(uploadFile(file), {
   loading: { message: 'Uploading…', closable: false },
   success: { message: 'Uploaded!', duration: 4000 },
@@ -154,7 +154,7 @@ of showing one. A third `options` argument is shared `ToastOptions` applied
 under the loading toast and both outcomes alike (`position`, `theme`, ...);
 per-state entries in `messages` win over it:
 
-```ts
+```ts live
 toasts.promise(
   savePost(post),
   { loading: 'Saving...', success: 'Saved!', error: 'Could not save.' },
@@ -167,7 +167,7 @@ loading→success/error swap instead of an instant jump. Different outcomes
 can use different transitions, e.g. fading in on success but shaking on
 error:
 
-```ts
+```ts live
 toasts.promise(
   savePost(post),
   {

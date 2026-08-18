@@ -14,7 +14,7 @@ library-wide (`configure({ animation })`), or via
 | `'fade'` | `ToastAnimation.FADE` | Opacity-only: appears already at its final resting offset (nothing slides) and just fades in/out, 300ms. |
 | `'none'` | `ToastAnimation.NONE` | No transition at all: appears, disappears, and reflows instantly (`exitDurationMs: 0`). Useful for reduced-motion preferences, tests, or a deliberately snappy stack. |
 
-```ts
+```ts live
 toasts.showToast('Instant toast', { animation: ToastAnimation.NONE });
 toasts.configure({ animation: ToastAnimation.FADE }); // library-wide default
 new ToastBuilder('Slides in').withAnimation(ToastAnimation.SLIDE).show();
@@ -42,7 +42,7 @@ out of its way.
 
 ## Registering a custom animation
 
-```ts
+```ts live
 import { registerToastAnimation, ToastAnimation } from 'brents-toasts';
 
 registerToastAnimation('zoom', {

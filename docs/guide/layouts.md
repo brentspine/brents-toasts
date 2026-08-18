@@ -14,7 +14,7 @@ lead-in) - any combination of the three works. Set it per-toast
 | `'default'` | `ToastLayout.DEFAULT` | **Default.** Close button is a thin accent bar on the left, hidden until the toast is hovered. |
 | `'persistent-close-right'` | `ToastLayout.PERSISTENT_CLOSE_RIGHT` | Close button is always visible, pinned to the right edge of the row, with no swatch of its own. The whole card is painted from the toast's `color` instead of the flat default background (e.g. a `ToastSeverity.SUCCESS` toast renders fully green). An explicit `theme.background` still overrides this. |
 
-```ts
+```ts live
 toasts.showToast('Heads up.', { layout: ToastLayout.PERSISTENT_CLOSE_RIGHT });
 toasts.configure({ layout: ToastLayout.PERSISTENT_CLOSE_RIGHT }); // library-wide default
 new ToastBuilder('Always-visible close').withLayout(ToastLayout.PERSISTENT_CLOSE_RIGHT).show();
@@ -34,7 +34,7 @@ doesn't warn-and-fall-back; it doesn't take a definition object.
 
 ## Registering a custom layout
 
-```ts
+```ts live
 import { registerToastLayout } from 'brents-toasts';
 
 registerToastLayout('title-right');
@@ -49,6 +49,6 @@ registerToastLayout('title-right');
 }
 ```
 
-```ts
+```ts live
 toasts.showToast('Custom look', { title: 'Note', layout: 'title-right' });
 ```

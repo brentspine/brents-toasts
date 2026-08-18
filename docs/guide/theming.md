@@ -6,7 +6,7 @@ text), there's `theme`, settable library-wide (`configure({ theme })`),
 per-toast (`showToast(msg, { theme })`), or entirely in plain CSS with no
 API involvement at all:
 
-```ts
+```ts live
 // Library-wide default
 toasts.configure({
   theme: { background: '#1e1e2e', text: '#cdd6f4', actionColor: '#89b4fa' },
@@ -56,7 +56,7 @@ luma range) keeps the light icon, while true light colors (white, pastels)
 correctly flip to the dark one. Set `theme.closeIcon` to override the
 automatic pick with a specific color instead:
 
-```ts
+```ts live
 toasts.showToast('Heads up.', {
   color: '#fff',
   theme: { closeIcon: '#000' }, // skip the automatic contrast pick
@@ -66,5 +66,7 @@ toasts.showToast('Heads up.', {
 Builder equivalent: `.withTheme(theme)`.
 
 For structural changes rather than color - close button position/visibility,
-title placement, and so on - see [layouts.md](layouts.md)'s `layout` option
-instead.
+and other non-color layout differences - see [Layouts](layouts.md)'s
+`layout` option instead. `layout` is independent of `titleMode` (whether
+`title` is a stacked block or an inline lead-in, see [Getting
+started](getting-started.md#title-mode)); combine the two freely.
