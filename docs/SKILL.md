@@ -78,6 +78,8 @@ cases, and worked examples before implementing anything non-trivial with it.
   expandable block behind an auto-added "Details" toggle; `toasts.detailsCopyButton(text)` is
   the only built-in copyable detail. → [guide/details.md](guide/details.md)
 - **Lifecycle** - `removeToast(id, reason?)`/`removeAllToasts`/`removeOtherToasts`;
+  `clearBySource(source)` dismisses every toast whose `ToastOptions.source` matches, so a
+  feature/module can clear only its own toasts without tracking their `id`s.
   `updateToast(id, patch)` is a **patch** (only keys present in `patch` change; `buttons`/
   `details`/`theme` replace wholesale - use `addToastButton`/`removeToastButton`/
   `addToastDetail`/`removeToastDetail` for incremental changes), optionally animated via

@@ -137,6 +137,11 @@ export interface ToastOptions {
     progress?: boolean | ToastProgressOptions;
     /** Arbitrary data to associate with this toast, readable later via `getToastData(id)` - e.g. the item an "Undo" button should restore, so one shared `onClick` can look up what a specific toast represents instead of a new closure per toast. Never rendered or read internally. */
     data?: unknown;
+    /** Arbitrary grouping label - e.g. the feature/module that showed this toast - so a whole
+     *  group can be dismissed at once via `clearBySource(source)` without tracking each toast's
+     *  `id` yourself. Never rendered or read internally. Unset toasts aren't matched by any
+     *  `clearBySource` call. */
+    source?: string;
     /** Extra color knobs (background, text, close icon, ...) beyond `color`. Merges key-by-key over `configure()`'s `theme` - only the fields you set here change, the rest still come from the configured default (or the built-in look, if neither sets them). See `ToastTheme`. */
     theme?: ToastTheme;
     /** Only meaningful passed to `updateToast` (directly, or via `promise()`'s `messages`/shared `options`) - animates the whole toast card's transition to the patched content instead of an instant swap, e.g. for a `promise()` loading→success/error transition. `ToastTransition.FADE` (crossfade), `ToastTransition.SHAKE_LR` (shake left-right to draw attention, then apply), or a name registered via `registerToastTransition()`. `ToastTransition.NONE`/omitted applies instantly. No-op passed to `showToast`/`ToastBuilder` - there's nothing to transition from on a toast's first render. */
@@ -290,6 +295,7 @@ interface ResolvedToastOptions {
     pauseOnPageHidden: boolean;
     progress: boolean | ToastProgressOptions;
     data?: unknown;
+    source?: string;
     theme?: ToastTheme;
 }
 
@@ -1535,6 +1541,21 @@ export class Toasts {
         });
     }
 
+    /**
+     * Dismisses every currently visible toast whose `ToastOptions.source` equals `source`,
+     * across all positions/snackbars - each one animates out via `removeToast` rather than
+     * vanishing instantly. Toasts with no `source` set are never matched. Same DOM-querying
+     * approach as `removeAllToasts` (see there) so it also reaches same-source toasts created
+     * by a different page-scoped `Toasts` instance sharing a physical snackbar.
+     */
+    clearBySource(source: string): void {
+        document.querySelectorAll<HTMLElement>('.bt-snackbar').forEach(snackbar => {
+            Array.from(snackbar.children).forEach(child => {
+                if (this._getState(child.id)?.source === source) this.removeToast(child.id);
+            });
+        });
+    }
+
     // Shared by `promise()` for `loading`/`success`/`error` - each of which accepts a bare
     // message, a full `ToastUpdateOptions` patch, or (for success/error) a function of the
     // settled value/reason. Normalizes all three shapes down to a patch object.
@@ -1700,6 +1721,7 @@ export class Toasts {
             pauseOnPageHidden: this.config.pauseOnPageHidden,
             progress: this.config.progress,
             data: undefined,
+            source: undefined,
             theme: this.config.theme,
         };
 

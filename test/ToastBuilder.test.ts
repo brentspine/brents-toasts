@@ -181,6 +181,13 @@ describe('ToastBuilder', () => {
         expect(t.getToastData(id)).toBe(payload);
     });
 
+    it('withSource sets the source clearBySource matches on', () => {
+        const t = new Toasts();
+        const id = new ToastBuilder('m', t).withSource('upload').withDuration(0).show();
+        t.clearBySource('upload');
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
     it('withTheme merges theme overrides into the rendered style', () => {
         const t = new Toasts();
         const id = new ToastBuilder('m', t).withTheme({ background: 'rgb(1, 2, 3)' }).withDuration(0).show();

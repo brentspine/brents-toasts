@@ -1233,6 +1233,41 @@ describe('toast data', () => {
     });
 });
 
+describe('clearBySource', () => {
+    afterEach(cleanup);
+
+    it('dismisses only toasts matching the given source, across positions', () => {
+        const t = new Toasts();
+        const upload1 = t.showToast('1', { duration: 0, source: 'upload', position: ToastPosition.BOTTOM_CENTER });
+        const upload2 = t.showToast('2', { duration: 0, source: 'upload', position: ToastPosition.TOP_RIGHT });
+        const other = t.showToast('3', { duration: 0, source: 'chat' });
+        const unsourced = t.showToast('4', { duration: 0 });
+
+        t.clearBySource('upload');
+
+        expect(document.getElementById(upload1)?.classList.contains('bt-hiding')).toBe(true);
+        expect(document.getElementById(upload2)?.classList.contains('bt-hiding')).toBe(true);
+        expect(document.getElementById(other)?.classList.contains('bt-hiding')).toBeFalsy();
+        expect(document.getElementById(unsourced)?.classList.contains('bt-hiding')).toBeFalsy();
+    });
+
+    it('is a no-op when nothing matches the given source', () => {
+        const t = new Toasts();
+        const id = t.showToast('1', { duration: 0, source: 'chat' });
+        t.clearBySource('upload');
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBeFalsy();
+    });
+
+    it('via a different instance still dismisses toasts owned by another instance', () => {
+        const a = new Toasts();
+        const b = new Toasts();
+        const onClose = vi.fn();
+        b.showToast('mine', { duration: 0, source: 'upload', onClose });
+        a.clearBySource('upload');
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe('confirmButton', () => {
     afterEach(() => {
         vi.useRealTimers();

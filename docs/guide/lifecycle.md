@@ -84,6 +84,25 @@ snackbar). `showToast(msg, { removeOtherToasts: true })` does the same thing
 before showing its own toast, for the common "replace whatever's on screen"
 case.
 
+### Clearing toasts by source
+
+Tag a toast with `source` at creation time to dismiss every toast sharing it
+later, without tracking each one's `id` yourself - e.g. a feature/module
+name, so leaving that part of the page clears only its own toasts:
+
+```ts live
+toasts.showToast('Uploading file-a.png...', { duration: 0, source: 'upload-manager' });
+toasts.showToast('Uploading file-b.png...', { duration: 0, source: 'upload-manager' });
+
+toasts.clearBySource('upload-manager'); // dismisses both, leaves everything else alone
+```
+
+`clearBySource(source)` dismisses every currently visible toast whose
+`source` equals `source`, across all positions/snackbars, the same way
+`removeAllToasts` does - toasts with no `source` set are never matched, and
+it reaches same-source toasts created by a different page-scoped `Toasts`
+instance sharing a physical snackbar. Builder equivalent: `.withSource(source)`.
+
 ### Why a toast closed
 
 `ToastOptions.onClose` (and the `'close'`/`'remove'` events above) receive a `reason` -

@@ -35,6 +35,7 @@ toast's id, same as `showToast()`.
 | `withPauseOnPageHidden(pauseOnPageHidden = true)` | `ToastOptions.pauseOnPageHidden` | Called with no argument, enables it; pauses while the page is hidden |
 | `withProgress(progress = true)` | `ToastOptions.progress` | See [Progress bar](progress.md) |
 | `withData(data)` | `ToastOptions.data` | See [Per-toast data](data.md) |
+| `withSource(source)` | `ToastOptions.source` | Grouping label - dismiss every toast sharing it via `clearBySource(source)`. See [Removing toasts](lifecycle.md#clearing-toasts-by-source) |
 | `withTheme(theme)` | `ToastOptions.theme` | Merges key-by-key over the configured default at `.show()` time |
 | `withTransition(transition = ToastTransition.FADE)` | `ToastOptions.transition` | No-op via `.show()`: nothing to transition from on first render. Only takes effect if the built options later reach `updateToast`/`promise()` some other way |
 | `andRemoveOtherToasts()` | `ToastOptions.removeOtherToasts` | Sets it to `true` |
