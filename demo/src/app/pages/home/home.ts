@@ -18,7 +18,13 @@ const HINTS: string[] = [
   'You can use the Playground to generate a snippet for your own project.',
   'Most of this demo is built via a central options.json file (except these tips)',
   'This project is open source, take a peek!',
-  'Feel like somethings missing? Open a issue or pr!'
+  'Feel like somethings missing? Open a issue or pr!',
+  'Prefer yarn? yarn add brents-toasts works just as well as npm install.',
+  'Need a toast root scoped to one page or section? new Toasts() gives you a second instance with its own configure() defaults.',
+  'configurePosition() lets a single corner have its own maxToasts/evictOldest instead of the library-wide default.',
+  "A toast can carry your own data via withData(), readable later with getToastData(). See the Boss fight example.",
+  'Want to help with localization? Adding a new bundled language, or suggesting more pre-translated components like ToastQuickActions, is a great way to contribute.',
+  'registerToastAnimation() and registerToastTransition() let you plug in your own entry/exit or update animations.',
 ];
 
 @Component({
