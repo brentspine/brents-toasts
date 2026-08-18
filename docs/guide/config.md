@@ -109,6 +109,10 @@ oldest toast *by creation order* (not DOM position; a `reverseOrder` toast
 can be prepended, so DOM position 0 isn't reliably "the oldest") in that
 position is dismissed to make room.
 
+A `maxToasts` less than `1` (via `configure()` or `configurePosition()`) or a `duration` that's
+negative or `NaN` (per-toast or via `configure()`) is invalid - it warns once and falls back to
+the configured default rather than producing broken behavior.
+
 ## Per-position overrides
 
 `Toasts.configurePosition(position, { maxToasts?, evictOldest? })` overrides

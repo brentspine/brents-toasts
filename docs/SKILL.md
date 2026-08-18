@@ -121,3 +121,7 @@ cases, and worked examples before implementing anything non-trivial with it.
 - When using a page-scoped `new Toasts()` instance, call `.closeButton()`/`.confirmButton()`/etc.
   on *that* instance, not the shared `toasts` singleton, so the button dismisses via the right
   instance.
+- A throwing `onClose`/button `onClick`/`promise()` message resolver is caught and warned about
+  (`console.warn`), never left to crash the caller or abort the rest of a toast's cleanup.
+- An invalid `duration` (negative/NaN) or `maxToasts` (< 1) warns once and falls back to the
+  configured default instead of silently producing broken behavior.

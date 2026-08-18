@@ -1820,6 +1820,93 @@ describe('promise', () => {
     });
 });
 
+describe('error handling / dev diagnostics', () => {
+    afterEach(cleanup);
+
+    it('a throwing onClose is caught and warned about, but cleanup still completes', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, onClose: () => { throw new Error('boom'); } });
+        expect(() => t.removeToast(id)).not.toThrow();
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        expect(t.getToastTimer(id)).toBeNull();
+        warnSpy.mockRestore();
+    });
+
+    it('a throwing button onClick is caught and warned about, not propagated', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        const id = t.showToast('x', {
+            duration: 0,
+            buttons: [{ label: 'Go', onClick: () => { throw new Error('boom'); } }],
+        });
+        const button = document.getElementById(id)!.querySelector<HTMLButtonElement>('.bt-toast-action')!;
+        expect(() => button.click()).not.toThrow();
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        warnSpy.mockRestore();
+    });
+
+    it('a throwing promise() message resolver is caught and warned about, leaving the prior message untouched', async () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        const p = Promise.resolve('x');
+        t.promise(p, { loading: 'Loading...', success: () => { throw new Error('boom'); } });
+        const toastId = document.querySelector('.bt-toast-container')!.id;
+
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        expect(document.getElementById(toastId)!.querySelector('.bt-toast-content')!.textContent).toBe('Loading...');
+        warnSpy.mockRestore();
+    });
+
+    it('configure({ maxToasts: invalid }) warns once and falls back to the library default', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        t.configure({ maxToasts: -1 });
+        expect(t.config.maxToasts).toBe(5);
+        t.configure({ maxToasts: NaN });
+        expect(t.config.maxToasts).toBe(5);
+        expect(warnSpy).toHaveBeenCalledTimes(2);
+        warnSpy.mockRestore();
+    });
+
+    it('configurePosition({ maxToasts: invalid }) warns and drops back to the global default', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        t.configure({ maxToasts: 7 });
+        t.configurePosition(ToastPosition.TOP_RIGHT, { maxToasts: 0 });
+        for (let i = 0; i < 8; i++) t.showToast(`toast ${i}`, { duration: 0, position: ToastPosition.TOP_RIGHT });
+        const snackbar = document.querySelector('.bt-snackbar[data-position="top-right"]')!;
+        const active = Array.from(snackbar.children).filter(c => !c.classList.contains('bt-hiding'));
+        expect(active.length).toBe(7); // fell back to the global maxToasts, not unbounded
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        warnSpy.mockRestore();
+    });
+
+    it('an invalid duration (negative or NaN) warns once per bad value and falls back to the configured default', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        t.configure({ duration: 4000 });
+        const id1 = t.showToast('x', { duration: -1 });
+        expect(t.getToastTimer(id1)?.duration).toBe(4000);
+        const id2 = t.showToast('y', { duration: NaN });
+        expect(t.getToastTimer(id2)?.duration).toBe(4000);
+        expect(warnSpy).toHaveBeenCalledTimes(2);
+        warnSpy.mockRestore();
+    });
+
+    it('duration: 0 (sticky) is still valid and does not warn', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0 });
+        expect(t.getToastTimer(id)).toBeNull();
+        expect(warnSpy).not.toHaveBeenCalled();
+        warnSpy.mockRestore();
+    });
+});
+
 describe('ToastQuickActions (#22)', () => {
     it('returns pre-translated strings independent of any Toasts instance', () => {
         expect(ToastQuickActions.yes('en')).toBe('Yes');

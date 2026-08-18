@@ -83,7 +83,7 @@ export interface ToastOptions {
      *  `ToastsConfig.colors`) unless set here. Passing a custom `color` never changes this toast's
      *  accessibility semantics; set `severity` for that, independently of whatever `color` looks like. */
     color?: string;
-    /** Auto-dismiss after ms. Use `0` to disable. Defaults to `3000` or the configured default. */
+    /** Auto-dismiss after ms. Use `0` to disable. Defaults to `3000` or the configured default. A negative or `NaN` value is invalid - warns once and falls back to the configured default. */
     duration?: number;
     /** Whether clicking the toast dismisses it. Defaults to `true` or the configured default. */
     closable?: boolean;
@@ -99,7 +99,7 @@ export interface ToastOptions {
     position?: ToastPositionValue;
     /** See `ToastAnimation`/`docs/guide/animations.md`. `slide` (default), `fade`, `none`, or a name registered via `registerToastAnimation`. */
     animation?: ToastAnimationValue;
-    /** Called as soon as the toast starts closing (manually or via duration timeout). */
+    /** Called as soon as the toast starts closing (manually or via duration timeout). A throwing `onClose` is caught and warned about, not propagated - the rest of `removeToast`'s cleanup (timer/animation/DOM removal) always still runs. */
     onClose?: () => void;
     /** If true, dismisses every other currently-visible toast before showing this one. */
     removeOtherToasts?: boolean;
@@ -162,6 +162,7 @@ export interface ToastsConfig {
     /** Viewport width (px) at/below which `*-left`/`*-right` positions collapse into their edge's `*-center` equivalent, so they share one container/stack instead of visually overlapping on narrow (mobile) screens. Re-evaluated live on window resize/orientation-change, moving already-shown toasts into the right container. `0` disables collapsing entirely. Defaults to `800`. See `collapsedPosition`. */
     responsiveBreakpoint: number;
     animation: ToastAnimationValue;
+    /** Caps visible toasts per position (see "Capacity and eviction" in `docs/guide/config.md`). A value below `1` is invalid - warns once and falls back to the previous default. */
     maxToasts: number;
     evictOldest: boolean;
     /** Whether hovering/focusing a toast pauses its auto-dismiss timer by default. See `ToastOptions.pauseOnHover`. */
@@ -387,6 +388,10 @@ export class Toasts {
         const colors = config.colors ? { ...this.config.colors, ...config.colors } : undefined;
         this.config = { ...this.config, ...config };
         if (colors) this.config.colors = colors;
+        if (!Number.isFinite(this.config.maxToasts) || this.config.maxToasts < 1) {
+            this._warnInvalid('maxToasts', this.config.maxToasts, `${MAX_TOASTS}`);
+            this.config.maxToasts = MAX_TOASTS;
+        }
     }
 
     /**
@@ -397,6 +402,10 @@ export class Toasts {
      * `undefined` to drop that key back to the global `config` value.
      */
     configurePosition(position: ToastPositionValue, config: PositionConfig): void {
+        if (config.maxToasts !== undefined && (!Number.isFinite(config.maxToasts) || config.maxToasts < 1)) {
+            this._warnInvalid('maxToasts', config.maxToasts, 'the global default');
+            config = { ...config, maxToasts: undefined };
+        }
         this.positionConfig.set(position, { ...this.positionConfig.get(position), ...config });
     }
 
@@ -652,7 +661,13 @@ export class Toasts {
 
         const onClose = this._onCloseCallbacks.get(toastContainer);
         this._onCloseCallbacks.delete(toastContainer);
-        if (onClose) onClose();
+        if (onClose) {
+            try {
+                onClose();
+            } catch (err) {
+                console.warn('[brents-toasts] a toast\'s onClose threw:', err);
+            }
+        }
 
         const timer = this._timers.get(toastContainer);
         if (timer?.timeoutId) clearTimeout(timer.timeoutId);
@@ -1318,7 +1333,17 @@ export class Toasts {
         value: string | Node | ToastUpdateOptions | ((arg: T) => string | Node | ToastUpdateOptions),
         arg?: T
     ): ToastUpdateOptions {
-        const resolved = typeof value === 'function' ? value(arg as T) : value;
+        let resolved: string | Node | ToastUpdateOptions;
+        if (typeof value === 'function') {
+            try {
+                resolved = value(arg as T);
+            } catch (err) {
+                console.warn('[brents-toasts] a promise() message resolver threw:', err);
+                return {};
+            }
+        } else {
+            resolved = value;
+        }
         return typeof resolved === 'string' || resolved instanceof Node ? { message: resolved } : resolved;
     }
 
@@ -1485,7 +1510,7 @@ export class Toasts {
             if (base.theme || colorOrOptions.theme) {
                 resolved.theme = { ...base.theme, ...colorOrOptions.theme };
             }
-            return resolved;
+            return this._validateDuration(resolved);
         }
 
         // Legacy positional signature has no `severity` parameter - it keeps
@@ -1494,7 +1519,17 @@ export class Toasts {
         if (duration !== undefined) base.duration = duration;
         if (closable !== undefined) base.closable = closable;
         if (allowHtml !== undefined) base.allowHtml = allowHtml;
-        return base;
+        return this._validateDuration(base);
+    }
+
+    // `duration: 0` deliberately means "sticky" - only reject values that can't mean
+    // anything (negative, NaN, Infinity), not 0 itself.
+    private _validateDuration(opts: ResolvedToastOptions): ResolvedToastOptions {
+        if (!Number.isFinite(opts.duration) || opts.duration < 0) {
+            this._warnInvalid('duration', opts.duration, `the configured default (${this.config.duration})`);
+            opts.duration = this.config.duration;
+        }
+        return opts;
     }
 
     private _resolvePosition(position: ToastPositionValue): ToastPositionValue {
@@ -1555,6 +1590,15 @@ export class Toasts {
         console.warn(`[brents-toasts] ${kind} "${value}" is not implemented yet, falling back to "${fallback}".`);
     }
 
+    // Same one-time-per-bad-value dedup as _warnUnimplemented, for options that are
+    // simply invalid (NaN/negative/etc.) rather than unrecognized enum values.
+    private _warnInvalid(kind: string, value: unknown, fallback: string): void {
+        const key = `invalid-${kind}:${String(value)}`;
+        if (this._warned.has(key)) return;
+        this._warned.add(key);
+        console.warn(`[brents-toasts] ${kind} "${String(value)}" is invalid, falling back to ${fallback}.`);
+    }
+
     private _appendStyle(): void {
         if (document.getElementById('toasts-styles')) return;
         const style = document.createElement('style');
@@ -1571,6 +1615,12 @@ export class Toasts {
      */
     private _getRoot(): HTMLElement {
         if (this._root) return this._root;
+        if (!document.body) {
+            // Most likely a <script> tag calling showToast() synchronously from
+            // <head>, before <body> exists yet - a clear, actionable error beats
+            // the cryptic null-reference TypeError this would otherwise throw.
+            throw new Error('[brents-toasts] document.body is not available yet - call showToast() after the document has a <body> (e.g. from a deferred script, or after DOMContentLoaded).');
+        }
         const root = document.createElement('div');
         root.className = 'bt-toasts-root';
         document.body.appendChild(root);

@@ -3,7 +3,7 @@ import { renderTextWithBreaks } from './ToastText';
 export interface ToastButton {
     /** Rendered as plain text, like `title`, except "\n" and literal "<br>"/"<br/>" are still honored as line breaks - same rule as `message`/`title`, and same `allowLineBreaks` opt-out. */
     label: string;
-    /** Receives the click/keyboard-activation event and this toast's id (e.g. to call `removeToast(id)` yourself, or `document.getElementById(id)` to update the toast's own content in place). */
+    /** Receives the click/keyboard-activation event and this toast's id (e.g. to call `removeToast(id)` yourself, or `document.getElementById(id)` to update the toast's own content in place). A throwing `onClick` is caught and warned about, not propagated. */
     onClick?: (event: MouseEvent, id: string) => void;
     /** Extra class name(s) appended alongside the built-in `bt-toast-action` class, for consumer styling hooks. */
     className?: string;
@@ -60,7 +60,11 @@ export function createActionButton(label: string, onClick: (e: MouseEvent) => vo
     buttonAllowLineBreaks.set(el, allowLineBreaks);
     el.addEventListener('click', (e: MouseEvent) => {
         e.stopPropagation();
-        onClick(e);
+        try {
+            onClick(e);
+        } catch (err) {
+            console.warn('[brents-toasts] a button\'s onClick threw:', err);
+        }
     });
     el.addEventListener('keydown', (e: KeyboardEvent) => {
         if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
