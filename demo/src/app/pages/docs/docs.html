@@ -1,0 +1,39 @@
+<section class="container docs-page">
+  <h1>Docs</h1>
+  <p class="intro">
+    Mirrors <code>docs/guide/</code> from the repo - the same source that ships as the
+    <a href="https://github.com/Brentspine/brents-toasts/tree/main/docs" target="_blank" rel="noopener"
+      >brents-toasts Claude Code skill</a
+    >. Code blocks here run for real against this build, via the same sandbox as the
+    <a routerLink="/playground">Playground</a>.
+  </p>
+
+  <div class="docs-layout">
+    <nav class="docs-nav" aria-label="Guide topics">
+      <ul>
+        @for (t of topics; track t.slug) {
+          <li>
+            <a [routerLink]="['/docs', t.slug]" routerLinkActive="active" [class.active]="t.slug === slug()">{{
+              t.title
+            }}</a>
+          </li>
+        }
+      </ul>
+    </nav>
+
+    <div class="docs-content panel">
+      @if (page.isLoading()) {
+        <p class="muted">Loading {{ topic().title }}...</p>
+      } @else if (page.value(); as md) {
+        <app-markdown-view [markdown]="md" [headingOffset]="0" />
+      } @else {
+        <p class="muted">
+          Couldn't load this page from GitHub right now.
+          <a [href]="'https://github.com/Brentspine/brents-toasts/blob/main/docs/guide/' + slug() + '.md'" target="_blank" rel="noopener"
+            >View it on GitHub instead &#8594;</a
+          >
+        </p>
+      }
+    </div>
+  </div>
+</section>

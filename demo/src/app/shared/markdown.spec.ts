@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseChangelogMarkdown, parseInline } from './markdown';
+import { parseMarkdown, parseInline } from './markdown';
 
 describe('parseInline', () => {
   it('splits plain text with no code spans into a single segment', () => {
@@ -43,17 +43,17 @@ describe('parseInline', () => {
   });
 });
 
-describe('parseChangelogMarkdown', () => {
+describe('parseMarkdown', () => {
   it('parses the exact shape scripts/generate-changelog.js produces', () => {
     const markdown = ['# 2.2.4 - 2026-07-24', '', '## Added', '', '- `theme` option for `showToast()`', '- Second item'].join(
       '\n',
     );
 
-    const blocks = parseChangelogMarkdown(markdown);
+    const blocks = parseMarkdown(markdown);
 
     expect(blocks).toEqual([
-      { type: 'heading', level: 3, segments: [{ text: '2.2.4 - 2026-07-24', code: false }] },
-      { type: 'heading', level: 4, segments: [{ text: 'Added', code: false }] },
+      { type: 'heading', level: 1, segments: [{ text: '2.2.4 - 2026-07-24', code: false }] },
+      { type: 'heading', level: 2, segments: [{ text: 'Added', code: false }] },
       {
         type: 'list',
         items: [
@@ -69,13 +69,79 @@ describe('parseChangelogMarkdown', () => {
   });
 
   it('treats a non-heading, non-list line as a paragraph', () => {
-    expect(parseChangelogMarkdown('Just a plain line.')).toEqual([
+    expect(parseMarkdown('Just a plain line.')).toEqual([
       { type: 'paragraph', segments: [{ text: 'Just a plain line.', code: false }] },
     ]);
   });
 
   it('ignores blank lines between blocks', () => {
-    const blocks = parseChangelogMarkdown('# Title\n\n\nParagraph.');
+    const blocks = parseMarkdown('# Title\n\n\nParagraph.');
     expect(blocks).toHaveLength(2);
+  });
+
+  it('parses a level-3 heading', () => {
+    expect(parseMarkdown('### Timeout')).toEqual([
+      { type: 'heading', level: 3, segments: [{ text: 'Timeout', code: false }] },
+    ]);
+  });
+
+  it('parses a fenced code block, keeping its language and body verbatim', () => {
+    const markdown = ['```ts', "toasts.showToast('Hi');", "toasts.showToast('Bye');", '```'].join('\n');
+    expect(parseMarkdown(markdown)).toEqual([
+      { type: 'code', lang: 'ts', live: false, code: "toasts.showToast('Hi');\ntoasts.showToast('Bye');" },
+    ]);
+  });
+
+  it('parses a fenced code block with no language tag', () => {
+    expect(parseMarkdown('```\nplain\n```')).toEqual([{ type: 'code', lang: '', live: false, code: 'plain' }]);
+  });
+
+  it('marks a fence live when its info string has a trailing `live` flag', () => {
+    const markdown = ['```ts live', "toasts.showToast('Hi');", '```'].join('\n');
+    expect(parseMarkdown(markdown)).toEqual([
+      { type: 'code', lang: 'ts', live: true, code: "toasts.showToast('Hi');" },
+    ]);
+  });
+
+  it('parses a GFM table into a header + rows, with inline formatting per cell', () => {
+    const markdown = ['| Name | Default |', '|---|---|', "| `mode` | `'drain'` |"].join('\n');
+    expect(parseMarkdown(markdown)).toEqual([
+      {
+        type: 'table',
+        header: [[{ text: 'Name', code: false }], [{ text: 'Default', code: false }]],
+        rows: [[[{ text: 'mode', code: true }], [{ text: "'drain'", code: true }]]],
+      },
+    ]);
+  });
+
+  it('parses a multi-line blockquote into one block, joined with spaces', () => {
+    const markdown = ['> **Warning.** Line one', '> line two.'].join('\n');
+    expect(parseMarkdown(markdown)).toEqual([
+      {
+        type: 'blockquote',
+        segments: [
+          { text: 'Warning.', code: false, bold: true },
+          { text: ' Line one line two.', code: false },
+        ],
+      },
+    ]);
+  });
+});
+
+describe('parseInline bold/italic', () => {
+  it('marks double-asterisk text as bold', () => {
+    expect(parseInline('this is **bold** text')).toEqual([
+      { text: 'this is ', code: false },
+      { text: 'bold', code: false, bold: true },
+      { text: ' text', code: false },
+    ]);
+  });
+
+  it('marks single-asterisk text as italic', () => {
+    expect(parseInline('this is *italic* text')).toEqual([
+      { text: 'this is ', code: false },
+      { text: 'italic', code: false, italic: true },
+      { text: ' text', code: false },
+    ]);
   });
 });

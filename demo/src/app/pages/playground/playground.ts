@@ -11,34 +11,19 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import {
-  toasts,
-  Toasts,
-  ToastBuilder,
-  ToastColor,
-  ToastSeverity,
-  ToastPosition,
-  ToastAnimation,
-  ToastLayout,
-  ToastTransition,
-  ToastLocales,
-  ToastQuickActions,
-  QuickActionLocales,
-  registerToastAnimation,
-  registerToastLayout,
-  registerToastTransition,
-} from 'brents-toasts';
+import { ToastBuilder, ToastColor, ToastPosition } from 'brents-toasts';
 import { OptionsDataService } from '../../services/options-data';
 import { SectionService } from '../../services/section';
 import { TypeSpecPanel } from '../../shared/type-spec-panel';
 import { CodeEditor } from '../../shared/code-editor';
+import { PLAYGROUND_STORAGE_KEY, runSandboxedCode } from '../../shared/run-code';
 import { hasStoredConfigChanges } from '../config/config';
 import type { OptionDescriptor, PlaygroundExample } from '../../data/options.types';
 
 const IMPORT_LINE =
   "import { toasts, Toasts, ToastBuilder, ToastColor, ToastSeverity, ToastPosition, ToastAnimation, ToastLayout, ToastTransition, ToastLocales, ToastQuickActions, QuickActionLocales, registerToastAnimation, registerToastLayout, registerToastTransition } from 'brents-toasts';";
 const DEFAULT_CODE = 'new ToastBuilder("Something happened!")\n  .show();';
-const STORAGE_KEY = 'bt-demo:playground-code';
+const STORAGE_KEY = PLAYGROUND_STORAGE_KEY;
 
 const RANDOM_MESSAGES = ['Nice!', 'Boom.', 'All set.', 'Here you go!', 'Look at that.', 'Ta-da!'];
 const RANDOM_COLORS = [ToastColor.INFO, ToastColor.SUCCESS, ToastColor.WARNING, ToastColor.ERROR];
@@ -285,46 +270,7 @@ export class Playground {
   }
 
   run(): void {
-    this.runError.set(null);
-    try {
-      const fn = new Function(
-        'toasts',
-        'Toasts',
-        'ToastBuilder',
-        'ToastColor',
-        'ToastSeverity',
-        'ToastPosition',
-        'ToastAnimation',
-        'ToastLayout',
-        'ToastTransition',
-        'ToastLocales',
-        'ToastQuickActions',
-        'QuickActionLocales',
-        'registerToastAnimation',
-        'registerToastLayout',
-        'registerToastTransition',
-        this.code(),
-      );
-      fn(
-        toasts,
-        Toasts,
-        ToastBuilder,
-        ToastColor,
-        ToastSeverity,
-        ToastPosition,
-        ToastAnimation,
-        ToastLayout,
-        ToastTransition,
-        ToastLocales,
-        ToastQuickActions,
-        QuickActionLocales,
-        registerToastAnimation,
-        registerToastLayout,
-        registerToastTransition,
-      );
-    } catch (err) {
-      this.runError.set(err instanceof Error ? err.message : String(err));
-    }
+    this.runError.set(runSandboxedCode(this.code()));
   }
 
   async copy(): Promise<void> {

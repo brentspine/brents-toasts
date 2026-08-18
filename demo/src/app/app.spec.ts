@@ -34,7 +34,7 @@ describe('App', () => {
     const links = Array.from(fixture.nativeElement.querySelectorAll('.nav a')).map(
       (a) => (a as HTMLAnchorElement).textContent?.trim(),
     );
-    expect(links).toEqual(['Install', 'Config', 'Playground', 'Examples', 'Changelog']);
+    expect(links).toEqual(['Install', 'Config', 'Playground', 'Examples', 'Changelog', 'Docs']);
   });
 
   it('highlights the Examples nav link instead of Playground once that section is active', async () => {
