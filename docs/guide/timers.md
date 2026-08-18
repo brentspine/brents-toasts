@@ -70,6 +70,19 @@ const info = toasts.getToastTimer(id);
 if (info) console.log(`closes in ${(info.remaining / 1000).toFixed(1)}s`);
 ```
 
+To observe pausing/resuming instead of just triggering it - e.g. to pause a page-level "closing
+in Ns" ticker in sync with the toast's own countdown - subscribe to the `'pause'`/`'resume'`
+[lifecycle events](lifecycle.md#lifecycle-events) instead of wrapping every timer call yourself:
+
+```ts
+toasts.on('pause', ({ id }) => console.log(`${id} paused`));
+toasts.on('resume', ({ id }) => console.log(`${id} resumed`));
+```
+
+Both only fire on a real pause↔running transition (never for an already-paused/-running toast,
+and never for a sticky one, which has no timer state to transition in the first place) - the same
+no-op rules the timer methods above already follow.
+
 A common use: reflecting the countdown back onto the toast itself via
 [`updateToast`](lifecycle.md) instead of spawning a new one every time:
 

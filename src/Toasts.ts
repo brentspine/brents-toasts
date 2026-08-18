@@ -194,6 +194,50 @@ export interface ToastsConfig {
     colors: ToastColorPalette;
 }
 
+/**
+ * Payload shapes for every `Toasts.on()`/`off()` lifecycle event - see `docs/guide/lifecycle.md`'s
+ * "Lifecycle events" section. Every event carries at least `id`, so a shared handler across
+ * several toasts (or several event types) can always tell which toast fired it.
+ */
+export interface ToastEventMap {
+    /** A toast was just requested via `showToast()` - fired synchronously before anything is
+     *  rendered, regardless of which of the three call shapes (options object, legacy positional,
+     *  `ToastBuilder`) was used, and regardless of any other option passed alongside `severity`/
+     *  `message`. `message` is always a plain string, even for a `Node` message (reduced to its
+     *  `textContent`, `''` if that's `null`) - a stable, easily-asserted-on shape rather than a
+     *  live DOM reference. This is the event to use for testing "did my code show a toast", since
+     *  its two fields stay the same no matter how `showToast`'s own call shape/internals change
+     *  later - point a `vi.fn()`/`jest.fn()` at it instead of spying on `showToast` itself. */
+    show: { id: string; severity: ToastSeverityValue; message: string };
+    /** The toast's DOM element has just been mounted into its snackbar - after `show`, before the
+     *  entrance animation has necessarily finished (see `visible` for that). */
+    open: { id: string };
+    /** The toast's entrance animation has finished (or, for an animation with no
+     *  `enterDurationMs`, fires on the next tick after mounting) - this is "the toast is now
+     *  actually on screen", as distinct from `open`'s "the toast now exists in the DOM". */
+    visible: { id: string };
+    /** `updateToast(id, update)` was just applied - `update` is the exact patch object passed to
+     *  it, unmodified. Fired once per `updateToast` call, regardless of which keys `update`
+     *  actually set. Not fired for the initial `showToast()` render itself (that's `show`/`open`/
+     *  `visible`) - only for a later patch, including the internal `updateToast` calls `promise()`
+     *  makes for its success/error/timeout outcomes. */
+    update: { id: string; update: ToastUpdateOptions };
+    /** The toast's auto-dismiss timer just paused - manually via `pauseToastTimer(id)`, or via
+     *  `pauseOnHover`/`pauseOnPageHidden`. Only fires on a real pause→running transition, never for
+     *  an already-paused toast or a sticky one (`duration: 0`, which never has timer state at all -
+     *  same "no timer = no-op" rule every other timer method follows). */
+    pause: { id: string };
+    /** The toast's auto-dismiss timer just resumed - the `resume` counterpart to `pause` above,
+     *  with the same "only on a real transition" and "no-op for sticky toasts" rules. */
+    resume: { id: string };
+}
+
+/** Every event name `Toasts.on()`/`off()` accept - see `ToastEventMap`. */
+export type ToastEventName = keyof ToastEventMap;
+
+/** Handler shape for `Toasts.on(event, handler)`/`off(event, handler)` - see `ToastEventMap`. */
+export type ToastEventHandler<E extends ToastEventName> = (payload: ToastEventMap[E]) => void;
+
 interface ResolvedToastOptions {
     severity: ToastSeverityValue;
     color: string;
@@ -365,6 +409,13 @@ export class Toasts {
     // button focuses it, then the mouse leaves - the timer must stay paused
     // until the button itself loses focus too).
     private _pointerFocusState: WeakMap<HTMLElement, { hovering: boolean; focused: boolean }>;
+    // Per-instance, per-event-name listener sets registered via `on()`/`off()` - see
+    // `ToastEventMap`. Deliberately instance state (not shared like `toastOwners`/`toastSeq`),
+    // same scoping as `config` itself: a page-scoped `new Toasts()`'s listeners only ever see
+    // events for toasts it (or a delegating same-position instance, see `_ownerOf`) actually owns.
+    // Untyped internally (TS can't relate a generic `E` to this mapped type at the assignment
+    // site below) - `on`/`off`/`_emit` are what keep the *public* surface fully typed per event.
+    private _listeners: Partial<Record<ToastEventName, Set<ToastEventHandler<ToastEventName>>>>;
 
     constructor() {
         this._initialized = false;
@@ -381,6 +432,54 @@ export class Toasts {
         this._data = new WeakMap();
         this._toastState = new WeakMap();
         this._pointerFocusState = new WeakMap();
+        this._listeners = {};
+    }
+
+    /**
+     * Subscribes `handler` to every `event` fired on this `Toasts` instance (see `ToastEventMap`
+     * for the full list and each one's payload/timing) - `'show'`, `'open'`, `'visible'`,
+     * `'update'`, `'pause'`, `'resume'`. Multiple handlers on the same event all run, in
+     * registration order, independent of each other (unlike a single `configure()`-style
+     * callback, which one `configure()` call would silently replace) - e.g. your app's own
+     * analytics and a test's spy can both listen to `'show'` at once without stepping on each
+     * other. Returns an unsubscribe function equivalent to calling `off(event, handler)` yourself,
+     * for a one-liner `const stop = toasts.on(...)` / `stop()` pattern.
+     *
+     * Scoped to this instance only, same as `configure()`: a page-scoped `new Toasts()`'s
+     * listeners only fire for toasts shown via that instance (or later acted on through it -
+     * `updateToast`/`pauseToastTimer`/etc. delegate to whichever instance actually owns a given
+     * toast `id`, so the *owning* instance's listeners are the ones that run, same as its
+     * `onClose`/timer state would).
+     */
+    on<E extends ToastEventName>(event: E, handler: ToastEventHandler<E>): () => void {
+        let handlers = this._listeners[event];
+        if (!handlers) {
+            handlers = new Set();
+            this._listeners[event] = handlers;
+        }
+        handlers.add(handler as ToastEventHandler<ToastEventName>);
+        return () => this.off(event, handler);
+    }
+
+    /** Removes a handler previously registered via `on(event, handler)`. No-op if it isn't (or is no longer) registered. */
+    off<E extends ToastEventName>(event: E, handler: ToastEventHandler<E>): void {
+        this._listeners[event]?.delete(handler as ToastEventHandler<ToastEventName>);
+    }
+
+    // Runs every `on(event, ...)` handler with `payload`, in registration order. A throwing
+    // handler is caught and warned about - same "never let a consumer callback break the toast
+    // it's reporting on" rule `onClose`/button `onClick`/`promise()` resolvers already follow -
+    // and doesn't stop the remaining handlers from still running.
+    private _emit<E extends ToastEventName>(event: E, payload: ToastEventMap[E]): void {
+        const handlers = this._listeners[event];
+        if (!handlers || handlers.size === 0) return;
+        for (const handler of handlers) {
+            try {
+                (handler as ToastEventHandler<E>)(payload);
+            } catch (err) {
+                console.warn(`[brents-toasts] a "${event}" listener threw:`, err);
+            }
+        }
     }
 
     /**
@@ -443,6 +542,9 @@ export class Toasts {
      *   `allowHtml`/XSS sanitization concerns don't apply to it.
      * @param options Per-toast overrides. See `ToastOptions`.
      * @returns The toast's unique ID (can be used with `removeToast`).
+     *
+     * Fires `'show'` synchronously (before anything renders), then `'open'` once mounted into the
+     * DOM, then `'visible'` once the entrance animation finishes - see `on()`/`ToastEventMap`.
      */
     showToast(message: string | Node, options?: ToastOptions): string;
     /**
@@ -470,6 +572,10 @@ export class Toasts {
         this._init();
         const opts = this._resolveOptions(colorOrOptions, duration, closable, allowHtml);
         const t = this._getTranslations();
+        // Generated up front (rather than down where the DOM element is built) purely so `show`
+        // can be emitted with a real `id` before anything is rendered - see `ToastEventMap.show`.
+        const id = `toast-${Math.random().toString(36).slice(2, 11)}`;
+        this._emit('show', { id, severity: opts.severity, message: typeof message === 'string' ? message : (message?.textContent ?? '') });
 
         if (opts.removeOtherToasts) {
             this.removeAllToasts();
@@ -504,8 +610,6 @@ export class Toasts {
             }
             if (oldest) this.removeToast(oldest.id);
         }
-
-        const id = `toast-${Math.random().toString(36).slice(2, 11)}`;
 
         const toastContainer = document.createElement('div');
         toastContainer.className = 'bt-toast-container';
@@ -570,6 +674,9 @@ export class Toasts {
             stackExistingAway(snackbar, toastContainer, animationDef.containerTransition);
             targetOffset = TOAST_EDGE_OFFSET;
         }
+        // Mounted into the DOM now, as distinct from `show` (which fired before any rendering) -
+        // see `ToastEventMap.open`.
+        this._emit('open', { id });
 
         // Any later height change (details toggled open/closed, or a
         // consumer mutating the toast's own content in place) reflows the
@@ -596,6 +703,15 @@ export class Toasts {
         // the `enterFrom` frame before `enterTo` changes it.
         requestAnimationFrame(() => {
             animationDef.enterTo(animCtx, targetOffset);
+            // `visible` fires once the entrance visual is done, per `enterDurationMs` (0, i.e. next
+            // tick, for an animation - built-in `none`, or a custom one - that doesn't set it). The
+            // `document.getElementById` guard covers a toast dismissed (click, `removeToast`, a very
+            // short `duration`) before its own entrance even finished - no point reporting "visible"
+            // for a toast that's already on its way out, or gone.
+            const enterDurationMs = animationDef.enterDurationMs ?? 0;
+            const fireVisible = () => { if (document.getElementById(id)) this._emit('visible', { id }); };
+            if (enterDurationMs > 0) setTimeout(fireVisible, enterDurationMs);
+            else fireVisible();
         });
 
         // Listeners are always attached (not just `if (opts.closable)`/`if
@@ -718,6 +834,10 @@ export class Toasts {
      * `position`/`animation`/`removeOtherToasts`/`reverseOrder` are accepted for
      * shape-compatibility with `ToastOptions` but don't describe a meaningful
      * post-creation change, so they're no-ops here.
+     *
+     * Fires the `'update'` event (see `on()`/`ToastEventMap`) once, with `update` unmodified -
+     * including for the internal `updateToast` calls `promise()` makes for its success/error/
+     * timeout outcomes. Not fired if `id` doesn't exist (nothing was actually updated).
      */
     updateToast(id: string, update: ToastUpdateOptions): void {
         const toastContainer = document.getElementById(id);
@@ -815,6 +935,8 @@ export class Toasts {
         // already read them live from `_toastState` on every
         // mouseenter/mouseleave/focusin/focusout/visibilitychange, so
         // updating the stored state above is enough.
+
+        this._emit('update', { id, update });
     }
 
     /**
@@ -881,7 +1003,8 @@ export class Toasts {
      * `pauseOnPageHidden`) are both implemented on top of this - call it yourself for other
      * pause triggers (e.g. while a related modal/dropdown is open).
      * No-op for a sticky toast (`duration: 0`) - it has no timer to pause - and for an
-     * already-paused one.
+     * already-paused one. Fires the `'pause'` event (see `on()`) on a real pause, but not for
+     * either no-op case.
      */
     pauseToastTimer(id: string): void {
         const el = document.getElementById(id);
@@ -895,13 +1018,15 @@ export class Toasts {
         state.startedAt = null;
         state.timeoutId = null;
         this._syncProgressBar(el);
+        this._emit('pause', { id });
     }
 
     /**
      * Resumes `id`'s auto-dismiss countdown from wherever `pauseToastTimer` left it. No-op
      * for a sticky toast and for one that isn't currently paused - in particular, hovering and
      * un-hovering a sticky toast never starts a timer on it, since it never had timer state
-     * to begin with (see `ToastTimerState`).
+     * to begin with (see `ToastTimerState`). Fires the `'resume'` event (see `on()`) on a real
+     * resume, but not for either no-op case.
      */
     resumeToastTimer(id: string): void {
         const el = document.getElementById(id);
@@ -913,6 +1038,7 @@ export class Toasts {
         state.startedAt = Date.now();
         state.timeoutId = setTimeout(() => this.removeToast(id), state.remaining);
         this._syncProgressBar(el);
+        this._emit('resume', { id });
     }
 
     /**

@@ -1,5 +1,67 @@
 # Removing, updating, and promise-based toasts
 
+## Lifecycle events
+
+`toasts.on(event, handler)` subscribes `handler` to one of six events fired over a toast's
+lifetime; `toasts.off(event, handler)`, or the unsubscribe function `on()` itself returns,
+removes it again:
+
+```ts live
+const stop = toasts.on('show', ({ id, severity, message }) => {
+  console.log(`toast ${id} fired: [${severity}] ${message}`);
+});
+
+toasts.showToast('Saved!', { severity: ToastSeverity.SUCCESS });
+
+stop(); // same as toasts.off('show', handler)
+```
+
+| Event | Payload | Fires |
+|---|---|---|
+| `'show'` | `{ id, severity, message }` | Synchronously inside `showToast()`, before anything renders - the same two extra fields regardless of which of the three call shapes (options object, legacy positional, `ToastBuilder`) produced them, and regardless of any other option passed alongside them. `message` is always a plain string, even for a `Node` message (reduced to its `textContent`, `''` if that's `null`). |
+| `'open'` | `{ id }` | Once the toast's DOM element is mounted into its snackbar - after `show`, before the entrance animation has necessarily finished. |
+| `'visible'` | `{ id }` | Once the entrance animation finishes (per the resolved `ToastAnimationDefinition`'s `enterDurationMs` - see [Animations](animations.md)) - "the toast is now actually on screen", as distinct from `open`'s "the toast now exists in the DOM". Never fires for a toast that's already gone (dismissed, or evicted) before its own entrance finished. |
+| `'update'` | `{ id, update }` | Once per `updateToast(id, update)` call, `update` passed through unmodified - including the internal `updateToast` calls `promise()` makes for its loading→success/error/timeout swap. Not fired for the initial `showToast()` render itself. |
+| `'pause'` | `{ id }` | Once the auto-dismiss timer actually transitions to paused - manually via `pauseToastTimer(id)`, or via `pauseOnHover`/`pauseOnPageHidden`. Never fires for an already-paused toast or a sticky one (`duration: 0`, which has no timer state to pause in the first place). |
+| `'resume'` | `{ id }` | The `resume` counterpart to `pause` above - same "only on a real transition, never for a sticky toast" rules. |
+
+Multiple handlers on the same event all run (in registration order), independent of each other -
+unlike a single `configure()`-style callback, which one `configure()` call would silently replace,
+`on()` lets your app's own analytics and, say, a test's spy both listen to `'show'` at once
+without stepping on each other:
+
+```ts
+toasts.on('show', (e) => trackEvent('toast_shown', e));
+toasts.on('show', (e) => console.log('also logged', e));
+```
+
+A throwing handler is caught and warned about (`console.warn`), never left to break the toast it's
+reporting on or block the other handlers still registered for that event.
+
+Listeners are scoped to the `Toasts` instance they're registered on, same as `configure()`: a
+page-scoped `new Toasts()`'s listeners only fire for toasts shown via that instance. `updateToast`/
+`pauseToastTimer`/`resumeToastTimer`/etc. delegate to whichever instance actually owns a given
+toast `id` when a same-position sibling instance calls them (see "Page/section-local instances"
+below), so it's the *owning* instance's listeners that run either way, same as its own `onClose`/
+timer state would.
+
+### Testability
+
+`'show'`'s stable `{ id, severity, message }` shape - the same regardless of which `showToast()`
+call form produced it, and regardless of later refactors to `showToast`'s own internals - makes it
+a better spy target than `showToast` itself for testing "did my code show a toast":
+
+```ts
+const onShow = vi.fn(); // or jest.fn()
+toasts.on('show', onShow);
+
+runAppCodeThatShowsAToast();
+
+expect(onShow).toHaveBeenCalledWith(
+  expect.objectContaining({ severity: ToastSeverity.ERROR, message: 'Failed to save changes.' })
+);
+```
+
 ## Removing toasts
 
 `toasts.removeToast(id)` dismisses a single toast by the id returned from

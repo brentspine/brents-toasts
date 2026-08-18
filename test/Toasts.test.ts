@@ -1960,6 +1960,212 @@ describe('error handling / dev diagnostics', () => {
     });
 });
 
+describe('lifecycle events: on()/off() (#69, #72, #73)', () => {
+    afterEach(cleanup);
+
+    it('show fires synchronously with { id, severity, message }, the same shape regardless of call shape', () => {
+        const onShow = vi.fn();
+        const t = new Toasts();
+        t.on('show', onShow);
+
+        const id1 = t.showToast('options object', { severity: ToastSeverity.WARNING, duration: 0 });
+        const id2 = t.showToast('legacy positional', ToastColor.ERROR, 0);
+        const id3 = new ToastBuilder('via builder', t).asSuccess().withDuration(0).show();
+
+        expect(onShow).toHaveBeenCalledTimes(3);
+        expect(onShow).toHaveBeenNthCalledWith(1, { id: id1, severity: ToastSeverity.WARNING, message: 'options object' });
+        // Legacy positional has no severity param - stays at the configured default (INFO).
+        expect(onShow).toHaveBeenNthCalledWith(2, { id: id2, severity: ToastSeverity.INFO, message: 'legacy positional' });
+        expect(onShow).toHaveBeenNthCalledWith(3, { id: id3, severity: ToastSeverity.SUCCESS, message: 'via builder' });
+    });
+
+    it('show reduces a Node message to its textContent', () => {
+        const onShow = vi.fn();
+        const t = new Toasts();
+        t.on('show', onShow);
+        const node = document.createElement('span');
+        node.textContent = 'from a node';
+        const id = t.showToast(node, { duration: 0 });
+        expect(onShow).toHaveBeenCalledWith({ id, severity: ToastSeverity.INFO, message: 'from a node' });
+    });
+
+    it('open fires once the toast is mounted into its snackbar, after show', () => {
+        const events: string[] = [];
+        const t = new Toasts();
+        t.on('show', () => events.push('show'));
+        t.on('open', () => events.push('open'));
+        const id = t.showToast('x', { duration: 0 });
+        expect(events).toEqual(['show', 'open']);
+        expect(document.getElementById(id)?.parentElement).not.toBeNull();
+    });
+
+    it('visible fires once the entrance animation (enterDurationMs) finishes, not before', () => {
+        const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb: FrameRequestCallback) => { cb(0); return 0; });
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        const onVisible = vi.fn();
+        const t = new Toasts();
+        t.on('visible', onVisible);
+        const id = t.showToast('x', { duration: 0 }); // default SLIDE, enterDurationMs 300
+
+        expect(onVisible).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(299);
+        expect(onVisible).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1);
+        expect(onVisible).toHaveBeenCalledTimes(1);
+        expect(onVisible).toHaveBeenCalledWith({ id });
+
+        rafSpy.mockRestore();
+    });
+
+    it('visible fires immediately (no enterDurationMs) for ToastAnimation.NONE', () => {
+        const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb: FrameRequestCallback) => { cb(0); return 0; });
+        const onVisible = vi.fn();
+        const t = new Toasts();
+        t.on('visible', onVisible);
+        const id = t.showToast('x', { duration: 0, animation: ToastAnimation.NONE });
+        expect(onVisible).toHaveBeenCalledTimes(1);
+        expect(onVisible).toHaveBeenCalledWith({ id });
+        rafSpy.mockRestore();
+    });
+
+    it('never fires visible for a toast that finished exiting before its entrance timeout elapsed', () => {
+        registerToastAnimation('fast-exit-test', {
+            containerTransition: 'opacity 50ms linear',
+            enterFrom() {},
+            enterTo() {},
+            enterDurationMs: 300,
+            exit() {},
+            exitDurationMs: 50,
+        });
+        const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb: FrameRequestCallback) => { cb(0); return 0; });
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        const onVisible = vi.fn();
+        const t = new Toasts();
+        t.on('visible', onVisible);
+        const id = t.showToast('x', { duration: 0, animation: 'fast-exit-test' });
+
+        t.removeToast(id);
+        vi.advanceTimersByTime(50);
+        expect(document.getElementById(id)).toBeNull();
+
+        vi.advanceTimersByTime(250); // total 300 - would have fired visible here if not guarded
+        expect(onVisible).not.toHaveBeenCalled();
+
+        rafSpy.mockRestore();
+    });
+
+    it('update fires once per updateToast() call, including promise() success/error swaps, with the raw patch', async () => {
+        const onUpdate = vi.fn();
+        const t = new Toasts();
+        t.on('update', onUpdate);
+
+        const id = t.showToast('initial', { duration: 0 });
+        expect(onUpdate).not.toHaveBeenCalled(); // not fired for the initial showToast() render
+
+        t.updateToast(id, { message: 'patched' });
+        expect(onUpdate).toHaveBeenCalledTimes(1);
+        expect(onUpdate).toHaveBeenCalledWith({ id, update: { message: 'patched' } });
+
+        onUpdate.mockClear();
+        await t.promise(Promise.resolve('x'), { loading: 'Loading...', success: 'Done!' });
+        expect(onUpdate).toHaveBeenCalledTimes(1); // the loading -> success patch
+        expect(onUpdate.mock.calls[0][0].update.message).toBe('Done!');
+    });
+
+    it('pause/resume fire only on a real transition, not for no-op repeats or sticky toasts', () => {
+        vi.useFakeTimers();
+        const onPause = vi.fn();
+        const onResume = vi.fn();
+        const t = new Toasts();
+        t.on('pause', onPause);
+        t.on('resume', onResume);
+
+        const id = t.showToast('x', { duration: 5000 });
+        t.pauseToastTimer(id);
+        expect(onPause).toHaveBeenCalledTimes(1);
+        expect(onPause).toHaveBeenCalledWith({ id });
+        t.pauseToastTimer(id); // already paused - no-op, no extra event
+        expect(onPause).toHaveBeenCalledTimes(1);
+
+        t.resumeToastTimer(id);
+        expect(onResume).toHaveBeenCalledTimes(1);
+        expect(onResume).toHaveBeenCalledWith({ id });
+        t.resumeToastTimer(id); // already running - no-op
+        expect(onResume).toHaveBeenCalledTimes(1);
+
+        const stickyId = t.showToast('sticky', { duration: 0 });
+        t.pauseToastTimer(stickyId);
+        t.resumeToastTimer(stickyId);
+        expect(onPause).toHaveBeenCalledTimes(1); // unchanged
+        expect(onResume).toHaveBeenCalledTimes(1); // unchanged
+    });
+
+    it('on() returns an unsubscribe function equivalent to off()', () => {
+        const t = new Toasts();
+        const onShow = vi.fn();
+        const stop = t.on('show', onShow);
+        t.showToast('a', { duration: 0 });
+        expect(onShow).toHaveBeenCalledTimes(1);
+
+        stop();
+        t.showToast('b', { duration: 0 });
+        expect(onShow).toHaveBeenCalledTimes(1); // no additional call
+
+        const onOpen = vi.fn();
+        t.on('open', onOpen);
+        t.showToast('c', { duration: 0 });
+        expect(onOpen).toHaveBeenCalledTimes(1);
+        t.off('open', onOpen);
+        t.showToast('d', { duration: 0 });
+        expect(onOpen).toHaveBeenCalledTimes(1);
+    });
+
+    it('supports multiple independent listeners on the same event, unlike a single overwritable callback', () => {
+        const t = new Toasts();
+        const first = vi.fn();
+        const second = vi.fn();
+        t.on('show', first);
+        t.on('show', second);
+        t.showToast('x', { duration: 0 });
+        expect(first).toHaveBeenCalledTimes(1);
+        expect(second).toHaveBeenCalledTimes(1);
+    });
+
+    it('a throwing listener is caught and warned about, without blocking the toast or other listeners', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        const good = vi.fn();
+        t.on('show', () => { throw new Error('boom'); });
+        t.on('show', good);
+
+        const id = t.showToast('x', { duration: 0 });
+
+        expect(document.getElementById(id)).not.toBeNull();
+        expect(good).toHaveBeenCalledTimes(1);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        warnSpy.mockRestore();
+    });
+
+    it("listeners are scoped per Toasts instance, but the owning instance's listeners still fire when a sibling sharing the same snackbar triggers the mutation", () => {
+        const a = new Toasts();
+        const b = new Toasts(); // shares the same BOTTOM_CENTER snackbar as `a`
+        const aShow = vi.fn();
+        const bShow = vi.fn();
+        const aUpdate = vi.fn();
+        a.on('show', aShow);
+        b.on('show', bShow);
+        a.on('update', aUpdate);
+
+        const id = a.showToast('mine', { duration: 0 });
+        expect(aShow).toHaveBeenCalledTimes(1);
+        expect(bShow).not.toHaveBeenCalled();
+
+        b.updateToast(id, { message: 'patched via b' }); // delegates to `a`, the real owner
+        expect(aUpdate).toHaveBeenCalledTimes(1);
+        expect(aUpdate).toHaveBeenCalledWith({ id, update: { message: 'patched via b' } });
+    });
+});
+
 describe('ToastQuickActions (#22)', () => {
     it('returns pre-translated strings independent of any Toasts instance', () => {
         expect(ToastQuickActions.yes('en')).toBe('Yes');

@@ -66,6 +66,16 @@ export interface ToastAnimationDefinition {
      * two.
      */
     enterTo(ctx: ToastAnimationHookContext, targetOffsetPx: number): void;
+    /**
+     * How long (ms) the entrance visual (`enterFrom` → `enterTo`) takes - drives when
+     * `Toasts.ts` fires its `'visible'` lifecycle event (see `ToastEventMap.visible` in
+     * `Toasts.ts`, and `docs/guide/lifecycle.md`'s "Lifecycle events" section), which is meant to
+     * mean "the toast is now actually on screen", not just mounted. Optional - defaults to `0`
+     * (fires on the next tick after mounting) for a custom animation that doesn't set it, so
+     * omitting it is safe, just less precise than matching it to `containerTransition`'s actual
+     * duration the way the built-ins below do.
+     */
+    enterDurationMs?: number;
     /** Called once, synchronously, when the toast starts being removed - set its exiting styles here. */
     exit(ctx: ToastAnimationHookContext): void;
     /**
@@ -93,6 +103,7 @@ const slideDefinition: ToastAnimationDefinition = {
         ctx.container.style[ctx.edge] = `${targetOffsetPx}px`;
         ctx.container.style.opacity = '1';
     },
+    enterDurationMs: 300,
     exit(ctx) {
         ctx.container.style.opacity = '0';
     },
@@ -111,6 +122,7 @@ const fadeDefinition: ToastAnimationDefinition = {
     enterTo(ctx) {
         ctx.container.style.opacity = '1';
     },
+    enterDurationMs: 300,
     exit(ctx) {
         ctx.container.style.opacity = '0';
     },
@@ -128,6 +140,7 @@ const noneDefinition: ToastAnimationDefinition = {
     enterTo() {
         // Nothing left to animate to - enterFrom already set the resting state.
     },
+    enterDurationMs: 0,
     exit(ctx) {
         ctx.container.style.opacity = '0';
     },

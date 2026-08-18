@@ -38,6 +38,11 @@ whatever `configure()` set.
 | `theme` | `undefined` | see [Theming](theming.md) |
 | `colors` | `{ ...ToastColor }` | see "Severity and accessibility" below |
 
+There's no `ToastsConfig` field for observing *when* a toast is shown/updated/paused - that's
+`on()`/`off()`, a separate subscription API rather than a config default; see "Lifecycle events"
+in [Lifecycle](lifecycle.md), including the testability use case ("did my code show a toast") this
+was originally built for.
+
 Two `ToastOptions` fields have no `ToastsConfig` counterpart to set
 library-wide, since they're inherently per-call: `onClose` (called as soon
 as a toast starts closing, manually or via duration timeout; there's no

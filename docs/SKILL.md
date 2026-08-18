@@ -81,7 +81,11 @@ cases, and worked examples before implementing anything non-trivial with it.
   is a **patch** (only keys present in `patch` change; `buttons`/`details`/`theme` replace
   wholesale - use `addToastButton`/`removeToastButton`/`addToastDetail`/`removeToastDetail` for
   incremental changes), optionally animated via `transition`. Also covers `toasts.promise(...)`
-  for loading/success/error toasts. → [guide/lifecycle.md](guide/lifecycle.md)
+  for loading/success/error toasts. `toasts.on(event, handler)`/`off(...)` subscribe to
+  `'show'`/`'open'`/`'visible'`/`'update'`/`'pause'`/`'resume'` - multiple independent listeners
+  per event, each fired with `{ id, ... }`; `'show'`'s stable `{ id, severity, message }` (the
+  same shape regardless of call form) is the one to spy on for testing "did my code show a toast".
+  → [guide/lifecycle.md](guide/lifecycle.md)
 - **Timers** - `pause`/`resume`/`reset`/`extend`/`removeToastTimer`, `getToastTimer(id)`. All
   no-ops on a sticky toast (`duration: 0`); it never has timer state. Timers also auto-pause on
   hover/focus (`pauseOnHover`, default on) and while the page is hidden (`pauseOnPageHidden`,

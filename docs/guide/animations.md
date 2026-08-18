@@ -12,7 +12,7 @@ library-wide (`configure({ animation })`), or via
 |---|---|---|
 | `'slide'` | `ToastAnimation.SLIDE` | **Default.** Slides in/out from its stacking edge while fading (opacity + `top`/`bottom` offset + `transform`, 300ms ease-in-out). |
 | `'fade'` | `ToastAnimation.FADE` | Opacity-only: appears already at its final resting offset (nothing slides) and just fades in/out, 300ms. |
-| `'none'` | `ToastAnimation.NONE` | No transition at all: appears, disappears, and reflows instantly (`exitDurationMs: 0`). Useful for reduced-motion preferences, tests, or a deliberately snappy stack. |
+| `'none'` | `ToastAnimation.NONE` | No transition at all: appears, disappears, and reflows instantly (`enterDurationMs`/`exitDurationMs: 0`). Useful for reduced-motion preferences, tests, or a deliberately snappy stack. |
 
 ```ts live
 toasts.showToast('Instant toast', { animation: ToastAnimation.NONE });
@@ -56,6 +56,7 @@ registerToastAnimation('zoom', {
     ctx.container.style.opacity = '1';
     ctx.container.style.transform = 'scale(1)';
   },
+  enterDurationMs: 200,
   exit(ctx) {
     ctx.container.style.opacity = '0';
     ctx.container.style.transform = 'scale(0.85)';
@@ -70,13 +71,14 @@ toasts.showToast('Zooms in', { animation: 'zoom' });
 `'slide'`) if you pass one, replacing its behavior for every toast that
 requests it afterwards; the name is just a registry key.
 
-A `ToastAnimationDefinition` is four hooks plus one setting:
+A `ToastAnimationDefinition` is four hooks plus two settings:
 
 | Field | Called | Purpose |
 |---|---|---|
 | `containerTransition` | Applied once, inline, to `.bt-toast-container` at creation | The CSS `transition` value governing entrance, this toast's own exit, its own-resize reflow, *and* (temporarily, passed through as `causingTransition`) how sibling toasts move when this one enters/exits. |
 | `enterFrom(ctx, targetOffsetPx)` | Synchronously, once the toast's resting stack offset is known, right before it becomes visible | Set the "from" (hidden) styles. |
 | `enterTo(ctx, targetOffsetPx)` | One animation frame later | Set the "to" (resting) styles; `containerTransition` animates between the two. |
+| `enterDurationMs` | n/a | How long (ms) the entrance visual takes. Drives when the `'visible'` [lifecycle event](lifecycle.md#lifecycle-events) fires - optional, defaults to `0` (fires on the next tick after mounting) if omitted, so existing custom animations registered before this field existed keep working, just less precisely timed. |
 | `exit(ctx)` | Once, synchronously, when the toast starts being removed | Set its exiting styles. |
 | `exitDurationMs` | n/a | How long (ms) the exit visual takes before the DOM node is actually removed. Should match whatever `containerTransition`/`exit()` relies on. |
 
