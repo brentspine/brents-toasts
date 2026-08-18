@@ -2,7 +2,7 @@
 
 ## Lifecycle events
 
-`toasts.on(event, handler)` subscribes `handler` to one of six events fired over a toast's
+`toasts.on(event, handler)` subscribes `handler` to one of eight events fired over a toast's
 lifetime; `toasts.off(event, handler)`, or the unsubscribe function `on()` itself returns,
 removes it again:
 
@@ -22,6 +22,8 @@ stop(); // same as toasts.off('show', handler)
 | `'open'` | `{ id }` | Once the toast's DOM element is mounted into its snackbar - after `show`, before the entrance animation has necessarily finished. |
 | `'visible'` | `{ id }` | Once the entrance animation finishes (per the resolved `ToastAnimationDefinition`'s `enterDurationMs` - see [Animations](animations.md)) - "the toast is now actually on screen", as distinct from `open`'s "the toast now exists in the DOM". Never fires for a toast that's already gone (dismissed, or evicted) before its own entrance finished. |
 | `'update'` | `{ id, update }` | Once per `updateToast(id, update)` call, `update` passed through unmodified - including the internal `updateToast` calls `promise()` makes for its loading→success/error/timeout swap. Not fired for the initial `showToast()` render itself. |
+| `'close'` | `{ id, reason }` | The toast started closing - fired at the same moment as `ToastOptions.onClose(reason)`, before the exit animation runs, so the element is still in the DOM. `reason` (a `ToastCloseReason`) says why - see "Removing toasts" below. |
+| `'remove'` | `{ id, reason }` | The toast's DOM element has actually been detached - after `close`'s exit animation finishes, with the same `reason`. Use this over `close` when what matters is the toast being fully gone, not just starting to close. |
 | `'pause'` | `{ id }` | Once the auto-dismiss timer actually transitions to paused - manually via `pauseToastTimer(id)`, or via `pauseOnHover`/`pauseOnPageHidden`. Never fires for an already-paused toast or a sticky one (`duration: 0`, which has no timer state to pause in the first place). |
 | `'resume'` | `{ id }` | The `resume` counterpart to `pause` above - same "only on a real transition, never for a sticky toast" rules. |
 
@@ -81,6 +83,31 @@ different page-scoped `Toasts` instance sharing the same physical
 snackbar). `showToast(msg, { removeOtherToasts: true })` does the same thing
 before showing its own toast, for the common "replace whatever's on screen"
 case.
+
+### Why a toast closed
+
+`ToastOptions.onClose` (and the `'close'`/`'remove'` events above) receive a `reason` -
+a `ToastCloseReason` - saying what triggered the dismissal, instead of firing identically for
+every cause:
+
+```ts live
+toasts.showToast('Uploading...', {
+  duration: 5000,
+  onClose: (reason) => console.log(`closed because: ${reason}`),
+});
+```
+
+| Reason | Meaning |
+|---|---|
+| `'user'` | A direct human interaction - clicking the row, Enter/Space on a focused row, the built-in close button, or a built-in button's own close-on-done step (e.g. `confirmButton({ doneAction: 'close' })`). |
+| `'timeout'` | The toast's own `duration` timer expired on its own. |
+| `'evicted'` | `maxToasts` + `evictOldest` removed the oldest toast to make room for a new one - see "Capacity and eviction" in [Config](config.md). |
+| `'promise'` | `promise()` auto-closed its loading toast (including its own `timeout` option elapsing) because no message was configured for that outcome. |
+| `'programmatic'` | Any other direct `removeToast`/`removeAllToasts` call - the default `removeToast` uses when you don't pass a reason yourself. |
+
+`removeToast(id, reason)` takes an optional second argument if you're wiring up your own dismiss
+control and want a more specific reason than the `'programmatic'` default, e.g.
+`removeToast(id, 'user')` from a custom close affordance that isn't one of the built-ins above.
 
 ## Updating a toast
 

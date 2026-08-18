@@ -44,11 +44,12 @@ in [Lifecycle](lifecycle.md), including the testability use case ("did my code s
 was originally built for.
 
 Two `ToastOptions` fields have no `ToastsConfig` counterpart to set
-library-wide, since they're inherently per-call: `onClose` (called as soon
-as a toast starts closing, manually or via duration timeout; there's no
-sensible shared default for a callback) and `reverseOrder` (inserts a toast
-at the far end of its position's stack instead of nearest the anchor edge;
-creation-time only, a no-op passed to `updateToast`).
+library-wide, since they're inherently per-call: `onClose` (called with a
+`reason` as soon as a toast starts closing - see "Why a toast closed" in
+[Lifecycle](lifecycle.md#why-a-toast-closed); there's no sensible shared
+default for a callback) and `reverseOrder` (inserts a toast at the far end
+of its position's stack instead of nearest the anchor edge; creation-time
+only, a no-op passed to `updateToast`).
 
 ## Severity and accessibility
 

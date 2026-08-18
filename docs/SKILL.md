@@ -77,14 +77,17 @@ cases, and worked examples before implementing anything non-trivial with it.
 - **Details** - `details: [{ label, value, buttons }]` (or a plain string shorthand) renders an
   expandable block behind an auto-added "Details" toggle; `toasts.detailsCopyButton(text)` is
   the only built-in copyable detail. → [guide/details.md](guide/details.md)
-- **Lifecycle** - `removeToast`/`removeAllToasts`/`removeOtherToasts`; `updateToast(id, patch)`
-  is a **patch** (only keys present in `patch` change; `buttons`/`details`/`theme` replace
-  wholesale - use `addToastButton`/`removeToastButton`/`addToastDetail`/`removeToastDetail` for
-  incremental changes), optionally animated via `transition`. Also covers `toasts.promise(...)`
-  for loading/success/error toasts. `toasts.on(event, handler)`/`off(...)` subscribe to
-  `'show'`/`'open'`/`'visible'`/`'update'`/`'pause'`/`'resume'` - multiple independent listeners
-  per event, each fired with `{ id, ... }`; `'show'`'s stable `{ id, severity, message }` (the
-  same shape regardless of call form) is the one to spy on for testing "did my code show a toast".
+- **Lifecycle** - `removeToast(id, reason?)`/`removeAllToasts`/`removeOtherToasts`;
+  `updateToast(id, patch)` is a **patch** (only keys present in `patch` change; `buttons`/
+  `details`/`theme` replace wholesale - use `addToastButton`/`removeToastButton`/
+  `addToastDetail`/`removeToastDetail` for incremental changes), optionally animated via
+  `transition`. Also covers `toasts.promise(...)` for loading/success/error toasts.
+  `toasts.on(event, handler)`/`off(...)` subscribe to `'show'`/`'open'`/`'visible'`/`'update'`/
+  `'close'`/`'remove'`/`'pause'`/`'resume'` - multiple independent listeners per event, each
+  fired with `{ id, ... }`; `'show'`'s stable `{ id, severity, message }` (the same shape
+  regardless of call form) is the one to spy on for testing "did my code show a toast".
+  `ToastOptions.onClose` and the `'close'`/`'remove'` events all receive a `ToastCloseReason`
+  (`'user' | 'timeout' | 'evicted' | 'promise' | 'programmatic'`) saying why the toast closed.
   → [guide/lifecycle.md](guide/lifecycle.md)
 - **Timers** - `pause`/`resume`/`reset`/`extend`/`removeToastTimer`, `getToastTimer(id)`. All
   no-ops on a sticky toast (`duration: 0`); it never has timer state. Timers also auto-pause on

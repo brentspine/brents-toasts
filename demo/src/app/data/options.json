@@ -30,7 +30,7 @@
     { "name": "position", "type": "ToastPositionValue", "typeRef": "ToastPositionValue", "default": "ToastPosition.BOTTOM_CENTER", "description": "Which screen edge/corner this toast stacks from.", "builderCall": ".withPosition(ToastPosition.TOP_RIGHT)" },
     { "name": "animation", "type": "ToastAnimationValue", "typeRef": "ToastAnimationValue", "default": "ToastAnimation.SLIDE", "description": "Entry/exit animation. slide, fade, none, or a name registered via registerToastAnimation().", "builderCall": ".withAnimation(ToastAnimation.FADE)" },
     { "name": "layout", "type": "ToastLayoutValue", "typeRef": "ToastLayoutValue", "default": "ToastLayout.DEFAULT", "description": "Structural (non-color) look: close button position/visibility, etc. default, persistent-close-right, or a name registered via registerToastLayout().", "builderCall": ".withLayout(ToastLayout.PERSISTENT_CLOSE_RIGHT)" },
-    { "name": "onClose", "type": "() => void", "default": "undefined", "description": "Called as soon as the toast starts closing, manually or via duration timeout.", "builderCall": ".withOnClose(() => console.log(\"closed\"))" },
+    { "name": "onClose", "type": "(reason: ToastCloseReason) => void", "typeRef": "ToastCloseReason", "default": "undefined", "description": "Called as soon as the toast starts closing, with a reason saying why (click, timeout, eviction, promise() auto-close, or a direct removeToast() call).", "builderCall": ".withOnClose((reason) => console.log(\"closed:\", reason))" },
     { "name": "removeOtherToasts", "type": "boolean", "default": "false", "description": "If true, dismisses every other currently-visible toast before showing this one.", "builderCall": ".andRemoveOtherToasts()" },
     { "name": "reverseOrder", "type": "boolean", "default": "false", "description": "If true, inserts this toast at the far end of its position's stack instead of nearest the anchor edge. Creation-time only.", "builderCall": ".andReverseOrder()" },
     { "name": "pauseOnHover", "type": "boolean", "default": "true", "description": "Whether hovering the toast, or focusing it or anything inside it, pauses its auto-dismiss timer. No effect on sticky toasts.", "builderCall": ".withPauseOnHover(false)" },
@@ -126,6 +126,17 @@
         { "value": "ToastSeverity.SUCCESS", "description": "role=\"status\"/aria-live=\"polite\". Default color ToastColor.SUCCESS. Also promise()'s default success severity." },
         { "value": "ToastSeverity.WARNING", "description": "role=\"alert\"/aria-live=\"assertive\". Default color ToastColor.WARNING. Also promise()'s default timeout severity." },
         { "value": "ToastSeverity.ERROR", "description": "role=\"alert\"/aria-live=\"assertive\". Default color ToastColor.ERROR. Also promise()'s default error severity." }
+      ]
+    },
+    "ToastCloseReason": {
+      "kind": "enum",
+      "description": "Why a toast was dismissed - passed to onClose and the 'close'/'remove' lifecycle events (see toasts.on()).",
+      "values": [
+        { "value": "'user'", "description": "A direct human interaction: row click, Enter/Space on a focused row, the close button, or a built-in button's own close-on-done step." },
+        { "value": "'timeout'", "description": "The toast's own duration timer expired on its own." },
+        { "value": "'evicted'", "description": "maxToasts + evictOldest removed the oldest toast to make room for a new one." },
+        { "value": "'promise'", "description": "promise() auto-closed its loading toast (including its own timeout option elapsing) because no message was configured for that outcome." },
+        { "value": "'programmatic'", "description": "Any other direct removeToast()/removeAllToasts() call - the default removeToast() uses when a reason isn't given explicitly." }
       ]
     },
     "ToastTheme": {

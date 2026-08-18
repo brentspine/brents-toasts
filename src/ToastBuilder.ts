@@ -1,4 +1,4 @@
-import { toasts as defaultToasts, Toasts, type ToastOptions, type ToastDetailItem, type ToastButtonStep, type ToastProgressOptions } from './Toasts';
+import { toasts as defaultToasts, Toasts, type ToastOptions, type ToastDetailItem, type ToastButtonStep, type ToastProgressOptions, type ToastCloseReason } from './Toasts';
 import { ToastSeverity, type ToastSeverityValue } from './ToastColor';
 import type { ToastTheme } from './ToastTheme';
 import type { ToastPositionValue } from './ToastPosition';
@@ -59,7 +59,7 @@ export class ToastBuilder {
     withAnimation(animation: ToastAnimationValue): this { this._options.animation = animation; return this; }
     /** Structural "look" - close button position/visibility and other non-color layout differences. See `ToastOptions.layout`/`ToastLayout`. */
     withLayout(layout: ToastLayoutValue): this { this._options.layout = layout; return this; }
-    withOnClose(onClose: () => void): this { this._options.onClose = onClose; return this; }
+    withOnClose(onClose: (reason: ToastCloseReason) => void): this { this._options.onClose = onClose; return this; }
     /** Whether hovering or focusing this toast pauses its auto-dismiss timer. Called with no argument, enables it (`true`). See `ToastOptions.pauseOnHover`. */
     withPauseOnHover(pauseOnHover: boolean = true): this { this._options.pauseOnHover = pauseOnHover; return this; }
     /** Whether the page becoming hidden pauses this toast's auto-dismiss timer. Called with no argument, enables it (`true`). See `ToastOptions.pauseOnPageHidden`. */

@@ -102,8 +102,8 @@ export interface ToastOptions {
     animation?: ToastAnimationValue;
     /** Structural "look" - close button position/visibility and other non-color layout differences. See `ToastLayout`/`docs/guide/layouts.md`. `'default'` (today's hover-revealed left accent bar) or `'persistent-close-right'` (always-visible close button pinned to the right), or a name registered via `registerToastLayout`. Independent of `theme` (color) and `titleMode` (title DOM shape) - any combination works. Defaults to `'default'` or the configured default. */
     layout?: ToastLayoutValue;
-    /** Called as soon as the toast starts closing (manually or via duration timeout). A throwing `onClose` is caught and warned about, not propagated - the rest of `removeToast`'s cleanup (timer/animation/DOM removal) always still runs. */
-    onClose?: () => void;
+    /** Called as soon as the toast starts closing (manually or via duration timeout), with `reason` (see `ToastCloseReason`) saying why. A throwing `onClose` is caught and warned about, not propagated - the rest of `removeToast`'s cleanup (timer/animation/DOM removal) always still runs. */
+    onClose?: (reason: ToastCloseReason) => void;
     /** If true, dismisses every other currently-visible toast before showing this one. */
     removeOtherToasts?: boolean;
     /** If true, inserts this toast at the far end of its position's stack (away from the anchor edge) instead of nearest it. No-op if passed to `updateToast` - only meaningful at creation time. */
@@ -195,6 +195,19 @@ export interface ToastsConfig {
 }
 
 /**
+ * Why a toast was dismissed - passed to `ToastOptions.onClose` and the `'close'`/`'remove'`
+ * lifecycle events (see `ToastEventMap`). `'user'` covers every direct human interaction (row
+ * click, Enter/Space on a focused row, the built-in close button, a built-in button's own
+ * close-on-done step, e.g. `confirmButton({ doneAction: 'close' })`); `'timeout'` is the
+ * toast's own `duration` timer expiring; `'evicted'` is `maxToasts`+`evictOldest` removing the
+ * oldest toast to make room for a new one; `'promise'` is `promise()` auto-closing its loading
+ * toast (including its own `timeout` option elapsing) because no message was configured for
+ * that outcome; `'programmatic'` is every other direct `removeToast`/`removeAllToasts` call -
+ * the default `removeToast` uses when a reason isn't given explicitly.
+ */
+export type ToastCloseReason = 'user' | 'timeout' | 'evicted' | 'promise' | 'programmatic';
+
+/**
  * Payload shapes for every `Toasts.on()`/`off()` lifecycle event - see `docs/guide/lifecycle.md`'s
  * "Lifecycle events" section. Every event carries at least `id`, so a shared handler across
  * several toasts (or several event types) can always tell which toast fired it.
@@ -222,6 +235,18 @@ export interface ToastEventMap {
      *  `visible`) - only for a later patch, including the internal `updateToast` calls `promise()`
      *  makes for its success/error/timeout outcomes. */
     update: { id: string; update: ToastUpdateOptions };
+    /** The toast started closing - fired at the same moment as `onClose` (before the exit
+     *  animation runs, so the element is still in the DOM), with the same `reason` (see
+     *  `ToastCloseReason`). This is `onClose` as a subscribable event: use it instead when more
+     *  than one independent listener needs to know a toast is dismissing, or when the listener
+     *  isn't set up until after the toast that's about to close was already created. */
+    close: { id: string; reason: ToastCloseReason };
+    /** The toast's DOM element has actually been detached - after `close`'s exit animation
+     *  finishes (`exitDurationMs` later), as distinct from `close`'s "started closing". `reason`
+     *  is the same one `close` fired with for this toast. Use this over `close` when what matters
+     *  is the toast being fully gone (e.g. freeing up something keyed to its slot on screen)
+     *  rather than the moment dismissal began. */
+    remove: { id: string; reason: ToastCloseReason };
     /** The toast's auto-dismiss timer just paused - manually via `pauseToastTimer(id)`, or via
      *  `pauseOnHover`/`pauseOnPageHidden`. Only fires on a real pause→running transition, never for
      *  an already-paused toast or a sticky one (`duration: 0`, which never has timer state at all -
@@ -250,7 +275,7 @@ interface ResolvedToastOptions {
     layout: ToastLayoutValue;
     title?: string;
     titleMode: 'inline' | 'stacked';
-    onClose?: () => void;
+    onClose?: (reason: ToastCloseReason) => void;
     removeOtherToasts: boolean;
     reverseOrder: boolean;
     buttons?: ToastButton[];
@@ -392,7 +417,7 @@ export class Toasts {
     private _initialized: boolean;
     private _root: HTMLElement | null;
     private _warned: Set<string>;
-    private _onCloseCallbacks: WeakMap<HTMLElement, () => void>;
+    private _onCloseCallbacks: WeakMap<HTMLElement, (reason: ToastCloseReason) => void>;
     private _resizeObservers: WeakMap<HTMLElement, ResizeObserver>;
     // The animation definition resolved for each toast at creation, so
     // `removeToast` runs the same one's `exit()`/`exitDurationMs` a toast
@@ -438,7 +463,7 @@ export class Toasts {
     /**
      * Subscribes `handler` to every `event` fired on this `Toasts` instance (see `ToastEventMap`
      * for the full list and each one's payload/timing) - `'show'`, `'open'`, `'visible'`,
-     * `'update'`, `'pause'`, `'resume'`. Multiple handlers on the same event all run, in
+     * `'update'`, `'close'`, `'remove'`, `'pause'`, `'resume'`. Multiple handlers on the same event all run, in
      * registration order, independent of each other (unlike a single `configure()`-style
      * callback, which one `configure()` call would silently replace) - e.g. your app's own
      * analytics and a test's spy can both listen to `'show'` at once without stepping on each
@@ -608,7 +633,7 @@ export class Toasts {
                     oldest = el;
                 }
             }
-            if (oldest) this.removeToast(oldest.id);
+            if (oldest) this.removeToast(oldest.id, 'evicted');
         }
 
         const toastContainer = document.createElement('div');
@@ -720,13 +745,13 @@ export class Toasts {
         // can flip `closable`/`pauseOnHover` on an already-rendered toast.
         if (opts.closable) toastRow.setAttribute('tabindex', '0');
         toastRow.addEventListener('click', () => {
-            if (this._toastState.get(toastContainer)?.closable) this.removeToast(id);
+            if (this._toastState.get(toastContainer)?.closable) this.removeToast(id, 'user');
         });
         toastRow.addEventListener('keydown', (e: KeyboardEvent) => {
             if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
             if (!this._toastState.get(toastContainer)?.closable) return;
             e.preventDefault();
-            this.removeToast(id);
+            this.removeToast(id, 'user');
         });
         if (opts.duration > 0) {
             this._startToastTimer(toastContainer, opts.duration);
@@ -767,7 +792,13 @@ export class Toasts {
         return id;
     }
 
-    removeToast(id: string): void {
+    /**
+     * Dismisses a toast. `reason` (see `ToastCloseReason`) is passed to `onClose` and the
+     * `'close'`/`'remove'` [lifecycle events](docs/guide/lifecycle.md#lifecycle-events) - every
+     * internal call site (click, timeout, eviction, `promise()`) passes its own real reason;
+     * `'programmatic'` is only the default for a direct call that doesn't specify one.
+     */
+    removeToast(id: string, reason: ToastCloseReason = 'programmatic'): void {
         const toastContainer = document.getElementById(id);
         if (!toastContainer) return;
         if (toastContainer.classList.contains('bt-hiding')) return;
@@ -778,7 +809,7 @@ export class Toasts {
         // (not this instance's, which would simply miss) is what runs.
         const owner = this._ownerOf(toastContainer);
         if (owner !== this) {
-            owner.removeToast(id);
+            owner.removeToast(id, reason);
             return;
         }
         const parent = toastContainer.parentElement;
@@ -787,11 +818,12 @@ export class Toasts {
         this._onCloseCallbacks.delete(toastContainer);
         if (onClose) {
             try {
-                onClose();
+                onClose(reason);
             } catch (err) {
                 console.warn('[brents-toasts] a toast\'s onClose threw:', err);
             }
         }
+        this._emit('close', { id, reason });
 
         const timer = this._timers.get(toastContainer);
         if (timer?.timeoutId) clearTimeout(timer.timeoutId);
@@ -817,6 +849,7 @@ export class Toasts {
             this._resizeObservers.delete(toastContainer);
             this._toastAnimations.delete(toastContainer);
             if (parent) recalculatePositions(parent, animationDef.containerTransition);
+            this._emit('remove', { id, reason });
         }, animationDef.exitDurationMs);
     }
 
@@ -1036,7 +1069,7 @@ export class Toasts {
         const state = this._timers.get(el);
         if (!state || state.startedAt !== null) return;
         state.startedAt = Date.now();
-        state.timeoutId = setTimeout(() => this.removeToast(id), state.remaining);
+        state.timeoutId = setTimeout(() => this.removeToast(id, 'timeout'), state.remaining);
         this._syncProgressBar(el);
         this._emit('resume', { id });
     }
@@ -1061,7 +1094,7 @@ export class Toasts {
         if (state.startedAt !== null) {
             if (state.timeoutId) clearTimeout(state.timeoutId);
             state.startedAt = Date.now();
-            state.timeoutId = setTimeout(() => this.removeToast(id), state.remaining);
+            state.timeoutId = setTimeout(() => this.removeToast(id, 'timeout'), state.remaining);
         }
         this._syncProgressBar(el);
     }
@@ -1082,7 +1115,7 @@ export class Toasts {
         if (state.startedAt !== null) {
             if (state.timeoutId) clearTimeout(state.timeoutId);
             state.startedAt = Date.now();
-            state.timeoutId = setTimeout(() => this.removeToast(id), state.remaining);
+            state.timeoutId = setTimeout(() => this.removeToast(id, 'timeout'), state.remaining);
         }
         this._syncProgressBar(el);
     }
@@ -1189,7 +1222,7 @@ export class Toasts {
         return {
             label: label ?? this._getTranslations().close,
             className,
-            onClick: (_event, id) => this.removeToast(id),
+            onClick: (_event, id) => this.removeToast(id, 'user'),
         };
     }
 
@@ -1289,7 +1322,7 @@ export class Toasts {
                     });
                 };
                 const settle = (): void => {
-                    if (doneAction === 'close') this.removeToast(id);
+                    if (doneAction === 'close') this.removeToast(id, 'user');
                     else restore();
                 };
 
@@ -1422,7 +1455,7 @@ export class Toasts {
         const timeoutMs = options?.timeout ?? this.config.promiseTimeout;
         const timeoutId = timeoutMs > 0 ? setTimeout(() => {
             settled = true;
-            if (messages.timeout === undefined) { this.removeToast(id); return; }
+            if (messages.timeout === undefined) { this.removeToast(id, 'promise'); return; }
             const update = this._resolvePromiseMessage(messages.timeout);
             this.updateToast(id, { severity: ToastSeverity.WARNING, color: this.config.colors.WARNING, duration: this.config.duration, ...options, ...update });
         }, timeoutMs) : undefined;
@@ -1431,14 +1464,14 @@ export class Toasts {
             (data) => {
                 if (settled) return;
                 if (timeoutId !== undefined) clearTimeout(timeoutId);
-                if (messages.success === undefined) { this.removeToast(id); return; }
+                if (messages.success === undefined) { this.removeToast(id, 'promise'); return; }
                 const update = this._resolvePromiseMessage(messages.success, data);
                 this.updateToast(id, { severity: ToastSeverity.SUCCESS, color: this.config.colors.SUCCESS, duration: this.config.duration, ...options, ...update });
             },
             (err) => {
                 if (settled) return;
                 if (timeoutId !== undefined) clearTimeout(timeoutId);
-                if (messages.error === undefined) { this.removeToast(id); return; }
+                if (messages.error === undefined) { this.removeToast(id, 'promise'); return; }
                 const update = this._resolvePromiseMessage(messages.error, err);
                 this.updateToast(id, { severity: ToastSeverity.ERROR, color: this.config.colors.ERROR, duration: this.config.duration, ...options, ...update });
             }
@@ -1592,7 +1625,7 @@ export class Toasts {
     // method above relies on to no-op for it.
     private _startToastTimer(el: HTMLElement, duration: number): void {
         const state: ToastTimerState = { duration, remaining: duration, startedAt: Date.now(), timeoutId: null };
-        state.timeoutId = setTimeout(() => this.removeToast(el.id), duration);
+        state.timeoutId = setTimeout(() => this.removeToast(el.id, 'timeout'), duration);
         this._timers.set(el, state);
         this._syncProgressBar(el);
     }

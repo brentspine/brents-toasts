@@ -2166,6 +2166,127 @@ describe('lifecycle events: on()/off() (#69, #72, #73)', () => {
     });
 });
 
+describe('close/remove events + dismissal reason (#73)', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+        cleanup();
+    });
+
+    function clickAction(id: string, label: string): void {
+        const btn = Array.from(document.getElementById(id)!.querySelectorAll<HTMLButtonElement>('.bt-toast-actions button'))
+            .find(b => b.textContent === label);
+        btn!.click();
+    }
+
+    it("onClose and the 'close' event both report 'user' for a row click, the close button, and confirmButton's close-on-done", () => {
+        const t = new Toasts();
+        const closeEvent = vi.fn();
+        t.on('close', closeEvent);
+
+        const onCloseClick = vi.fn();
+        const clickId = t.showToast('x', { duration: 0, animation: ToastAnimation.NONE, onClose: onCloseClick });
+        document.getElementById(clickId)!.querySelector('.bt-toast-row')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(onCloseClick).toHaveBeenCalledWith('user');
+        expect(closeEvent).toHaveBeenLastCalledWith({ id: clickId, reason: 'user' });
+
+        const onCloseButton = vi.fn();
+        const buttonId = t.showToast('x', {
+            duration: 0, animation: ToastAnimation.NONE, onClose: onCloseButton, buttons: [t.closeButton()],
+        });
+        (document.getElementById(buttonId)!.querySelector('.bt-toast-actions button') as HTMLButtonElement).click();
+        expect(onCloseButton).toHaveBeenCalledWith('user');
+        expect(closeEvent).toHaveBeenLastCalledWith({ id: buttonId, reason: 'user' });
+
+        const onCloseConfirm = vi.fn();
+        const confirmId = t.showToast('x', {
+            duration: 0, animation: ToastAnimation.NONE, onClose: onCloseConfirm,
+            buttons: [t.confirmButton('Delete', () => {}, { doneMessage: null, doneAction: 'close' })],
+        });
+        clickAction(confirmId, 'Delete');
+        clickAction(confirmId, 'Yes');
+        expect(onCloseConfirm).toHaveBeenCalledWith('user');
+        expect(closeEvent).toHaveBeenLastCalledWith({ id: confirmId, reason: 'user' });
+    });
+
+    it("reports 'timeout' when the duration timer expires on its own", () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const onClose = vi.fn();
+        const closeEvent = vi.fn();
+        t.on('close', closeEvent);
+        const id = t.showToast('x', { duration: 1000, animation: ToastAnimation.NONE, onClose });
+
+        vi.advanceTimersByTime(1000);
+
+        expect(onClose).toHaveBeenCalledWith('timeout');
+        expect(closeEvent).toHaveBeenCalledWith({ id, reason: 'timeout' });
+    });
+
+    it("reports 'evicted' when maxToasts + evictOldest removes the oldest toast to make room", () => {
+        const t = new Toasts();
+        t.configure({ maxToasts: 1, evictOldest: true });
+        const onClose = vi.fn();
+        const closeEvent = vi.fn();
+        t.on('close', closeEvent);
+        const oldId = t.showToast('old', { duration: 0, animation: ToastAnimation.NONE, onClose });
+
+        t.showToast('new', { duration: 0, animation: ToastAnimation.NONE });
+
+        expect(onClose).toHaveBeenCalledWith('evicted');
+        expect(closeEvent).toHaveBeenCalledWith({ id: oldId, reason: 'evicted' });
+    });
+
+    it("reports 'promise' when promise() auto-closes its loading toast for an outcome with no message", async () => {
+        const t = new Toasts();
+        const closeEvent = vi.fn();
+        t.on('close', closeEvent);
+        t.promise(Promise.resolve('x'), { loading: 'Loading...' });
+        const id = document.querySelector('.bt-toast-container')!.id;
+
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(closeEvent).toHaveBeenCalledWith({ id, reason: 'promise' });
+    });
+
+    it("defaults to 'programmatic' for a direct removeToast(id) call, overridable via removeToast(id, reason)", () => {
+        const t = new Toasts();
+        const onClose = vi.fn();
+        const closeEvent = vi.fn();
+        t.on('close', closeEvent);
+
+        const id1 = t.showToast('x', { duration: 0, animation: ToastAnimation.NONE, onClose });
+        t.removeToast(id1);
+        expect(onClose).toHaveBeenCalledWith('programmatic');
+        expect(closeEvent).toHaveBeenCalledWith({ id: id1, reason: 'programmatic' });
+
+        const id2 = t.showToast('y', { duration: 0, animation: ToastAnimation.NONE });
+        const onCloseExplicit = vi.fn();
+        t.updateToast(id2, { onClose: onCloseExplicit });
+        t.removeToast(id2, 'user');
+        expect(onCloseExplicit).toHaveBeenCalledWith('user');
+    });
+
+    it("'close' fires at the start of dismissal (element still in the DOM); 'remove' fires later, once the exit animation finishes, with the same reason", () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const events: string[] = [];
+        t.on('close', ({ reason }) => events.push(`close:${reason}`));
+        t.on('remove', ({ reason }) => events.push(`remove:${reason}`));
+        const id = t.showToast('x', { duration: 0 }); // default SLIDE, exitDurationMs 300
+
+        t.removeToast(id, 'user');
+        expect(events).toEqual(['close:user']);
+        expect(document.getElementById(id)).not.toBeNull(); // still present, mid exit animation
+
+        vi.advanceTimersByTime(299);
+        expect(events).toEqual(['close:user']);
+        vi.advanceTimersByTime(1);
+        expect(events).toEqual(['close:user', 'remove:user']);
+        expect(document.getElementById(id)).toBeNull();
+    });
+});
+
 describe('ToastQuickActions (#22)', () => {
     it('returns pre-translated strings independent of any Toasts instance', () => {
         expect(ToastQuickActions.yes('en')).toBe('Yes');
