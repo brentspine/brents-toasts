@@ -29,6 +29,9 @@ yarn-error.log
 !.vscode/mcp.json
 .history/*
 
+# Generated from the root dist/index.d.ts (itself git-ignored) - see demo/scripts/generate-monaco-lib.mjs
+/src/app/shared/toasts-lib.generated.txt
+
 # Miscellaneous
 /.angular/cache
 .sass-cache/

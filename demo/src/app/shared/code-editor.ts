@@ -12,89 +12,23 @@ import {
 } from '@angular/core';
 
 /**
- * Minimal ambient types for the Playground's sandboxed run() scope (toasts/ToastBuilder/
- * ToastColor/ToastPosition/ToastAnimation/ToastTransition), fed to Monaco's JS language service via
- * addExtraLib so typing a `.` after a builder call actually suggests real methods.
- * Kept intentionally small: it mirrors src/ToastBuilder.ts's public surface, not the
- * full library.
+ * Ambient types for the Playground's sandboxed run() scope, fed to Monaco's JS language
+ * service via addExtraLib so typing a `.` after a builder call suggests real methods. The
+ * declarations themselves are generated at ../../dist/index.d.ts's build time by
+ * demo/scripts/generate-monaco-lib.mjs (see demo/package.json's pre{start,build,test} hooks)
+ * rather than hand-maintained here, so they can never drift out of sync with the library's
+ * actual public API the way they used to - see https://github.com/Brentspine/brents-toasts/issues/64.
+ * Keep playground.ts's `run()` sandbox scope (the `new Function(...)` params) in sync with
+ * `src/index.ts`'s runtime exports - that's what the suggestions here should actually match.
+ * Loaded via a dynamic import (not a static one) so its ~50KB of generated declarations +
+ * doc comments only ever ends up in a lazily-fetched chunk alongside Monaco itself, not the
+ * app's initial bundle - it's only needed once Monaco has actually loaded from its CDN.
  */
-const TOASTS_DTS = `
-declare const ToastColor: { INFO: string; SUCCESS: string; WARNING: string; ERROR: string };
-declare const ToastPosition: {
-  BOTTOM_CENTER: string; TOP_CENTER: string; TOP_LEFT: string;
-  TOP_RIGHT: string; BOTTOM_LEFT: string; BOTTOM_RIGHT: string;
-};
-declare const ToastAnimation: { SLIDE: string; FADE: string; NONE: string };
-declare const ToastTransition: { NONE: string; FADE: string; SHAKE_LR: string };
-
-interface ToastButton { label: string; onClick?: (event: MouseEvent, id: string) => void; className?: string }
-interface ToastButtonStep {
-  label: string;
-  onClick?: (event: MouseEvent, id: string) => void | false | Promise<void | false>;
-  className?: string;
-  revertAfterMs?: number;
-  revertToStep?: number;
+let toastsDtsPromise: Promise<string> | null = null;
+function loadToastsDts(): Promise<string> {
+  toastsDtsPromise ??= import('./toasts-lib.generated.txt').then((m) => m.default);
+  return toastsDtsPromise;
 }
-interface ToastDetailItem { label?: string; value: string; buttons?: ToastButton[] }
-interface ToastTheme { background?: string; text?: string; detailsBackground?: string; actionColor?: string; closeIcon?: string }
-interface ToastProgressOptions {
-  position?: 'top' | 'bottom';
-  origin?: 'left' | 'right' | 'center';
-  mode?: 'fill' | 'drain' | 'manual';
-  value?: number;
-  color?: string;
-  trackColor?: string;
-  height?: number;
-}
-
-/** Fluent alternative to toasts.showToast(message, options). */
-declare class ToastBuilder {
-  constructor(message: string);
-  withTitle(title: string): this;
-  withColor(color: string): this;
-  asInfo(): this;
-  asSuccess(): this;
-  asWarning(): this;
-  asError(): this;
-  withDuration(durationMs: number): this;
-  withClosable(closable: boolean): this;
-  withAllowHtml(allowHtml: boolean): this;
-  withAllowLineBreaks(allowLineBreaks: boolean): this;
-  withPosition(position: string): this;
-  withAnimation(animation: string): this;
-  withOnClose(onClose: () => void): this;
-  withPauseOnHover(pauseOnHover: boolean): this;
-  withPauseOnPageHidden(pauseOnPageHidden: boolean): this;
-  withProgress(progress?: boolean | ToastProgressOptions): this;
-  withData(data: unknown): this;
-  withTheme(theme: ToastTheme): this;
-  andRemoveOtherToasts(): this;
-  andReverseOrder(): this;
-  withButton(label: string, onClick?: (event: MouseEvent, id: string) => void, className?: string): this;
-  withDetails(details: (string | ToastDetailItem)[], detailsLabel?: string, detailsHideLabel?: string): this;
-  withCloseButton(label?: string, className?: string): this;
-  withConfirmButton(
-    label: string,
-    onConfirm: (event: MouseEvent, id: string) => void | Promise<void>,
-    options?: {
-      confirmMessage?: string; confirmColor?: string; yesLabel?: string; noLabel?: string;
-      pendingMessage?: string; pendingColor?: string; doneMessage?: string | null; doneColor?: string;
-      doneTimeoutMs?: number; doneAction?: 'restore' | 'close'; className?: string;
-    },
-  ): this;
-  withStepButton(steps: ToastButtonStep[], className?: string): this;
-  /** Fires the toast. @returns its id. */
-  show(): string;
-}
-
-declare const toasts: {
-  showToast(message: string, options?: Record<string, unknown>): string;
-  configure(config: Record<string, unknown>): void;
-  closeToast(id: string): void;
-  /** Sets a manual progress bar's fill fraction (0-1). See ToastProgressOptions.mode: 'manual'. */
-  setToastProgress(id: string, value: number): void;
-};
-`;
 
 const MONACO_VERSION = '0.56.0';
 const MONACO_BASE = `https://cdn.jsdelivr.net/npm/monaco-editor@${MONACO_VERSION}/min/vs`;
@@ -149,8 +83,8 @@ function loadMonaco(): Promise<typeof import('monaco-editor') | undefined> {
 
 /**
  * A code editor for the Playground's snippet, Monaco when the CDN is reachable (real
- * JS autocomplete, via TOASTS_DTS above), a plain textarea otherwise. Two-way bound via
- * `[(code)]` like a native form control.
+ * JS autocomplete, via `loadToastsDts()` above), a plain textarea otherwise. Two-way bound
+ * via `[(code)]` like a native form control.
  */
 @Component({
   selector: 'app-code-editor',
@@ -236,11 +170,13 @@ export class CodeEditor {
     const host = this.monacoHost()?.nativeElement;
     if (!host) return;
 
-    monaco.typescript.javascriptDefaults.addExtraLib(TOASTS_DTS, 'file:///toasts.d.ts');
     monaco.typescript.javascriptDefaults.setCompilerOptions({
       target: monaco.typescript.ScriptTarget.ES2020,
       allowNonTsExtensions: true,
     });
+    // Doesn't block editor creation below - suggestions/hover just go from "none" to "real"
+    // once this resolves, same as any other async Monaco language-service update.
+    loadToastsDts().then((dts) => monaco.typescript.javascriptDefaults.addExtraLib(dts, 'file:///toasts.d.ts'));
 
     this.editorInstance = monaco.editor.create(host, {
       value: this.code(),
