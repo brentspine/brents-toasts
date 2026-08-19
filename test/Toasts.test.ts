@@ -1192,6 +1192,17 @@ describe('layouts', () => {
         warnSpy.mockRestore();
     });
 
+    it('every built-in ToastLayout value stamps correctly with no warning', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        for (const layout of Object.values(ToastLayout)) {
+            const id = t.showToast('x', { duration: 0, layout });
+            expect(layoutOf(id)).toBe(layout);
+        }
+        expect(warnSpy).not.toHaveBeenCalled();
+        warnSpy.mockRestore();
+    });
+
     it('registerToastLayout() lets a custom name through with no warning', () => {
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         registerToastLayout('custom-layout-test');

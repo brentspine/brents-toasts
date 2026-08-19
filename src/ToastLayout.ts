@@ -13,6 +13,13 @@
 export const ToastLayout = {
     DEFAULT: 'default',
     PERSISTENT_CLOSE_RIGHT: 'persistent-close-right',
+    COMPACT: 'compact',
+    MINIMAL: 'minimal',
+    WIDE: 'wide',
+    ACCENT_TOP: 'accent-top',
+    STACKED_ACTIONS: 'stacked-actions',
+    CLOSE_CORNER: 'close-corner',
+    FULL_BLEED: 'full-bleed',
 } as const;
 
 // Widened so a name registered via registerToastLayout still type-checks in
@@ -20,7 +27,17 @@ export const ToastLayout = {
 // pattern as ToastAnimationValue/ToastTransitionValue.
 export type ToastLayoutValue = typeof ToastLayout[keyof typeof ToastLayout] | (string & {});
 
-const registry = new Set<string>([ToastLayout.DEFAULT, ToastLayout.PERSISTENT_CLOSE_RIGHT]);
+const registry = new Set<string>([
+    ToastLayout.DEFAULT,
+    ToastLayout.PERSISTENT_CLOSE_RIGHT,
+    ToastLayout.COMPACT,
+    ToastLayout.MINIMAL,
+    ToastLayout.WIDE,
+    ToastLayout.ACCENT_TOP,
+    ToastLayout.STACKED_ACTIONS,
+    ToastLayout.CLOSE_CORNER,
+    ToastLayout.FULL_BLEED,
+]);
 
 /**
  * Registers `name` as a known layout so it no longer falls back to `default`

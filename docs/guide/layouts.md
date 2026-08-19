@@ -13,6 +13,13 @@ lead-in) - any combination of the three works. Set it per-toast
 |---|---|---|
 | `'default'` | `ToastLayout.DEFAULT` | **Default.** Close button is a thin accent bar on the left, hidden until the toast is hovered. |
 | `'persistent-close-right'` | `ToastLayout.PERSISTENT_CLOSE_RIGHT` | Close button is always visible, pinned to the right edge of the row, with no swatch of its own. The whole card is painted from the toast's `color` instead of the flat default background (e.g. a `ToastSeverity.SUCCESS` toast renders fully green). An explicit `theme.background` still overrides this. |
+| `'compact'` | `ToastLayout.COMPACT` | Denser version of `default` - smaller min-width, tighter row height/padding, smaller hover-reveal close bar. For high-frequency/low-importance notifications. |
+| `'minimal'` | `ToastLayout.MINIMAL` | No accent-bar/close-swatch chrome at all - just text (and buttons/progress, if present). Dismissal still works via click/Enter/Space/Escape on the row, since none of that depends on the close element's visibility. |
+| `'wide'` | `ToastLayout.WIDE` | Same rounded-card shape as `default`, just a bigger min/max-width and roomier padding - for content-heavy toasts (long messages, several details). |
+| `'accent-top'` | `ToastLayout.ACCENT_TOP` | The accent bar becomes a thin horizontal strip across the top of the card instead of a left vertical bar, with a small always-visible close glyph pinned to the top-right corner. |
+| `'stacked-actions'` | `ToastLayout.STACKED_ACTIONS` | Buttons and the details toggle wrap onto their own full-width row below the message instead of sharing the row with it - for toasts with several or long-labeled buttons. |
+| `'close-corner'` | `ToastLayout.CLOSE_CORNER` | Close button is a small circle overlaid on the card's top-right corner (modal-`×`-style) instead of living in the row's flex flow, letting content/actions use the row's full width beneath it. |
+| `'full-bleed'` | `ToastLayout.FULL_BLEED` | Edge-to-edge banner look - square corners, stretches to the snackbar's full width instead of shrink-wrapping. Most effective at a `*-center` position; looks unusual at `*-left`/`*-right` since the card no longer visually "belongs" to one edge. |
 
 ```ts live
 toasts.showToast('Heads up.', { layout: ToastLayout.PERSISTENT_CLOSE_RIGHT });

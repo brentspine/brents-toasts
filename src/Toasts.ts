@@ -103,7 +103,7 @@ export interface ToastOptions {
     position?: ToastPositionValue;
     /** See `ToastAnimation`/`docs/guide/animations.md`. `slide` (default), `fade`, `none`, or a name registered via `registerToastAnimation`. */
     animation?: ToastAnimationValue;
-    /** Structural "look" - close button position/visibility and other non-color layout differences. See `ToastLayout`/`docs/guide/layouts.md`. `'default'` (today's hover-revealed left accent bar) or `'persistent-close-right'` (always-visible close button pinned to the right), or a name registered via `registerToastLayout`. Independent of `theme` (color) and `titleMode` (title DOM shape) - any combination works. Defaults to `'default'` or the configured default. */
+    /** Structural "look" - close button position/visibility and other non-color layout differences. `'default'` (today's hover-revealed left accent bar) plus 8 other built-ins (`'persistent-close-right'`, `'compact'`, `'minimal'`, `'wide'`, `'accent-top'`, `'stacked-actions'`, `'close-corner'`, `'full-bleed'`) - see `ToastLayout`/`docs/guide/layouts.md` for what each looks like - or a name registered via `registerToastLayout`. Independent of `theme` (color) and `titleMode` (title DOM shape) - any combination works. Defaults to `'default'` or the configured default. */
     layout?: ToastLayoutValue;
     /** Called as soon as the toast starts closing (manually or via duration timeout), with `reason` (see `ToastCloseReason`) saying why. A throwing `onClose` is caught and warned about, not propagated - the rest of `removeToast`'s cleanup (timer/animation/DOM removal) always still runs. */
     onClose?: (reason: ToastCloseReason) => void;
