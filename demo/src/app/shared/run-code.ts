@@ -7,12 +7,14 @@ import {
   ToastPosition,
   ToastAnimation,
   ToastLayout,
+  ToastModifier,
   ToastTransition,
   ToastLocales,
   ToastQuickActions,
   QuickActionLocales,
   registerToastAnimation,
   registerToastLayout,
+  registerToastModifier,
   registerToastTransition,
 } from 'brents-toasts';
 
@@ -28,12 +30,14 @@ const SANDBOX_PARAM_NAMES = [
   'ToastPosition',
   'ToastAnimation',
   'ToastLayout',
+  'ToastModifier',
   'ToastTransition',
   'ToastLocales',
   'ToastQuickActions',
   'QuickActionLocales',
   'registerToastAnimation',
   'registerToastLayout',
+  'registerToastModifier',
   'registerToastTransition',
 ] as const;
 
@@ -46,12 +50,14 @@ const SANDBOX_PARAM_VALUES = [
   ToastPosition,
   ToastAnimation,
   ToastLayout,
+  ToastModifier,
   ToastTransition,
   ToastLocales,
   ToastQuickActions,
   QuickActionLocales,
   registerToastAnimation,
   registerToastLayout,
+  registerToastModifier,
   registerToastTransition,
 ];
 

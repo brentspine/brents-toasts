@@ -10,6 +10,8 @@ export { ToastAnimation, registerToastAnimation } from './ToastAnimation';
 export type { ToastAnimationValue, ToastAnimationDefinition, ToastAnimationHookContext } from './ToastAnimation';
 export { ToastLayout, registerToastLayout } from './ToastLayout';
 export type { ToastLayoutValue } from './ToastLayout';
+export { ToastModifier, registerToastModifier } from './ToastModifier';
+export type { ToastModifierValue } from './ToastModifier';
 export { ToastTransition, registerToastTransition } from './ToastTransition';
 export type { ToastTransitionValue, ToastTransitionDefinition } from './ToastTransition';
 export { ToastBuilder } from './ToastBuilder';

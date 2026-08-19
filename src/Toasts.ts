@@ -8,7 +8,8 @@
 import { ToastColor, ToastSeverity, type ToastColorPalette, type ToastSeverityValue } from './ToastColor';
 import { ToastPosition, IMPLEMENTED_POSITIONS, POSITION_EDGE, collapsedPosition, DEFAULT_RESPONSIVE_BREAKPOINT, type ToastPositionValue } from './ToastPosition';
 import { ToastAnimation, getToastAnimation, type ToastAnimationValue, type ToastAnimationDefinition } from './ToastAnimation';
-import { ToastLayout, isKnownLayout, type ToastLayoutValue } from './ToastLayout';
+import { ToastLayout, isKnownLayout, getLayoutModifiers, type ToastLayoutValue } from './ToastLayout';
+import { isKnownModifier, type ToastModifierValue } from './ToastModifier';
 import { ToastTransition, getToastTransition, type ToastTransitionValue } from './ToastTransition';
 import { createStepButton, type ToastButton, type ToastButtonStep } from './ToastButton';
 import { ToastLocales, matchToastLocale, detectBrowserLocales, type ToastTranslations } from './ToastLocale';
@@ -103,8 +104,10 @@ export interface ToastOptions {
     position?: ToastPositionValue;
     /** See `ToastAnimation`/`docs/guide/animations.md`. `slide` (default), `fade`, `none`, or a name registered via `registerToastAnimation`. */
     animation?: ToastAnimationValue;
-    /** Structural "look" - close button position/visibility and other non-color layout differences. `'default'` (today's hover-revealed left accent bar) plus 8 other built-ins (`'persistent-close-right'`, `'compact'`, `'minimal'`, `'wide'`, `'accent-top'`, `'stacked-actions'`, `'close-corner'`, `'full-bleed'`) - see `ToastLayout`/`docs/guide/layouts.md` for what each looks like - or a name registered via `registerToastLayout`. Independent of `theme` (color) and `titleMode` (title DOM shape) - any combination works. Defaults to `'default'` or the configured default. */
+    /** Structural "look", mutually exclusive - only one applies at a time. `'default'` (today's hover-revealed left accent bar) plus `'prominent'` (always-visible close button pinned to the row's trailing edge, card filled with the toast's own color) - see `ToastLayout`/`docs/guide/layouts.md` - or a name registered via `registerToastLayout`. Each non-default built-in is itself a preset composed from `modifiers` below (e.g. `'prominent'` is `[ToastModifier.CLOSE_PINNED_RIGHT, ToastModifier.FILLED_BACKGROUND]`), so pairing a `layout` with extra `modifiers` never produces contradictory CSS for whatever they share. `layout` deliberately doesn't have an entry for every single modifier (e.g. there's no `'compact'`/`'wide'` layout, and no combined layout for every modifier pairing) - reach for `modifiers` directly for a tweak that isn't itself a named "look". Independent of `theme` (color) and `titleMode` (title DOM shape) - any combination works. Defaults to `'default'` or the configured default. */
     layout?: ToastLayoutValue;
+    /** Small, composable design tweaks layered on top of `layout` - unlike `layout` itself, any number of these can be active at once, e.g. `modifiers: [ToastModifier.COMPACT, ToastModifier.STACKED_ACTIONS]`. A built-in `layout` preset already implies its own modifiers (see `layout`'s doc) - this field is for adding more on top of one, or assembling a custom look ad hoc without picking a named `layout` at all. See `ToastModifier`/`docs/guide/layouts.md`. Defaults to `[]` or the configured default. */
+    modifiers?: ToastModifierValue[];
     /** Called as soon as the toast starts closing (manually or via duration timeout), with `reason` (see `ToastCloseReason`) saying why. A throwing `onClose` is caught and warned about, not propagated - the rest of `removeToast`'s cleanup (timer/animation/DOM removal) always still runs. */
     onClose?: (reason: ToastCloseReason) => void;
     /** If true, dismisses every other currently-visible toast before showing this one. */
@@ -175,6 +178,8 @@ export interface ToastsConfig {
     animation: ToastAnimationValue;
     /** Library-wide default for `ToastOptions.layout`. See there. */
     layout: ToastLayoutValue;
+    /** Library-wide default for `ToastOptions.modifiers`. See there. */
+    modifiers: ToastModifierValue[];
     /** Caps visible toasts per position (see "Capacity and eviction" in `docs/guide/config.md`). A value below `1` is invalid - warns once and falls back to the previous default. */
     maxToasts: number;
     evictOldest: boolean;
@@ -282,6 +287,7 @@ interface ResolvedToastOptions {
     position: ToastPositionValue;
     animation: ToastAnimationValue;
     layout: ToastLayoutValue;
+    modifiers: ToastModifierValue[];
     title?: string;
     titleMode: 'inline' | 'stacked';
     onClose?: (reason: ToastCloseReason) => void;
@@ -331,6 +337,7 @@ export const DEFAULT_CONFIG: ToastsConfig = {
     responsiveBreakpoint: DEFAULT_RESPONSIVE_BREAKPOINT,
     animation: ToastAnimation.SLIDE,
     layout: ToastLayout.DEFAULT,
+    modifiers: [],
     maxToasts: MAX_TOASTS,
     evictOldest: true,
     pauseOnHover: true,
@@ -683,7 +690,7 @@ export class Toasts {
 
         const toast = document.createElement('div');
         toast.className = 'bt-toast';
-        toast.dataset.btLayout = this._resolveLayout(opts.layout);
+        this._applyLayoutAttrs(toast, opts.layout, opts.modifiers);
 
         // Everything that dismisses the toast on click/Enter/Space lives on
         // this row, not on `toast` itself - so the details block below (a
@@ -1000,7 +1007,7 @@ export class Toasts {
         if ('closable' in update) {
             this._applyClosableAttrs(toastRow, !!state.closable, this._getTranslations());
         }
-        if ('layout' in update) toast.dataset.btLayout = this._resolveLayout(state.layout);
+        if ('layout' in update || 'modifiers' in update) this._applyLayoutAttrs(toast, state.layout, state.modifiers);
         if ('duration' in update) {
             if (state.duration <= 0) {
                 this.removeToastTimer(id);
@@ -1708,6 +1715,7 @@ export class Toasts {
             position: this.config.position,
             animation: this.config.animation,
             layout: this.config.layout,
+            modifiers: this.config.modifiers,
             title: undefined,
             titleMode: this.config.titleMode,
             onClose: undefined,
@@ -1796,6 +1804,31 @@ export class Toasts {
         return ToastLayout.DEFAULT;
     }
 
+    // Unions `layout`'s own preset modifiers (see ToastLayout.ts's registry)
+    // with the explicitly-passed `modifiers`, dropping (and warning about)
+    // any unrecognized name - same one-time-per-bad-value dedup every other
+    // enum-like option uses, just without a single fallback value to revert
+    // to (an unknown modifier is simply excluded from the set).
+    private _resolveModifiers(layout: ToastLayoutValue, modifiers: ToastModifierValue[]): string {
+        const combined = new Set<string>(getLayoutModifiers(layout));
+        for (const modifier of modifiers) {
+            if (isKnownModifier(modifier)) combined.add(modifier);
+            else this._warnUnknownModifier(modifier);
+        }
+        return Array.from(combined).join(' ');
+    }
+
+    // Stamps both data-bt-layout and data-bt-modifiers on `toast` - shared
+    // by showToast (creation) and updateToast's layout/modifiers branch, so
+    // the two attributes never drift out of sync with each other.
+    private _applyLayoutAttrs(toast: HTMLElement, layout: ToastLayoutValue, modifiers: ToastModifierValue[]): void {
+        const resolvedLayout = this._resolveLayout(layout);
+        toast.dataset.btLayout = resolvedLayout;
+        const modifiersAttr = this._resolveModifiers(resolvedLayout, modifiers);
+        if (modifiersAttr) toast.dataset.btModifiers = modifiersAttr;
+        else delete toast.dataset.btModifiers;
+    }
+
     private _resolveTransition(transition: ToastTransitionValue): ToastTransitionValue {
         if (getToastTransition(transition)) return transition;
         this._warnUnimplemented('transition', transition, ToastTransition.FADE);
@@ -1849,6 +1882,16 @@ export class Toasts {
         if (this._warned.has(key)) return;
         this._warned.add(key);
         console.warn(`[brents-toasts] ${kind} "${value}" is not implemented yet, falling back to "${fallback}".`);
+    }
+
+    // Same one-time-per-bad-value dedup as _warnUnimplemented, but for an
+    // array-valued option (modifiers) where there's no single fallback to
+    // fall back to - the unrecognized entry is just dropped.
+    private _warnUnknownModifier(name: string): void {
+        const key = `modifier:${name}`;
+        if (this._warned.has(key)) return;
+        this._warned.add(key);
+        console.warn(`[brents-toasts] modifier "${name}" is not implemented yet, ignoring it.`);
     }
 
     // Same one-time-per-bad-value dedup as _warnUnimplemented, for options that are

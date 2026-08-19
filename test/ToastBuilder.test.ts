@@ -116,9 +116,9 @@ describe('ToastBuilder', () => {
 
     it('withLayout sets data-bt-layout on the rendered toast', () => {
         const t = new Toasts();
-        const id = new ToastBuilder('m', t).withLayout(ToastLayout.PERSISTENT_CLOSE_RIGHT).withDuration(0).show();
+        const id = new ToastBuilder('m', t).withLayout(ToastLayout.PROMINENT).withDuration(0).show();
         const toast = document.getElementById(id)!.querySelector<HTMLElement>('.bt-toast')!;
-        expect(toast.dataset.btLayout).toBe(ToastLayout.PERSISTENT_CLOSE_RIGHT);
+        expect(toast.dataset.btLayout).toBe(ToastLayout.PROMINENT);
     });
 
     it('withOnClose is invoked when the toast is removed', () => {

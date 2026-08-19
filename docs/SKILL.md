@@ -103,10 +103,16 @@ cases, and worked examples before implementing anything non-trivial with it.
 - **Theming** - every color is a `--bt-*` CSS custom property; override via `theme:` on
   `configure()`/a single toast, or with plain CSS on `.bt-toast`.
   → [guide/theming.md](guide/theming.md)
-- **Layouts** - structural (non-color) looks - close button position/visibility, etc. - via
-  `layout: ToastLayout.DEFAULT | PERSISTENT_CLOSE_RIGHT | ...` (9 built-ins total), or
-  `registerToastLayout(name)` plus your own `[data-bt-layout="name"]` CSS for a custom one.
-  → [guide/layouts.md](guide/layouts.md)
+- **Layouts & modifiers** - `modifiers: ToastModifierValue[]` are small, composable design
+  tweaks (`compact`, `wide`, `accent-top`, `stacked-actions`, `full-bleed`, `close-hidden`,
+  `close-corner`, `close-pinned-right`, `filled-background` - 9 built-ins), any number active
+  on one toast at once. `layout` is a mutually-exclusive named "look" via `layout:
+  ToastLayout.DEFAULT | PROMINENT` (2 built-ins, deliberately just a handful) - the
+  non-default one is itself a preset composed from `modifiers`, not a duplicate CSS path.
+  Not every modifier has a matching layout name - reach for `modifiers`
+  directly for a tweak that isn't a named "look". Custom ones via
+  `registerToastLayout(name, modifiers?)`/`registerToastModifier(name)` plus your own
+  `[data-bt-layout="name"]`/`[data-bt-modifiers~="name"]` CSS. → [guide/layouts.md](guide/layouts.md)
 - **Localization** - bundled `en`/`de`/`es`/`fr` chrome text (`configure({ locale })`), only
   affects the library's own labels, never your `title`/`message`. `ToastQuickActions` gives
   separate pre-translated common words. → [guide/localization.md](guide/localization.md)

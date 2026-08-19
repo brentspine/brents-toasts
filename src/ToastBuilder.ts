@@ -4,6 +4,7 @@ import type { ToastTheme } from './ToastTheme';
 import type { ToastPositionValue } from './ToastPosition';
 import type { ToastAnimationValue } from './ToastAnimation';
 import type { ToastLayoutValue } from './ToastLayout';
+import type { ToastModifierValue } from './ToastModifier';
 import { ToastTransition, type ToastTransitionValue } from './ToastTransition';
 
 /*
@@ -57,8 +58,10 @@ export class ToastBuilder {
     withAllowLineBreaks(allowLineBreaks: boolean = true): this { this._options.allowLineBreaks = allowLineBreaks; return this; }
     withPosition(position: ToastPositionValue): this { this._options.position = position; return this; }
     withAnimation(animation: ToastAnimationValue): this { this._options.animation = animation; return this; }
-    /** Structural "look" - close button position/visibility and other non-color layout differences. See `ToastOptions.layout`/`ToastLayout`. */
+    /** Structural "look", mutually exclusive - see `ToastOptions.layout`/`ToastLayout`. Combine with `withModifiers()` to layer extra composable tweaks on top. */
     withLayout(layout: ToastLayoutValue): this { this._options.layout = layout; return this; }
+    /** Small, composable design tweaks layered on top of `withLayout()` - unlike layout, any number can be active at once. Whole-array replacement (like `withDetails()`), not additive across calls. See `ToastOptions.modifiers`/`ToastModifier`. */
+    withModifiers(modifiers: ToastModifierValue[]): this { this._options.modifiers = modifiers; return this; }
     withOnClose(onClose: (reason: ToastCloseReason) => void): this { this._options.onClose = onClose; return this; }
     /** Whether hovering or focusing this toast pauses its auto-dismiss timer. Called with no argument, enables it (`true`). See `ToastOptions.pauseOnHover`. */
     withPauseOnHover(pauseOnHover: boolean = true): this { this._options.pauseOnHover = pauseOnHover; return this; }

@@ -5,6 +5,7 @@ import { ToastColor, ToastSeverity } from '../src/ToastColor';
 import { ToastPosition } from '../src/ToastPosition';
 import { ToastAnimation, registerToastAnimation, getToastAnimation } from '../src/ToastAnimation';
 import { ToastLayout, registerToastLayout } from '../src/ToastLayout';
+import { ToastModifier, registerToastModifier } from '../src/ToastModifier';
 import { ToastTransition, registerToastTransition } from '../src/ToastTransition';
 import { recalculatePositions } from '../src/ToastStacking';
 import { ToastQuickActions } from '../src/ToastQuickActions';
@@ -1177,8 +1178,8 @@ describe('layouts', () => {
 
     it('stamps data-bt-layout from an explicit layout option', () => {
         const t = new Toasts();
-        const id = t.showToast('x', { duration: 0, layout: ToastLayout.PERSISTENT_CLOSE_RIGHT });
-        expect(layoutOf(id)).toBe(ToastLayout.PERSISTENT_CLOSE_RIGHT);
+        const id = t.showToast('x', { duration: 0, layout: ToastLayout.PROMINENT });
+        expect(layoutOf(id)).toBe(ToastLayout.PROMINENT);
     });
 
     it('falls back to default and warns only once for an unrecognized layout value', () => {
@@ -1217,11 +1218,93 @@ describe('layouts', () => {
         const t = new Toasts();
         const id = t.showToast('x', { duration: 0, buttons: [{ label: 'Undo', onClick: () => {} }] });
         expect(layoutOf(id)).toBe(ToastLayout.DEFAULT);
-        t.updateToast(id, { layout: ToastLayout.PERSISTENT_CLOSE_RIGHT });
-        expect(layoutOf(id)).toBe(ToastLayout.PERSISTENT_CLOSE_RIGHT);
+        t.updateToast(id, { layout: ToastLayout.PROMINENT });
+        expect(layoutOf(id)).toBe(ToastLayout.PROMINENT);
         const toast = document.getElementById(id)!;
         expect(toast.querySelector('.bt-toast-message')!.textContent).toBe('x');
         expect(toast.querySelectorAll('.bt-toast-action').length).toBe(1);
+    });
+});
+
+describe('modifiers', () => {
+    afterEach(cleanup);
+
+    function modifiersOf(id: string): string[] {
+        const attr = document.getElementById(id)!.querySelector<HTMLElement>('.bt-toast')!.dataset.btModifiers;
+        return attr ? attr.split(' ') : [];
+    }
+
+    it('defaults to no data-bt-modifiers attribute when unset and layout implies none', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0 });
+        expect(document.getElementById(id)!.querySelector<HTMLElement>('.bt-toast')!.dataset.btModifiers).toBeUndefined();
+    });
+
+    it('stamps data-bt-modifiers from an explicit modifiers option', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, modifiers: [ToastModifier.COMPACT, ToastModifier.STACKED_ACTIONS] });
+        expect(modifiersOf(id).sort()).toEqual(['compact', 'stacked-actions']);
+    });
+
+    it('unions explicit modifiers with the ones the active layout implies, deduplicated', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, layout: ToastLayout.PROMINENT, modifiers: [ToastModifier.FILLED_BACKGROUND, ToastModifier.COMPACT] });
+        expect(modifiersOf(id).sort()).toEqual(['close-pinned-right', 'compact', 'filled-background']);
+    });
+
+    it('drops an unrecognized modifier and warns only once for it', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        const id1 = t.showToast('1', { duration: 0, modifiers: ['nope' as never] });
+        const id2 = t.showToast('2', { duration: 0, modifiers: ['nope' as never] });
+        expect(modifiersOf(id1)).toEqual([]);
+        expect(modifiersOf(id2)).toEqual([]);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        warnSpy.mockRestore();
+    });
+
+    it('every built-in ToastModifier value stamps correctly with no warning', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        for (const modifier of Object.values(ToastModifier)) {
+            const id = t.showToast('x', { duration: 0, modifiers: [modifier] });
+            expect(modifiersOf(id)).toEqual([modifier]);
+        }
+        expect(warnSpy).not.toHaveBeenCalled();
+        warnSpy.mockRestore();
+    });
+
+    it('registerToastModifier() lets a custom name through with no warning', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        registerToastModifier('custom-modifier-test');
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, modifiers: ['custom-modifier-test'] });
+        expect(modifiersOf(id)).toEqual(['custom-modifier-test']);
+        expect(warnSpy).not.toHaveBeenCalled();
+        warnSpy.mockRestore();
+    });
+
+    it('registerToastLayout() composes the given modifiers for a custom layout', () => {
+        registerToastLayout('custom-composed-layout-test', [ToastModifier.WIDE, ToastModifier.CLOSE_HIDDEN]);
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, layout: 'custom-composed-layout-test' });
+        expect(modifiersOf(id).sort()).toEqual(['close-hidden', 'wide']);
+    });
+
+    it('updateToast() changes modifiers on an already-rendered toast, and can clear them back off', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0 });
+        t.updateToast(id, { modifiers: [ToastModifier.COMPACT] });
+        expect(modifiersOf(id)).toEqual(['compact']);
+        t.updateToast(id, { modifiers: [] });
+        expect(document.getElementById(id)!.querySelector<HTMLElement>('.bt-toast')!.dataset.btModifiers).toBeUndefined();
+    });
+
+    it('updateToast() re-resolves modifiers when only layout changes, without needing modifiers in the same patch', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0 });
+        t.updateToast(id, { layout: ToastLayout.PROMINENT });
+        expect(modifiersOf(id).sort()).toEqual(['close-pinned-right', 'filled-background']);
     });
 });
 

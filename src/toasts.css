@@ -73,136 +73,144 @@
 .bt-toast-row.bt-closable .bt-toast-content { margin-right: 15.5px; transition: margin-right 0.2s; }
 .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-content,
 .bt-toast-row.bt-closable:focus-visible .bt-toast-content { margin-right: 0; }
-/* persistent-close-right layout (ToastLayout.PERSISTENT_CLOSE_RIGHT): close
-   button always visible, pinned to the row's trailing edge instead of a
-   hover-revealed leading accent bar - pure flex `order` reordering, .bt-toast-row
-   is already display:flex so no DOM change is needed. The `[data-bt-layout]`
+/* ============================================================
+   Modifiers (ToastModifier.ts) - small, composable design tweaks. Unlike
+   a `layout` (mutually exclusive, one per toast - see ToastLayout.ts), any
+   number of these can be active on one toast at once: Toasts.ts stamps the
+   union of a toast's own `modifiers` option and whatever its active
+   `layout` implies as one space-separated `data-bt-modifiers="name1 name2"`
+   attribute, and every rule below is keyed off `[data-bt-modifiers~="name"]`
+   (the `~=` selector matches one whitespace-separated token, so it doesn't
+   care what else is present). `data-bt-layout` is still stamped alongside
+   it (for simple external targeting, and so a bare `registerToastLayout(name)`
+   - no modifiers - can still supply its own from-scratch
+   `[data-bt-layout="name"]` CSS), but no built-in rule below reads it -
+   every built-in layout's actual look comes entirely from the modifiers it
+   composes (see ToastLayout.ts's registry). The `[data-bt-modifiers]`
    attribute selector gives every rule here equal-or-higher specificity than
-   the default layout's plain `.bt-toast-close`/`:hover` rules above, so they
-   win outright rather than relying on source order. */
-.bt-toast[data-bt-layout="persistent-close-right"] {
-    /* The whole card is painted from the toast's own color instead of the
-       default flat --bt-background - --bt-background (unset unless a theme
-       explicitly overrides it) still wins when present, so an explicit
-       per-toast/config theme.background stays an override rather than being
-       silently swallowed by this layout. */
-    background-color: var(--bt-background, var(--data-background, #333));
-}
-.bt-toast[data-bt-layout="persistent-close-right"] .bt-toast-close {
-    order: 3;
-    width: 28px;
-    opacity: 1;
-    /* No swatch of its own here (unlike the default layout's accent bar) -
-       the color already shows via the card background above, so the close
-       button just blends into it. */
-    background-color: transparent;
-    border-radius: 0 2px 2px 0;
-    transition: none;
-}
-.bt-toast[data-bt-layout="persistent-close-right"] .bt-toast-close span { opacity: 1; }
-.bt-toast[data-bt-layout="persistent-close-right"] .bt-toast-row .bt-toast-content {
-    order: 1;
-    margin-right: 10px;
-    transition: none;
-}
-.bt-toast[data-bt-layout="persistent-close-right"] .bt-toast-actions { order: 2; }
-.bt-toast[data-bt-layout="persistent-close-right"] .bt-toast-row.bt-closable:hover .bt-toast-close {
-    width: 28px;
-    cursor: pointer;
-}
-.bt-toast[data-bt-layout="persistent-close-right"] .bt-toast-row.bt-closable:hover .bt-toast-content {
-    margin-right: 10px;
-}
+   the default look's plain `.bt-toast-close`/`:hover` rules above, so they
+   win outright rather than relying on source order.
+   ============================================================ */
 
-/* compact layout (ToastLayout.COMPACT): same structure as default, just
-   smaller everywhere - for high-frequency/low-importance notifications where
-   the default card's footprint is overkill. */
-.bt-toast[data-bt-layout="compact"] { min-width: 260px; font-size: calc(var(--font-size) * 0.92); }
-.bt-toast[data-bt-layout="compact"] .bt-toast-row { min-height: 34px; }
-.bt-toast[data-bt-layout="compact"] .bt-toast-row .bt-toast-content { margin-left: 8px; padding: 4px 0; margin-right: 10px; }
-.bt-toast[data-bt-layout="compact"] .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-content,
-.bt-toast[data-bt-layout="compact"] .bt-toast-row.bt-closable:focus-visible .bt-toast-content { margin-right: 0; }
-.bt-toast[data-bt-layout="compact"] .bt-toast-close { width: 3px; }
-.bt-toast[data-bt-layout="compact"] .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-close,
-.bt-toast[data-bt-layout="compact"] .bt-toast-row.bt-closable:focus-visible .bt-toast-close { width: 14px; }
-.bt-toast[data-bt-layout="compact"] .bt-toast-actions { padding: 0 6px 0 4px; gap: 2px; }
+/* compact (ToastModifier.COMPACT): same structure as default, just smaller
+   everywhere - for high-frequency/low-importance notifications where the
+   default card's footprint is overkill. Mutually exclusive with `wide` in
+   effect (both set min-width/spacing) - combining them is undefined, don't. */
+.bt-toast[data-bt-modifiers~="compact"] { min-width: 260px; font-size: calc(var(--font-size) * 0.92); }
+.bt-toast[data-bt-modifiers~="compact"] .bt-toast-row { min-height: 34px; }
+.bt-toast[data-bt-modifiers~="compact"] .bt-toast-row .bt-toast-content { margin-left: 8px; padding: 4px 0; margin-right: 10px; }
+.bt-toast[data-bt-modifiers~="compact"] .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-content,
+.bt-toast[data-bt-modifiers~="compact"] .bt-toast-row.bt-closable:focus-visible .bt-toast-content { margin-right: 0; }
+.bt-toast[data-bt-modifiers~="compact"] .bt-toast-close { width: 3px; }
+.bt-toast[data-bt-modifiers~="compact"] .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-close,
+.bt-toast[data-bt-modifiers~="compact"] .bt-toast-row.bt-closable:focus-visible .bt-toast-close { width: 14px; }
+.bt-toast[data-bt-modifiers~="compact"] .bt-toast-actions { padding: 0 6px 0 4px; gap: 2px; }
 
-/* minimal layout (ToastLayout.MINIMAL): no accent-bar/close-swatch chrome at
-   all - just text (and buttons/progress, if present). Dismissal is untouched
-   since click/Enter/Space/Escape are wired to the row/container, never to
-   this element's own visibility (see Toasts.ts) - hiding it is purely
-   cosmetic, same "layout carries no JS behavior" guarantee every other
-   variant relies on. */
-.bt-toast[data-bt-layout="minimal"] .bt-toast-close { display: none; }
-.bt-toast[data-bt-layout="minimal"] .bt-toast-row .bt-toast-content { margin-left: 12px; margin-right: 12px; }
-
-/* wide layout (ToastLayout.WIDE): same rounded-card shape as default, just a
+/* wide (ToastModifier.WIDE): same rounded-card shape as default, just a
    bigger footprint - for content-heavy toasts (long messages, several
-   details) that feel cramped at the default min-width. */
-.bt-toast[data-bt-layout="wide"] { min-width: 480px; max-width: 640px; }
-.bt-toast[data-bt-layout="wide"] .bt-toast-row .bt-toast-content { margin-left: 16px; padding: 10px 0; }
-.bt-toast[data-bt-layout="wide"] .bt-toast-row.bt-closable .bt-toast-content { margin-right: 20px; }
-.bt-toast[data-bt-layout="wide"] .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-content,
-.bt-toast[data-bt-layout="wide"] .bt-toast-row.bt-closable:focus-visible .bt-toast-content { margin-right: 4.5px; }
+   details) that feel cramped at the default min-width. Mutually exclusive
+   with `compact` in effect - see its comment above. */
+.bt-toast[data-bt-modifiers~="wide"] { min-width: 480px; max-width: 640px; }
+.bt-toast[data-bt-modifiers~="wide"] .bt-toast-row .bt-toast-content { margin-left: 16px; padding: 10px 0; }
+.bt-toast[data-bt-modifiers~="wide"] .bt-toast-row.bt-closable .bt-toast-content { margin-right: 20px; }
+.bt-toast[data-bt-modifiers~="wide"] .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-content,
+.bt-toast[data-bt-modifiers~="wide"] .bt-toast-row.bt-closable:focus-visible .bt-toast-content { margin-right: 4.5px; }
 
-/* accent-top layout (ToastLayout.ACCENT_TOP): the accent bar becomes a thin
-   horizontal strip across the top of the card instead of a left vertical
-   bar, Material-style - and since that strip has no room left to double as a
-   hoverable close target (unlike default), its own close glyph is instead
-   pinned to the top-right corner as a small always-visible circle, taken out
-   of .bt-toast-row's flex flow (the strip - its now-positioned parent -
-   becomes the glyph's own containing block) so .bt-toast-content can use the
-   row's full width beneath both. */
-.bt-toast[data-bt-layout="accent-top"] .bt-toast-row { padding-top: 4px; }
-.bt-toast[data-bt-layout="accent-top"] .bt-toast-close {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    width: auto;
-    height: 4px;
-    border-radius: 0;
-    background-color: var(--data-background, #555);
-    transition: none;
-}
-.bt-toast[data-bt-layout="accent-top"] .bt-toast-close span {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    width: 18px;
-    height: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.2);
-    opacity: 1;
-}
-.bt-toast[data-bt-layout="accent-top"] .bt-toast-row .bt-toast-content { margin-left: 12px; margin-right: 34px; }
-.bt-toast[data-bt-layout="accent-top"] .bt-toast-actions { padding-right: 34px; }
-
-/* stacked-actions layout (ToastLayout.STACKED_ACTIONS): .bt-toast-row is
-   already display:flex, so buttons/the details toggle wrapping onto their
-   own full-width row below the message - instead of cramping the row - is
-   just flex-wrap plus a 100% flex-basis on .bt-toast-actions, no DOM
+/* stacked-actions (ToastModifier.STACKED_ACTIONS): .bt-toast-row is already
+   display:flex, so buttons/the details toggle wrapping onto their own
+   full-width row below the message - instead of cramping the row - is just
+   flex-wrap plus a 100% flex-basis on .bt-toast-actions, no DOM
    manipulation needed. For toasts with several or long-labeled buttons. */
-.bt-toast[data-bt-layout="stacked-actions"] .bt-toast-row { flex-wrap: wrap; }
-.bt-toast[data-bt-layout="stacked-actions"] .bt-toast-actions {
+.bt-toast[data-bt-modifiers~="stacked-actions"] .bt-toast-row { flex-wrap: wrap; }
+.bt-toast[data-bt-modifiers~="stacked-actions"] .bt-toast-actions {
     flex: 1 1 100%;
     justify-content: flex-end;
     padding: 0 10px 8px;
     align-self: auto;
 }
 
-/* close-corner layout (ToastLayout.CLOSE_CORNER): .bt-toast-close is taken
-   out of flex flow entirely and becomes a small circular button overlaid on
-   the card's top-right corner (modal-"x"-style), so .bt-toast-content/
+/* full-bleed (ToastModifier.FULL_BLEED): edge-to-edge banner look - square
+   corners, and the toast stretches to the snackbar's full content width
+   instead of shrink-wrapping. :has() is already relied on elsewhere in this
+   file (the :not(:has(.bt-toast-actions:hover)) rule above), so reaching up
+   to style .bt-toast-container from its .bt-toast child here follows the
+   same established pattern rather than introducing a new technique. Niche:
+   most effective at a *-center position - at *-left/*-right the card no
+   longer visually "belongs" to one edge once it spans the full width. */
+.bt-toast-container:has(.bt-toast[data-bt-modifiers~="full-bleed"]) { width: 100%; }
+.bt-toast[data-bt-modifiers~="full-bleed"] { width: 100%; min-width: 0; border-radius: 0; }
+
+/* accent-top (ToastModifier.ACCENT_TOP): the accent bar becomes a thin
+   horizontal strip across the top of the card instead of a left vertical
+   bar, Material-style - via a ::before pseudo-element on .bt-toast itself,
+   not .bt-toast-close, so this modifier's own CSS never touches the close
+   button's position/behavior. It does collapse the now-redundant default
+   left bar entirely (width/opacity 0, not display:none, so layout stays
+   stable) - the top strip already carries the color-identity role, so a
+   second hover-only accent competing with it read as unfinished. Dismissal
+   still works via click/Enter/Space/Escape on the row regardless (see
+   Toasts.ts) - same as `close-hidden` already relies on. Composes with
+   close-corner/close-pinned-right by placing THIS rule before theirs
+   below - each of those explicitly re-asserts every property it cares
+   about (width, opacity, display), so it wins outright regardless of which
+   modifier name happens to be listed first in `modifiers`, since CSS
+   source order (not option order) is what actually decides a tie here.
+   Pass `modifiers: [ToastModifier.ACCENT_TOP, ToastModifier.CLOSE_CORNER]`
+   together to get the familiar "strip + corner glyph" look - there's no
+   built-in `ToastLayout` preset for this combination. Reads
+   --data-background straight off .bt-toast, which applyColor() in
+   ToastRender.ts already sets there alongside .bt-toast-close. */
+.bt-toast[data-bt-modifiers~="accent-top"] .bt-toast-row { padding-top: 4px; }
+.bt-toast[data-bt-modifiers~="accent-top"]::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background-color: var(--data-background, #555);
+}
+.bt-toast[data-bt-modifiers~="accent-top"] .bt-toast-close {
+    display: flex;
+    width: 0;
+    opacity: 0;
+    transition: none;
+}
+.bt-toast[data-bt-modifiers~="accent-top"] .bt-toast-row .bt-toast-content { margin-left: 12px; margin-right: 12px; }
+.bt-toast[data-bt-modifiers~="accent-top"] .bt-toast-row.bt-closable:hover .bt-toast-content,
+.bt-toast[data-bt-modifiers~="accent-top"] .bt-toast-row.bt-closable:focus-visible .bt-toast-content { margin-right: 12px; }
+
+/* The three close-button variants below (close-hidden, close-corner,
+   close-pinned-right) are mutually exclusive in effect (see the comment on
+   ToastModifier.ts's exports) - each fully re-asserts width/opacity/display
+   itself rather than only overriding what differs from the default look, so
+   whichever one's rule comes LAST here wins over both the default look and
+   `accent-top` above regardless of composition order, instead of silently
+   inheriting a leftover property from another active modifier. Their
+   relative order against each other doesn't matter since combining them
+   isn't a supported combination in the first place. filled-background,
+   further below, is NOT part of this group - it only touches the card
+   background and stacks cleanly with any of the three. */
+
+/* close-hidden (ToastModifier.CLOSE_HIDDEN): no accent-bar/close-swatch
+   chrome at all - just text (and buttons/progress, if present). Dismissal
+   is untouched since click/Enter/Space/Escape are wired to the
+   row/container, never to this element's own visibility (see Toasts.ts) -
+   hiding it is purely cosmetic, same "modifiers carry no JS behavior"
+   guarantee every other one relies on. */
+.bt-toast[data-bt-modifiers~="close-hidden"] .bt-toast-close { display: none; }
+.bt-toast[data-bt-modifiers~="close-hidden"] .bt-toast-row .bt-toast-content { margin-left: 12px; margin-right: 12px; }
+
+/* close-corner (ToastModifier.CLOSE_CORNER): .bt-toast-close is taken out
+   of flex flow entirely and becomes a small circular button overlaid on the
+   card's top-right corner (modal-"x"-style), so .bt-toast-content/
    .bt-toast-actions can use the row's full width beneath it. Niche: this
    visually detaches the close affordance from the row it logically belongs
    to - the ARIA/keyboard target is unchanged, still the row/container (see
    Toasts.ts's _applyClosableAttrs), only its on-screen position moves. */
-.bt-toast[data-bt-layout="close-corner"] .bt-toast-row { padding: 8px 30px 8px 0; }
-.bt-toast[data-bt-layout="close-corner"] .bt-toast-close {
+.bt-toast[data-bt-modifiers~="close-corner"] .bt-toast-row { padding: 8px 30px 8px 0; }
+.bt-toast[data-bt-modifiers~="close-corner"] .bt-toast-close {
+    display: flex;
     position: absolute;
     top: 6px;
     right: 6px;
@@ -212,22 +220,57 @@
     opacity: 1;
     transition: none;
 }
-.bt-toast[data-bt-layout="close-corner"] .bt-toast-close span { opacity: 0.85; }
-.bt-toast[data-bt-layout="close-corner"] .bt-toast-close:hover span { opacity: 1; }
-.bt-toast[data-bt-layout="close-corner"] .bt-toast-row .bt-toast-content { margin-left: 12px; margin-right: 0; }
-.bt-toast[data-bt-layout="close-corner"] .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-content,
-.bt-toast[data-bt-layout="close-corner"] .bt-toast-row.bt-closable:focus-visible .bt-toast-content { margin-right: 0; }
+.bt-toast[data-bt-modifiers~="close-corner"] .bt-toast-close span { opacity: 0.85; }
+.bt-toast[data-bt-modifiers~="close-corner"] .bt-toast-close:hover span { opacity: 1; }
+.bt-toast[data-bt-modifiers~="close-corner"] .bt-toast-row .bt-toast-content { margin-left: 12px; margin-right: 0; }
+.bt-toast[data-bt-modifiers~="close-corner"] .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-content,
+.bt-toast[data-bt-modifiers~="close-corner"] .bt-toast-row.bt-closable:focus-visible .bt-toast-content { margin-right: 0; }
 
-/* full-bleed layout (ToastLayout.FULL_BLEED): edge-to-edge banner look -
-   square corners, and the toast stretches to the snackbar's full content
-   width instead of shrink-wrapping. :has() is already relied on elsewhere in
-   this file (the :not(:has(.bt-toast-actions:hover)) rule above), so reaching
-   up to style .bt-toast-container from its .bt-toast child here follows the
-   same established pattern rather than introducing a new technique. Niche:
-   most effective at a *-center position - at *-left/*-right the card no
-   longer visually "belongs" to one edge once it spans the full width. */
-.bt-toast-container:has(.bt-toast[data-bt-layout="full-bleed"]) { width: 100%; }
-.bt-toast[data-bt-layout="full-bleed"] { width: 100%; min-width: 0; border-radius: 0; }
+/* close-pinned-right (ToastModifier.CLOSE_PINNED_RIGHT): close button
+   always visible, pinned to the row's trailing edge instead of a
+   hover-revealed leading accent bar - pure flex `order` reordering,
+   .bt-toast-row is already display:flex so no DOM change is needed. Unlike
+   the old bundled close-persistent-right modifier this used to be part of,
+   it does NOT touch the card background - pair it with filled-background
+   below (see ToastLayout.PROMINENT) if that look is wanted too. */
+.bt-toast[data-bt-modifiers~="close-pinned-right"] .bt-toast-close {
+    display: flex;
+    order: 3;
+    width: 28px;
+    opacity: 1;
+    /* No swatch of its own here (unlike the default look's accent bar) -
+       stacked with filled-background, the color already shows via the card
+       background, so the close button just blends into it. */
+    background-color: transparent;
+    border-radius: 0 2px 2px 0;
+    transition: none;
+}
+.bt-toast[data-bt-modifiers~="close-pinned-right"] .bt-toast-close span { opacity: 1; }
+.bt-toast[data-bt-modifiers~="close-pinned-right"] .bt-toast-row .bt-toast-content {
+    order: 1;
+    margin-right: 10px;
+    transition: none;
+}
+.bt-toast[data-bt-modifiers~="close-pinned-right"] .bt-toast-actions { order: 2; }
+.bt-toast[data-bt-modifiers~="close-pinned-right"] .bt-toast-row.bt-closable:hover .bt-toast-close {
+    width: 28px;
+    cursor: pointer;
+}
+.bt-toast[data-bt-modifiers~="close-pinned-right"] .bt-toast-row.bt-closable:hover .bt-toast-content {
+    margin-right: 10px;
+}
+
+/* filled-background (ToastModifier.FILLED_BACKGROUND): independent of the
+   close-button variants above (not part of their mutual-exclusivity group)
+   - just paints the whole card from the toast's own color instead of the
+   default flat --bt-background. */
+.bt-toast[data-bt-modifiers~="filled-background"] {
+    /* --bt-background (unset unless a theme explicitly overrides it) still
+       wins when present, so an explicit per-toast/config theme.background
+       stays an override rather than being silently swallowed by this
+       modifier. */
+    background-color: var(--bt-background, var(--data-background, #333));
+}
 
 .bt-toast-row .bt-toast-title { font-weight: 600; }
 /* align-self: stretch makes this column span the row's full height, and
