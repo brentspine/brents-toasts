@@ -43,6 +43,8 @@ overrides set via `configurePosition()` are untouched.
 | `translations` | `undefined` | see [Localization](localization.md) |
 | `theme` | `undefined` | see [Theming](theming.md) |
 | `colors` | `{ ...ToastColor }` | see "Severity and accessibility" below |
+| `injectStyles` | `true` | see "Headless / unstyled mode" below |
+| `injectLayoutStyles` | `true` | see "Headless / unstyled mode" below |
 
 There's no `ToastsConfig` field for observing *when* a toast is shown/updated/paused - that's
 `on()`/`off()`, a separate subscription API rather than a config default; see "Lifecycle events"
@@ -174,6 +176,54 @@ toasts.configure({ responsiveBreakpoint: 0 }); // always keep positions distinct
 Collapsing only changes which physical container a toast renders into;
 the toast's own *identity* `position` (what it was created with) is never
 mutated by this.
+
+## Headless / unstyled mode
+
+The library's bundled CSS is split into two independently injected sheets, each a
+`<style>` tag added to `<head>` the first time any toast renders - there's no separate
+stylesheet to `<link>`, which is what makes the library drop-in:
+
+- **`toasts.css`** (`<style id="toasts-styles">`, gated by `injectStyles`) - the toast
+  card's own look: colors, borders, spacing, the built-in modifier looks. This is what
+  most "headless" consumers actually want to opt out of.
+- **`toasts-layout.css`** (`<style id="toasts-layout-styles">`, gated by
+  `injectLayoutStyles`) - positioning and stacking only: `.bt-snackbar`/
+  `.bt-toast-container`'s fixed positioning, z-index, and the flex layout that anchors
+  toasts to their configured edge and stacks them without overlapping.
+
+The two are independent, so you can opt out of just the look while keeping working
+positioning/stacking for free - the common case, e.g. a design system that wants to
+style `.bt-toast`/`.bt-toast-row`/`.bt-toast-details`/etc. from scratch instead of
+overriding the bundled sheet:
+
+```ts live
+toasts.configure({ injectStyles: false });
+```
+
+Or opt out of both, for a strict CSP `style-src` that blocks runtime-injected `<style>`
+tags entirely (no `unsafe-inline`/nonce support) - note that toasts will render in
+normal document flow rather than as fixed, stacked notifications unless you also supply
+equivalent positioning CSS yourself (`toasts-layout.css` in the package is exactly what
+to reproduce):
+
+```ts live
+toasts.configure({ injectStyles: false, injectLayoutStyles: false });
+```
+
+The `.bt-toast`, `.bt-toast-row`, `.bt-toast-details`, `.bt-snackbar`,
+`.bt-toast-container`, and every other class name/DOM structure the library renders are
+unaffected either way and remain the public styling surface - toasts still function
+fully with both `false`, they just render with no built-in look or positioning until you
+supply your own CSS targeting those classes (see [Theming](theming.md) for the full list
+of `--bt-*` custom properties the bundled sheet itself relies on, if you want to reuse
+them).
+
+Each only has an effect if set **before the first toast is shown** by any `Toasts`
+instance on the page: each injected `<style>` tag is a single document-wide resource
+(deduped by its `id`, not per-instance), so once any instance has injected one, a later
+`configure({ injectStyles: false })`/`configure({ injectLayoutStyles: false })` on a
+different instance can't retroactively remove it. Set them as early as possible - e.g.
+immediately after import, before your app's first `showToast()` call.
 
 ## Page/section-local instances
 

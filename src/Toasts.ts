@@ -17,6 +17,7 @@ import type { ToastTheme } from './ToastTheme';
 import { applyColor, applyContent, applyProgress, renderActions, setProgressAriaValue, type ResolvedProgress } from './ToastRender';
 import { TOAST_EDGE_OFFSET, recalculatePositions, stackExistingAway, totalStackedExtent, edgeFor } from './ToastStacking';
 import toastsCss from './toasts.css';
+import toastsLayoutCss from './toasts-layout.css';
 import VERSION from 'virtual:version';
 
 export type { ToastButton, ToastButtonStep } from './ToastButton';
@@ -197,6 +198,29 @@ export interface ToastsConfig {
     theme?: ToastTheme;
     /** Library-wide default for `promise()`'s `timeout` - see there. `0` disables the timeout. Default `0`. */
     promiseTimeout: number;
+    /** Whether the library injects its bundled toast-card CSS (colors, borders, spacing, modifier looks -
+     *  everything under `.bt-toast`) into `<head>` on first use. Default `true`. Set `false` for a design
+     *  system that wants to style `.bt-toast`/`.bt-toast-row`/`.bt-toast-details`/etc. from scratch rather
+     *  than fighting specificity against the bundled sheet - those class names are the public styling
+     *  surface either way. This does NOT affect `injectLayoutStyles` (positioning/stacking) - the two are
+     *  independent so you can opt out of just the look and keep working positioning/stacking for free; set
+     *  both `false` for a strict CSP `style-src` that blocks runtime-injected `<style>` tags entirely (you'll
+     *  need to supply equivalent positioning CSS yourself in that case - see toasts-layout.css/"Headless /
+     *  unstyled mode" in docs/guide/config.md). Only has an effect if set (via the constructor-time default
+     *  or an early `configure()` call) before the *first* `showToast()` across *any* `Toasts` instance on
+     *  the page - the injected `<style id="toasts-styles">` is a single document-wide resource, not one per
+     *  instance, so once it's been injected by any instance, a later `configure({ injectStyles: false })` on
+     *  a different instance can't retroactively remove it. */
+    injectStyles: boolean;
+    /** Whether the library injects its bundled positioning/stacking CSS (`.bt-snackbar`/`.bt-toast-container`
+     *  - fixed positioning, z-index, the flex layout that anchors toasts to their configured edge and stacks
+     *  them without overlapping) into `<head>` on first use. Default `true`. Independent of `injectStyles`
+     *  (the toast card's own look) - see there for why they're split and the same "only has an effect if set
+     *  before the first `showToast()` anywhere on the page" caveat, which applies here identically (own
+     *  document-wide `<style id="toasts-layout-styles">` tag). Setting this `false` without supplying
+     *  equivalent CSS of your own means toasts render in normal document flow instead of as fixed, stacked
+     *  notifications - only do this if you're prepared to reproduce toasts-layout.css's rules yourself. */
+    injectLayoutStyles: boolean;
     /** The severity → default-`color` lookup: what an unset `ToastOptions.color` resolves to for a given
      *  `severity` (see `ToastOptions.severity`), and what `promise()` defaults `color` to for its
      *  `timeout`/`success`/`error` outcomes. Defaults to the bundled `ToastColor` (`{ INFO, SUCCESS, WARNING,
@@ -344,6 +368,8 @@ export const DEFAULT_CONFIG: ToastsConfig = {
     pauseOnPageHidden: true,
     progress: false,
     promiseTimeout: 0,
+    injectStyles: true,
+    injectLayoutStyles: true,
     colors: { ...ToastColor },
 };
 
@@ -1904,12 +1930,18 @@ export class Toasts {
     }
 
     private _appendStyle(): void {
-        if (document.getElementById('toasts-styles')) return;
+        this._appendStyleSheet('toasts-styles', this.config.injectStyles, toastsCss, 'styles');
+        this._appendStyleSheet('toasts-layout-styles', this.config.injectLayoutStyles, toastsLayoutCss, 'layout styles');
+    }
+
+    private _appendStyleSheet(id: string, enabled: boolean, css: string, label: string): void {
+        if (!enabled) return;
+        if (document.getElementById(id)) return;
         const style = document.createElement('style');
-        style.id = 'toasts-styles';
-        style.innerHTML = toastsCss;
+        style.id = id;
+        style.innerHTML = css;
         document.head.appendChild(style);
-        document.head.insertBefore(document.createComment(`brents-toasts v${VERSION} styles`), style);
+        document.head.insertBefore(document.createComment(`brents-toasts v${VERSION} ${label}`), style);
     }
 
     /**

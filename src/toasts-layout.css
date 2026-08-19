@@ -1,0 +1,33 @@
+/* Structural/positioning CSS only - fixed positioning, stacking order, and
+   the flex layout that keeps toasts anchored to their configured edge and
+   stacked without overlapping. Deliberately has no colors/borders/shadows/
+   spacing-as-design - see toasts.css for the toast card's own look. Gated
+   independently via `ToastsConfig.injectLayoutStyles` (see Toasts.ts) so a
+   consumer can opt out of the visual skin (`injectStyles: false`) while
+   still getting working positioning/stacking for free, or opt out of both
+   for a strict CSP that blocks runtime `<style>` injection entirely - in
+   that case the rules below are exactly what a from-scratch stylesheet
+   needs to reproduce for toasts to render as fixed, stacked notifications
+   at all. */
+.bt-snackbar {
+    position: fixed;
+    box-sizing: border-box;
+    left: 0;
+    right: 0;
+    padding: 0 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    --font-size: 14px;
+}
+.bt-snackbar[data-position$="-left"] { align-items: flex-start; }
+.bt-snackbar[data-position$="-right"] { align-items: flex-end; }
+.bt-toast-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: fixed !important;
+    /* transition is set inline per-toast by Toasts.ts from its resolved
+       ToastAnimationDefinition.containerTransition - see ToastAnimation.ts. */
+}

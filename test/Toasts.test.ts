@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Toasts, DEFAULT_CONFIG } from '../src/Toasts';
 import { ToastBuilder } from '../src/ToastBuilder';
 import { ToastColor, ToastSeverity } from '../src/ToastColor';
@@ -2159,6 +2159,72 @@ describe('error handling / dev diagnostics', () => {
         expect(t.getToastTimer(id)).toBeNull();
         expect(warnSpy).not.toHaveBeenCalled();
         warnSpy.mockRestore();
+    });
+});
+
+describe('headless / unstyled mode: configure({ injectStyles, injectLayoutStyles }) (#86)', () => {
+    // Both injected <style> tags are single document-wide resources (not per-instance, see
+    // _appendStyle/_appendStyleSheet), so they must be cleared before *and* after each test
+    // here regardless of what other describe blocks in this file did first.
+    const clearInjectedStyles = () => {
+        document.getElementById('toasts-styles')?.remove();
+        document.getElementById('toasts-layout-styles')?.remove();
+    };
+    beforeEach(clearInjectedStyles);
+    afterEach(clearInjectedStyles);
+
+    it('injects both toasts.css and toasts-layout.css on first showToast() by default', () => {
+        const t = new Toasts();
+        t.showToast('x', { duration: 0 });
+        expect(document.getElementById('toasts-styles')).not.toBeNull();
+        expect(document.getElementById('toasts-layout-styles')).not.toBeNull();
+    });
+
+    it('configure({ injectStyles: false }) before the first showToast() skips only the toast-card CSS', () => {
+        const t = new Toasts();
+        t.configure({ injectStyles: false });
+        t.showToast('x', { duration: 0 });
+        expect(document.getElementById('toasts-styles')).toBeNull();
+        expect(document.getElementById('toasts-layout-styles')).not.toBeNull();
+    });
+
+    it('configure({ injectLayoutStyles: false }) before the first showToast() skips only the positioning CSS', () => {
+        const t = new Toasts();
+        t.configure({ injectLayoutStyles: false });
+        t.showToast('x', { duration: 0 });
+        expect(document.getElementById('toasts-styles')).not.toBeNull();
+        expect(document.getElementById('toasts-layout-styles')).toBeNull();
+    });
+
+    it('configure({ injectStyles: false, injectLayoutStyles: false }) skips both', () => {
+        const t = new Toasts();
+        t.configure({ injectStyles: false, injectLayoutStyles: false });
+        t.showToast('x', { duration: 0 });
+        expect(document.getElementById('toasts-styles')).toBeNull();
+        expect(document.getElementById('toasts-layout-styles')).toBeNull();
+    });
+
+    it('does not retroactively remove a stylesheet another instance already injected', () => {
+        const a = new Toasts();
+        a.showToast('x', { duration: 0 });
+        expect(document.getElementById('toasts-styles')).not.toBeNull();
+        expect(document.getElementById('toasts-layout-styles')).not.toBeNull();
+
+        const b = new Toasts();
+        b.configure({ injectStyles: false, injectLayoutStyles: false });
+        b.showToast('y', { duration: 0 });
+        expect(document.getElementById('toasts-styles')).not.toBeNull();
+        expect(document.getElementById('toasts-layout-styles')).not.toBeNull();
+    });
+
+    it('class names/DOM structure stay the same public styling surface with both false', () => {
+        const t = new Toasts();
+        t.configure({ injectStyles: false, injectLayoutStyles: false });
+        const id = t.showToast('x', { duration: 0, closable: true });
+        const el = document.getElementById(id)!;
+        expect(el.classList.contains('bt-toast-container')).toBe(true);
+        expect(el.querySelector('.bt-toast-row')).not.toBeNull();
+        expect(el.querySelector('.bt-toast-close')).not.toBeNull();
     });
 });
 

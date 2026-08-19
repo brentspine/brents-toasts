@@ -70,7 +70,7 @@ Full walkthrough, including the other supported call shapes: [Getting started](d
 - **[Per-toast data](docs/guide/data.md)** - attach a payload to a toast so one shared button handler can act on many toasts.
 - **[Progress bar](docs/guide/progress.md)** - a thin bar synced to the auto-dismiss countdown, or driven manually for real progress.
 - **[Animations](docs/guide/animations.md)** - a pluggable entrance/exit/reflow engine (slide/fade/none built in, register your own).
-- **[Config](docs/guide/config.md)** - library-wide or page-scoped defaults, six stacking positions, per-position capacity limits, responsive collapsing on narrow screens.
+- **[Config](docs/guide/config.md)** - library-wide or page-scoped defaults, six stacking positions, per-position capacity limits, responsive collapsing on narrow screens, and independent opt-outs for the toast card's look (`injectStyles: false`) and its positioning/stacking CSS (`injectLayoutStyles: false`), for a custom design system or a strict CSP.
 - **[Theming](docs/guide/theming.md)** - every color is a CSS custom property, overridable per-toast or library-wide, with automatic close-icon contrast.
 - **[Localization](docs/guide/localization.md)** - built-in `en`/`de`/`es`/`fr` chrome text with custom overrides, plus a standalone pre-translated action-word utility.
 

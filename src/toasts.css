@@ -1,25 +1,10 @@
-.bt-snackbar {
-    position: fixed;
-    box-sizing: border-box;
-    left: 0;
-    right: 0;
-    padding: 0 20px;
-    z-index: 10000;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    --font-size: 14px;
-}
-.bt-snackbar[data-position$="-left"] { align-items: flex-start; }
-.bt-snackbar[data-position$="-right"] { align-items: flex-end; }
-.bt-toast-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    position: fixed !important;
-    /* transition is set inline per-toast by Toasts.ts from its resolved
-       ToastAnimationDefinition.containerTransition - see ToastAnimation.ts. */
-}
+/* Positioning/stacking (`.bt-snackbar`, `.bt-toast-container`) lives in
+   toasts-layout.css, gated independently via `injectLayoutStyles` - this
+   file is purely the toast card's own look, gated via `injectStyles`. Both
+   default to injected; see "Headless / unstyled mode" in
+   docs/guide/config.md. `--font-size` is defined on `.bt-snackbar` over
+   there, so uses here fall back to its literal default in case
+   toasts-layout.css was opted out of independently of this file. */
 .bt-toast {
     position: relative;
     min-width: 350px;
@@ -28,7 +13,7 @@
     display: flex;
     flex-direction: column;
     border-radius: 3px;
-    font-size: var(--font-size);
+    font-size: var(--font-size, 14px);
     color: var(--bt-text, #fff);
     overflow: hidden;
 }
@@ -96,7 +81,7 @@
    everywhere - for high-frequency/low-importance notifications where the
    default card's footprint is overkill. Mutually exclusive with `wide` in
    effect (both set min-width/spacing) - combining them is undefined, don't. */
-.bt-toast[data-bt-modifiers~="compact"] { min-width: 260px; font-size: calc(var(--font-size) * 0.92); }
+.bt-toast[data-bt-modifiers~="compact"] { min-width: 260px; font-size: calc(var(--font-size, 14px) * 0.92); }
 .bt-toast[data-bt-modifiers~="compact"] .bt-toast-row { min-height: 34px; }
 .bt-toast[data-bt-modifiers~="compact"] .bt-toast-row .bt-toast-content { margin-left: 8px; padding: 4px 0; margin-right: 10px; }
 .bt-toast[data-bt-modifiers~="compact"] .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-content,

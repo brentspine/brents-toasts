@@ -126,6 +126,32 @@
         progress
       </label>
     </div>
+
+    <div class="field checkbox">
+      <label
+        title="Only has an effect if set before the very first toast is shown anywhere on this page - this demo may have already injected the stylesheet elsewhere, so toggling this off and hitting Apply might not visibly change anything until a full reload."
+      >
+        <input
+          type="checkbox"
+          [ngModel]="form().injectStyles"
+          (ngModelChange)="updateForm('injectStyles', $event)"
+        />
+        injectStyles
+      </label>
+    </div>
+
+    <div class="field checkbox">
+      <label
+        title="Independent of injectStyles - gates only the positioning/stacking CSS (.bt-snackbar/.bt-toast-container). Same 'before the first toast anywhere on this page' caveat applies; turning it off without your own positioning CSS makes toasts render in normal document flow instead of as fixed, stacked notifications."
+      >
+        <input
+          type="checkbox"
+          [ngModel]="form().injectLayoutStyles"
+          (ngModelChange)="updateForm('injectLayoutStyles', $event)"
+        />
+        injectLayoutStyles
+      </label>
+    </div>
   </div>
 
   <div class="field theme-field">

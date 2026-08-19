@@ -126,7 +126,12 @@ cases, and worked examples before implementing anything non-trivial with it.
   `severity: ToastSeverity.WARNING` alone gets both the right look and the right role. A
   `closable` toast's row is focusable (`role="button"`, accessible name) and dismissible via
   Enter/Space (focused row) or Escape (focus anywhere inside the toast), not just click.
-  → [guide/config.md](guide/config.md)
+  `configure({ injectStyles: false })`, set before the first toast is shown anywhere on the
+  page, skips injecting the toast card's bundled look (`.bt-toast`/etc.) for a design system
+  styling it from scratch; `injectLayoutStyles: false` independently skips the bundled
+  positioning/stacking CSS (`.bt-snackbar`/`.bt-toast-container`) for a strict CSP that blocks
+  all runtime `<style>` injection - set both `false` and supply your own CSS in that case. All
+  class names/DOM structure stay the same either way. → [guide/config.md](guide/config.md)
 - **Per-toast data** - `setToastData`/`getToastData(id)`: attach a payload so one shared button
   handler can act on many toasts. Not general app state. → [guide/data.md](guide/data.md)
 

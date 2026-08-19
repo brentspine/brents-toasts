@@ -66,6 +66,39 @@ describe('Config', () => {
     expect(toasts.config.theme?.background).toBe('#111111');
   });
 
+  it('apply() passes injectStyles through, and only includes it in the snippet when false', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+
+    component.apply();
+    expect(toasts.config.injectStyles).toBe(true);
+    expect(component.appliedSnippet()).not.toContain('injectStyles');
+
+    component.updateForm('injectStyles', false);
+    component.apply();
+    expect(toasts.config.injectStyles).toBe(false);
+    expect(component.appliedSnippet()).toContain('injectStyles: false,');
+
+    toasts.configure({ injectStyles: true });
+  });
+
+  it('apply() passes injectLayoutStyles through independently of injectStyles', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+
+    component.apply();
+    expect(toasts.config.injectLayoutStyles).toBe(true);
+    expect(component.appliedSnippet()).not.toContain('injectLayoutStyles');
+
+    component.updateForm('injectLayoutStyles', false);
+    component.apply();
+    expect(toasts.config.injectLayoutStyles).toBe(false);
+    expect(toasts.config.injectStyles).toBe(true);
+    expect(component.appliedSnippet()).toContain('injectLayoutStyles: false,');
+
+    toasts.configure({ injectLayoutStyles: true });
+  });
+
   it('applyPositionOverride() writes to toasts.positionConfig and clearPositionOverride() removes it', async () => {
     const fixture = await createComponent();
     const component = fixture.componentInstance;

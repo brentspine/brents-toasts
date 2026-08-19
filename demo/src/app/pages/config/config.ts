@@ -20,6 +20,8 @@ interface ConfigFormState {
   progress: boolean;
   locale: 'auto' | 'en' | 'de' | 'es' | 'fr';
   themeJson: string;
+  injectStyles: boolean;
+  injectLayoutStyles: boolean;
 }
 
 const DEFAULT_FORM_STATE: ConfigFormState = {
@@ -37,6 +39,8 @@ const DEFAULT_FORM_STATE: ConfigFormState = {
   progress: false,
   locale: 'auto',
   themeJson: '',
+  injectStyles: true,
+  injectLayoutStyles: true,
 };
 
 const STORAGE_KEY = 'bt-demo:config-form';
@@ -140,6 +144,8 @@ export class Config {
       progress: state.progress,
       locale: state.locale === 'auto' ? undefined : state.locale,
       theme,
+      injectStyles: state.injectStyles,
+      injectLayoutStyles: state.injectLayoutStyles,
     });
 
     this.appliedSnippet.set(this.buildSnippet(state, theme));
@@ -179,6 +185,8 @@ export class Config {
       `  progress: ${state.progress},`,
       state.locale !== 'auto' ? `  locale: "${state.locale}",` : undefined,
       theme ? `  theme: ${JSON.stringify(theme)},` : undefined,
+      !state.injectStyles ? `  injectStyles: false,` : undefined,
+      !state.injectLayoutStyles ? `  injectLayoutStyles: false,` : undefined,
       '});',
     ].filter((line): line is string => line !== undefined);
     return lines.join('\n');
