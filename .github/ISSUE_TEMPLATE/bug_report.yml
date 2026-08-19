@@ -70,7 +70,7 @@ body:
     id: framework
     attributes:
       label: Framework (if any)
-      description: React, Angular, Vue, plain script tag, etc. — this library is framework-agnostic but framework wrappers can behave differently.
+      description: React, Angular, Vue, plain script tag, etc. This library is framework-agnostic but framework wrappers can behave differently.
       placeholder: e.g. plain <script> tag / React 18 / Angular 20
     validations:
       required: false
