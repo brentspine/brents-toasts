@@ -1,0 +1,46 @@
+name: Documentation issue
+description: Something in the guide, README, or Claude Skill is missing, unclear, or wrong.
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For documented behavior that doesn't match the actual library behavior, please include both what the docs say and what actually happens.
+
+  - type: dropdown
+    id: location
+    attributes:
+      label: Where is the issue?
+      options:
+        - README.md
+        - docs/guide/ (specify page below)
+        - docs/SKILL.md
+        - Demo Docs page (live-rendered guide)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: page
+    attributes:
+      label: Page / section
+      description: File name or link, and heading if applicable.
+      placeholder: e.g. docs/guide/timers.md#pausing-a-timer
+    validations:
+      required: false
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: What's wrong or missing?
+      description: Quote the current text if it's inaccurate, or describe what's missing.
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested fix
+      description: If you have a proposed wording or example, include it here.
+    validations:
+      required: false

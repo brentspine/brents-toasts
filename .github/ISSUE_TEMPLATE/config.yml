@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Playground
+    url: https://brentspine.github.io/brents-toasts/#/playground
+    about: Try to reproduce your issue interactively before filing a bug report.
+  - name: Documentation guide
+    url: https://github.com/brentspine/brents-toasts/tree/main/docs/guide
+    about: Check the guide for documented behavior before requesting a feature.

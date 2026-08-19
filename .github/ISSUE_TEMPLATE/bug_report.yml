@@ -1,0 +1,84 @@
+name: Bug report
+description: Something in the library, demo, or docs isn't working as expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. The more detail you give, the faster this can be fixed.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where does this happen?
+      options:
+        - Library (src/, the published npm/UMD package)
+        - Demo / Playground (brentspine.github.io/brents-toasts)
+        - Docs (docs/guide, docs/SKILL.md)
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: |
+        Steps to reproduce, and ideally a minimal code sample (e.g. a `showToast(...)`/`ToastBuilder` call) or a link to a reproduction (StackBlitz, CodeSandbox, or the [Playground](https://brentspine.github.io/brents-toasts/#/playground)).
+      placeholder: |
+        1. Call `toasts.showToast(...)` with these options: ...
+        2. ...
+        3. See error / unexpected result
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: brents-toasts version
+      description: From `package.json` (`npm ls brents-toasts`) or the CDN URL you're using.
+      placeholder: e.g. 2.5.1
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Browser / OS
+      description: Browser and version, and OS, where you observed this.
+      placeholder: e.g. Chrome 128 on Windows 11
+    validations:
+      required: false
+
+  - type: input
+    id: framework
+    attributes:
+      label: Framework (if any)
+      description: React, Angular, Vue, plain script tag, etc. — this library is framework-agnostic but framework wrappers can behave differently.
+      placeholder: e.g. plain <script> tag / React 18 / Angular 20
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Console errors, screenshots, anything else that might help.
+    validations:
+      required: false
