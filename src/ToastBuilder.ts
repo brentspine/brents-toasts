@@ -55,6 +55,8 @@ export class ToastBuilder {
     withMinVisibleDuration(minVisibleDurationMs: number): this { this._options.minVisibleDuration = minVisibleDurationMs; return this; }
     /** Called with no argument, enables closability (`true`) - the library-wide default stays whatever `configure()` says unless you call this. */
     withClosable(closable: boolean = true): this { this._options.closable = closable; return this; }
+    /** Called with no argument, disables click-anywhere-on-the-row dismissal (`false`) while leaving every other `closable` dismissal path (close icon, Enter/Space, Escape) untouched - see `ToastOptions.dismissOnClick`. */
+    withDismissOnClick(dismissOnClick: boolean = true): this { this._options.dismissOnClick = dismissOnClick; return this; }
     /** Called with no argument, enables HTML rendering (`true`) - the library-wide/`ToastOptions` default stays `false` unless you call this. XSS: sanitize input yourself if it may contain user-controlled content. */
     withAllowHtml(allowHtml: boolean = true): this { this._options.allowHtml = allowHtml; return this; }
     /** Whether "\n"/"<br>" render as real line breaks in `message`, `title`, button labels, and `details`. Called with no argument, enables it (`true`) - see `ToastOptions.allowLineBreaks`. */

@@ -27,6 +27,7 @@ overrides set via `configurePosition()` are untouched.
 | `duration` | `3000` | ms |
 | `minVisibleDuration` | `0` (disabled) | ms; see "Guarding against instant dismissal" in [Timers](timers.md) |
 | `closable` | `true` | |
+| `dismissOnClick` | `true` | click-anywhere-on-the-row dismissal only; see "Severity and accessibility" below |
 | `allowHtml` | `false` | |
 | `allowLineBreaks` | `true` | |
 | `titleMode` | `'stacked'` | |
@@ -79,6 +80,23 @@ A `closable` toast's row (see `ToastOptions.closable`) is focusable with
 `role="button"` and an accessible name (the localized "Close" string),
 dismissible with Enter/Space while the row itself is focused or Escape from
 anywhere inside the toast - not just mouse-clickable.
+
+`dismissOnClick` (default `true`) narrows just the mouse-click path: set it
+`false` to stop a click on the row body from dismissing, e.g. because the
+toast's content is otherwise interactive and stray clicks kept closing it by
+accident. Every other `closable` dismissal path is untouched - Enter/Space on
+a focused row, Escape from anywhere inside the toast, and the close icon's own
+click all keep working. Because the close icon becomes the only click-based
+way to dismiss in that case, it renders permanently visible instead of only
+on hover/focus - it can't rely on a reveal a touch user (no hover) might never
+trigger:
+
+```ts live
+toasts.showToast('Drag me around freely.', { dismissOnClick: false });
+```
+
+`dismissOnClick: false` has no effect when `closable` is itself `false` -
+there's nothing to disable click-dismissal on.
 
 `severity` also picks this toast's default `color`, via `configure()`'s
 `colors` palette, when `color` itself is left unset - so

@@ -26,6 +26,7 @@ toast's id, same as `showToast()`.
 | `asInfo()` / `asSuccess()` / `asWarning()` / `asError()` | `ToastOptions.severity` | Shorthand for `withSeverity(ToastSeverity.INFO / SUCCESS / WARNING / ERROR)` |
 | `withDuration(durationMs)` | `ToastOptions.duration` | |
 | `withClosable(closable = true)` | `ToastOptions.closable` | Called with no argument, enables closability |
+| `withDismissOnClick(dismissOnClick = true)` | `ToastOptions.dismissOnClick` | Called with no argument, disables click-anywhere dismissal (close icon/Enter/Space/Escape still work) |
 | `withAllowHtml(allowHtml = true)` | `ToastOptions.allowHtml` | Called with no argument, enables HTML rendering |
 | `withAllowLineBreaks(allowLineBreaks = true)` | `ToastOptions.allowLineBreaks` | Called with no argument, enables it |
 | `withPosition(position)` | `ToastOptions.position` | |

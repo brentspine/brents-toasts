@@ -211,6 +211,71 @@ describe('dismissal (click/keyboard)', () => {
         expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
     });
 
+    it('clicking the row does nothing when dismissOnClick is false, but the close icon still dismisses (#113)', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { closable: true, dismissOnClick: false, duration: 0 });
+        const container = document.getElementById(id)!;
+        container.querySelector('.bt-toast-content')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(container.classList.contains('bt-hiding')).toBe(false);
+
+        container.querySelector('.bt-toast-close')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(container.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('clicking the close icon dismisses exactly once when dismissOnClick is left at its default true (#113)', () => {
+        const t = new Toasts();
+        const onClose = vi.fn();
+        const id = t.showToast('x', { closable: true, duration: 0, onClose });
+        document.getElementById(id)!.querySelector('.bt-toast-close')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('dismissOnClick has no effect when not closable - neither the row nor the close icon dismiss (#113)', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { closable: false, dismissOnClick: false, duration: 0 });
+        const container = document.getElementById(id)!;
+        container.querySelector('.bt-toast-close')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(container.classList.contains('bt-hiding')).toBe(false);
+    });
+
+    it('marks the row with bt-click-dismiss-disabled only when closable and dismissOnClick: false, so the close icon renders permanently visible (#113)', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { closable: true, dismissOnClick: false, duration: 0 });
+        const row = document.getElementById(id)!.querySelector('.bt-toast-row')!;
+        expect(row.classList.contains('bt-click-dismiss-disabled')).toBe(true);
+
+        const defaultId = t.showToast('x', { closable: true, duration: 0 });
+        expect(document.getElementById(defaultId)!.querySelector('.bt-toast-row')!.classList.contains('bt-click-dismiss-disabled')).toBe(false);
+
+        const nonClosableId = t.showToast('x', { closable: false, dismissOnClick: false, duration: 0 });
+        expect(document.getElementById(nonClosableId)!.querySelector('.bt-toast-row')!.classList.contains('bt-click-dismiss-disabled')).toBe(false);
+    });
+
+    it('updateToast can flip dismissOnClick on an already-rendered toast (live-read, not captured at creation) (#113)', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { closable: true, dismissOnClick: false, duration: 0 });
+        const container = document.getElementById(id)!;
+        const row = container.querySelector('.bt-toast-row')!;
+        expect(row.classList.contains('bt-click-dismiss-disabled')).toBe(true);
+
+        t.updateToast(id, { dismissOnClick: true });
+        expect(row.classList.contains('bt-click-dismiss-disabled')).toBe(false);
+        row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(container.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('Enter/Space and Escape still dismiss a closable toast when dismissOnClick is false (#113)', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { closable: true, dismissOnClick: false, duration: 0 });
+        const row = document.getElementById(id)!.querySelector('.bt-toast-row')!;
+        row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+
+        const escId = t.showToast('x', { closable: true, dismissOnClick: false, duration: 0 });
+        document.getElementById(escId)!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        expect(document.getElementById(escId)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
     it('updateToast can flip closable on an already-rendered toast (live-read, not captured at creation)', () => {
         const t = new Toasts();
         const id = t.showToast('x', { closable: false, duration: 0 });

@@ -99,11 +99,20 @@ export interface ToastOptions {
      *  Defaults to `0` or the configured default. A negative or `NaN` value is invalid - warns once
      *  and falls back to the configured default. */
     minVisibleDuration?: number;
-    /** Whether clicking the toast dismisses it. Also governs keyboard dismissal - a closable
-     *  toast's row is focusable (`tabindex="0"`) with `role="button"` and an accessible name,
-     *  and can be dismissed with Enter/Space while the row itself is focused, or Escape while
-     *  focus is anywhere inside the toast. Defaults to `true` or the configured default. */
+    /** Whether the toast can be dismissed by the user at all. Governs keyboard dismissal - a
+     *  closable toast's row is focusable (`tabindex="0"`) with `role="button"` and an
+     *  accessible name, and can be dismissed with Enter/Space while the row itself is focused,
+     *  or Escape while focus is anywhere inside the toast - and the close icon's own click,
+     *  independently of `dismissOnClick` below. Defaults to `true` or the configured default. */
     closable?: boolean;
+    /** Whether clicking the row body (not just the close icon) dismisses a closable toast.
+     *  `false` disables that specific click-anywhere behavior while leaving every other
+     *  `closable` dismissal path untouched - the close icon still dismisses on its own click
+     *  (and, since it can no longer rely on a hover/focus-visible reveal to be discoverable,
+     *  renders permanently visible instead - see `docs/guide/config.md`), and Enter/Space/Escape
+     *  still work from keyboard focus. No effect when `closable` is `false` - there's nothing to
+     *  disable click-dismissal on. Defaults to `true` or the configured default. */
+    dismissOnClick?: boolean;
     /** If true, `message` is rendered as HTML. XSS: sanitize input yourself if it may contain user-controlled content. */
     allowHtml?: boolean;
     /** Whether a literal "\n" or "<br>"/"<br/>" in `message`, `title`, button/step labels, and `details` label/value renders as a real line break. Defaults to `true` or the configured default; set `false` to render them as inert text instead - independent of `allowHtml`, which only governs full HTML in `message`. */
@@ -197,6 +206,8 @@ export interface ToastsConfig {
     /** Library-wide default for `ToastOptions.minVisibleDuration`. See there. Default `0` (no guard). */
     minVisibleDuration: number;
     closable: boolean;
+    /** Library-wide default for `ToastOptions.dismissOnClick`. See there. Default `true`. */
+    dismissOnClick: boolean;
     allowHtml: boolean;
     /** Library-wide default for `ToastOptions.allowLineBreaks`. See there. */
     allowLineBreaks: boolean;
@@ -357,6 +368,7 @@ interface ResolvedToastOptions {
     duration: number;
     minVisibleDuration: number;
     closable: boolean;
+    dismissOnClick: boolean;
     allowHtml: boolean;
     allowLineBreaks: boolean;
     position: ToastPositionValue;
@@ -407,6 +419,7 @@ export const DEFAULT_CONFIG: ToastsConfig = {
     duration: 3000,
     minVisibleDuration: 0,
     closable: true,
+    dismissOnClick: true,
     allowHtml: false,
     allowLineBreaks: true,
     titleMode: 'stacked',
@@ -797,7 +810,7 @@ export class Toasts {
         // dismiss listener's reach and can never trigger it.
         const toastRow = document.createElement('div');
         toastRow.className = 'bt-toast-row';
-        this._applyClosableAttrs(toastRow, opts.closable, t);
+        this._applyClosableAttrs(toastRow, opts.closable, opts.dismissOnClick, t);
 
         const toastClose = document.createElement('div');
         toastClose.className = 'bt-toast-close';
@@ -894,6 +907,15 @@ export class Toasts {
         // `tabindex`/`role`/`aria-label` themselves are set by `_applyClosableAttrs`
         // above (and again on any `updateToast({ closable })`), not here.
         toastRow.addEventListener('click', () => {
+            const s = this._toastState.get(toastContainer);
+            if (s?.closable && s.dismissOnClick) this.removeToast(id, 'user');
+        });
+        // The close icon's own click always dismisses a closable toast, regardless of
+        // `dismissOnClick` - `stopPropagation` keeps it from also bubbling into the row
+        // listener above (which would otherwise attempt the exact same removal a second
+        // time whenever `dismissOnClick` is left at its default `true`).
+        toastClose.addEventListener('click', (e: MouseEvent) => {
+            e.stopPropagation();
             if (this._toastState.get(toastContainer)?.closable) this.removeToast(id, 'user');
         });
         toastRow.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -1139,8 +1161,8 @@ export class Toasts {
             if (update.onClose) this._onCloseCallbacks.set(toastContainer, update.onClose);
             else this._onCloseCallbacks.delete(toastContainer);
         }
-        if ('closable' in update) {
-            this._applyClosableAttrs(toastRow, !!state.closable, this._getTranslations());
+        if ('closable' in update || 'dismissOnClick' in update) {
+            this._applyClosableAttrs(toastRow, !!state.closable, state.dismissOnClick, this._getTranslations());
         }
         if ('layout' in update || 'modifiers' in update) this._applyLayoutAttrs(toast, state.layout, state.modifiers);
         if ('duration' in update) {
@@ -1854,6 +1876,7 @@ export class Toasts {
             duration: this.config.duration,
             minVisibleDuration: this.config.minVisibleDuration,
             closable: this.config.closable,
+            dismissOnClick: this.config.dismissOnClick,
             allowHtml: this.config.allowHtml,
             allowLineBreaks: this.config.allowLineBreaks,
             position: this.config.position,
@@ -2004,7 +2027,7 @@ export class Toasts {
         return this.config.translations ? { ...base, ...this.config.translations } : base;
     }
 
-    // Shared by showToast (creation) and updateToast's `closable` branch -
+    // Shared by showToast (creation) and updateToast's `closable`/`dismissOnClick` branch -
     // keeps the row's focusability, its `role`/accessible-name pair, and the
     // `bt-closable` class (which drives the hover/focus-visible CSS in
     // toasts.css) all in sync with each other, so a closable toast is never
@@ -2013,9 +2036,14 @@ export class Toasts {
     // close-labeled button would use) is what gives the row a programmatically
     // determinable name/role - without it, a screen reader only ever
     // encounters a generic focusable container that happens to act like a
-    // button (see #41).
-    private _applyClosableAttrs(toastRow: HTMLElement, closable: boolean, t: ToastTranslations): void {
+    // button (see #41). `bt-click-dismiss-disabled` (only meaningful alongside
+    // `bt-closable`) is what makes the close icon render permanently visible
+    // instead of hover/focus-revealed - see toasts.css - since with
+    // `dismissOnClick: false` it's the only click-based dismiss target left,
+    // and can't rely on a reveal a touch user (no hover) might never trigger.
+    private _applyClosableAttrs(toastRow: HTMLElement, closable: boolean, dismissOnClick: boolean, t: ToastTranslations): void {
         toastRow.classList.toggle('bt-closable', closable);
+        toastRow.classList.toggle('bt-click-dismiss-disabled', closable && !dismissOnClick);
         if (closable) {
             toastRow.setAttribute('tabindex', '0');
             toastRow.setAttribute('role', 'button');

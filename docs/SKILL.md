@@ -140,6 +140,8 @@ cases, and worked examples before implementing anything non-trivial with it.
   `severity: ToastSeverity.WARNING` alone gets both the right look and the right role. A
   `closable` toast's row is focusable (`role="button"`, accessible name) and dismissible via
   Enter/Space (focused row) or Escape (focus anywhere inside the toast), not just click.
+  `dismissOnClick: false` narrows just the click path - the row body stops dismissing on click,
+  while the close icon (now permanently visible) and keyboard dismissal keep working.
   `configure({ injectStyles: false })`, set before the first toast is shown anywhere on the
   page, skips injecting the toast card's bundled look (`.bt-toast`/etc.) for a design system
   styling it from scratch; `injectLayoutStyles: false` independently skips the bundled

@@ -70,6 +70,14 @@
 .bt-toast-row.bt-closable .bt-toast-content { margin-right: 15.5px; transition: margin-right 0.2s; }
 .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-content,
 .bt-toast-row.bt-closable:focus-visible .bt-toast-content { margin-right: 0; }
+/* ToastOptions.dismissOnClick: false (Toasts.ts's _applyClosableAttrs) - the row body no
+   longer dismisses on click, so the close icon is the only click-based way left to close
+   and can't rely on the hover/focus-visible reveal above, which a touch user (no hover) or
+   a mouse user who never hovers exactly that sliver might never trigger. Same expanded
+   state as the `:hover`/`:focus-visible` rules above, just permanent instead of revealed. */
+.bt-toast-row.bt-closable.bt-click-dismiss-disabled .bt-toast-close span { opacity: 1; }
+.bt-toast-row.bt-closable.bt-click-dismiss-disabled .bt-toast-close { cursor: pointer; width: 20px; }
+.bt-toast-row.bt-closable.bt-click-dismiss-disabled .bt-toast-content { margin-right: 0; }
 /* ============================================================
    Modifiers (ToastModifier.ts) - small, composable design tweaks. Unlike
    a `layout` (mutually exclusive, one per toast - see ToastLayout.ts), any
