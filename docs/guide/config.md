@@ -25,6 +25,7 @@ overrides set via `configurePosition()` are untouched.
 |---|---|---|
 | `severity` | `ToastSeverity.INFO` | see "Severity and accessibility" below |
 | `duration` | `3000` | ms |
+| `minVisibleDuration` | `0` (disabled) | ms; see "Guarding against instant dismissal" in [Timers](timers.md) |
 | `closable` | `true` | |
 | `allowHtml` | `false` | |
 | `allowLineBreaks` | `true` | |
@@ -45,6 +46,8 @@ overrides set via `configurePosition()` are untouched.
 | `colors` | `{ ...ToastColor }` | see "Severity and accessibility" below |
 | `injectStyles` | `true` | see "Headless / unstyled mode" below |
 | `injectLayoutStyles` | `true` | see "Headless / unstyled mode" below |
+| `gap` | `8` | px; see "Stacking spacing and z-index" below |
+| `zIndex` | `10000` | see "Stacking spacing and z-index" below |
 
 There's no `ToastsConfig` field for observing *when* a toast is shown/updated/paused - that's
 `on()`/`off()`, a separate subscription API rather than a config default; see "Lifecycle events"
@@ -135,6 +138,31 @@ position is dismissed to make room.
 A `maxToasts` less than `1` (via `configure()` or `configurePosition()`) or a `duration` that's
 negative or `NaN` (per-toast or via `configure()`) is invalid - it warns once and falls back to
 the configured default rather than producing broken behavior.
+
+## Stacking spacing and z-index
+
+`gap` (default `8`) is the pixel spacing the stacking math (`recalculatePositions`/
+`stackExistingAway`/`totalStackedExtent`) adds on top of each toast's own rendered height when
+positioning toasts within a stack:
+
+```ts live
+toasts.configure({ gap: 16 });
+```
+
+`zIndex` (default `10000`) sets every snackbar's stacking context, applied as the `--bt-z-index`
+CSS custom property (same inline-override-over-stylesheet-default pattern [Theming](theming.md)'s
+`--bt-*` properties use, so plain CSS targeting `.bt-snackbar` still works) - raise it if toasts
+need to render above some other fixed/high-`z-index` element in your app:
+
+```ts live
+toasts.configure({ zIndex: 2147483000 });
+```
+
+Both are library-wide only (no per-toast `ToastOptions` equivalent, since spacing/stacking-order
+are properties of the whole snackbar, not one toast) and re-apply to already-rendered snackbars
+live, the same way a later `configure({ locale })` updates an existing snackbar's `aria-label`. A
+negative or `NaN` `gap` is invalid - warns once and falls back to the previous default, the same
+`maxToasts`/`duration` treatment above.
 
 ## Per-position overrides
 

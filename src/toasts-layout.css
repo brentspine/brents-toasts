@@ -15,7 +15,7 @@
     left: 0;
     right: 0;
     padding: 0 20px;
-    z-index: 10000;
+    z-index: var(--bt-z-index, 10000);
     display: flex;
     flex-direction: column;
     align-items: center;

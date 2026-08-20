@@ -51,6 +51,8 @@ export class ToastBuilder {
     /** Shorthand for `withSeverity(ToastSeverity.ERROR)` - gets both the default look and `role="alert"`. */
     asError(): this { return this.withSeverity(ToastSeverity.ERROR); }
     withDuration(durationMs: number): this { this._options.duration = durationMs; return this; }
+    /** Minimum time (ms) the toast must stay visible before a `removeToast()`/click can actually dismiss it - see `ToastOptions.minVisibleDuration`. */
+    withMinVisibleDuration(minVisibleDurationMs: number): this { this._options.minVisibleDuration = minVisibleDurationMs; return this; }
     /** Called with no argument, enables closability (`true`) - the library-wide default stays whatever `configure()` says unless you call this. */
     withClosable(closable: boolean = true): this { this._options.closable = closable; return this; }
     /** Called with no argument, enables HTML rendering (`true`) - the library-wide/`ToastOptions` default stays `false` unless you call this. XSS: sanitize input yourself if it may contain user-controlled content. */

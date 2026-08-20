@@ -1,6 +1,9 @@
 import { POSITION_EDGE, type ToastPositionValue } from './ToastPosition';
 
-const TOAST_GAP = 8;
+// Default spacing between stacked toasts, used when a call site doesn't pass its own
+// (configurable via `ToastsConfig.gap` - see `Toasts.ts`) - kept as the parameter default
+// here so call sites/tests that don't care about a custom gap don't have to pass one.
+export const TOAST_GAP = 8;
 // Distance from the anchor edge (top or bottom, per POSITION_EDGE) a toast
 // rests at once its entrance animation finishes.
 export const TOAST_EDGE_OFFSET = 22;
@@ -40,8 +43,9 @@ function applyOffset(toastEl: HTMLElement, edge: 'top' | 'bottom', offsetPx: num
 // rendered height so variable-height toasts (e.g. with a title) don't
 // overlap their neighbors. Stacks away from the snackbar's anchor edge (top
 // or bottom) - see edgeFor. `causingTransition`, when passed, is the exiting
-// toast's animation transition - see applyOffset.
-export function recalculatePositions(snackbar: HTMLElement, causingTransition?: string): void {
+// toast's animation transition - see applyOffset. `gap` is the spacing
+// between stacked toasts (`ToastsConfig.gap`, defaults to `TOAST_GAP`).
+export function recalculatePositions(snackbar: HTMLElement, causingTransition?: string, gap: number = TOAST_GAP): void {
     const edge = edgeFor(snackbar);
     let offset = TOAST_EDGE_OFFSET;
     Array.from(snackbar.children)
@@ -50,24 +54,25 @@ export function recalculatePositions(snackbar: HTMLElement, causingTransition?: 
         .forEach((el) => {
             const toastEl = el as HTMLElement;
             applyOffset(toastEl, edge, offset, causingTransition);
-            offset += toastEl.getBoundingClientRect().height + TOAST_GAP;
+            offset += toastEl.getBoundingClientRect().height + gap;
         });
 }
 
 // Pushes every toast other than `newToast` away from the snackbar's anchor
 // edge to make room for it, walking DOM order back-to-front by each toast's
 // actual rendered height. `causingTransition`, when passed, is the entering
-// toast's animation transition - see applyOffset.
-export function stackExistingAway(snackbar: HTMLElement, newToast: HTMLElement, causingTransition?: string): void {
+// toast's animation transition - see applyOffset. `gap` is the spacing
+// between stacked toasts (`ToastsConfig.gap`, defaults to `TOAST_GAP`).
+export function stackExistingAway(snackbar: HTMLElement, newToast: HTMLElement, causingTransition?: string, gap: number = TOAST_GAP): void {
     const edge = edgeFor(snackbar);
-    let offset = TOAST_EDGE_OFFSET + newToast.getBoundingClientRect().height + TOAST_GAP;
+    let offset = TOAST_EDGE_OFFSET + newToast.getBoundingClientRect().height + gap;
     Array.from(snackbar.children)
         .filter(el => el !== newToast)
         .reverse()
         .forEach((el) => {
             const toastEl = el as HTMLElement;
             applyOffset(toastEl, edge, offset, causingTransition);
-            offset += toastEl.getBoundingClientRect().height + TOAST_GAP;
+            offset += toastEl.getBoundingClientRect().height + gap;
         });
 }
 
@@ -76,13 +81,14 @@ export function stackExistingAway(snackbar: HTMLElement, newToast: HTMLElement, 
 // instead of nearest the edge. Mirrors stackExistingAway's loop (same
 // `.bt-hiding` treatment - a fading-out toast still reserves its space) but
 // sums instead of assigning a per-element offset, since none of the other
-// toasts need to move for this case.
-export function totalStackedExtent(snackbar: HTMLElement, excludeEl: HTMLElement): number {
+// toasts need to move for this case. `gap` is the spacing between stacked
+// toasts (`ToastsConfig.gap`, defaults to `TOAST_GAP`).
+export function totalStackedExtent(snackbar: HTMLElement, excludeEl: HTMLElement, gap: number = TOAST_GAP): number {
     let offset = TOAST_EDGE_OFFSET;
     Array.from(snackbar.children)
         .filter(el => el !== excludeEl)
         .forEach((el) => {
-            offset += (el as HTMLElement).getBoundingClientRect().height + TOAST_GAP;
+            offset += (el as HTMLElement).getBoundingClientRect().height + gap;
         });
     return offset;
 }

@@ -8,7 +8,7 @@ import { ToastLayout, registerToastLayout } from '../src/ToastLayout';
 import { ToastModifier, registerToastModifier } from '../src/ToastModifier';
 import { ToastIcon, registerToastIcon } from '../src/ToastIcon';
 import { ToastTransition, registerToastTransition } from '../src/ToastTransition';
-import { recalculatePositions } from '../src/ToastStacking';
+import { recalculatePositions, TOAST_EDGE_OFFSET } from '../src/ToastStacking';
 import { ToastQuickActions } from '../src/ToastQuickActions';
 
 function nextFrame(): Promise<void> {
@@ -329,6 +329,90 @@ describe('timer lifecycle', () => {
         expect(t.getToastTimer(id)).toBeNull();
         vi.advanceTimersByTime(10_000);
         expect(document.getElementById(id)).not.toBeNull();
+    });
+});
+
+describe('minVisibleDuration guard (#74)', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+        cleanup();
+    });
+
+    it('defers a premature removeToast() until minVisibleDuration has elapsed, instead of dropping it', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, minVisibleDuration: 1000 });
+        t.removeToast(id);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
+        vi.advanceTimersByTime(1000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+        vi.advanceTimersByTime(300);
+        expect(document.getElementById(id)).toBeNull();
+    });
+
+    it('plays a SHAKE_LR transition as feedback on a premature dismissal attempt', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, minVisibleDuration: 1000 });
+        const toast = document.getElementById(id)!.querySelector('.bt-toast') as HTMLElement;
+        t.removeToast(id);
+        expect(toast.style.transform).toBe('translateX(-8px)');
+    });
+
+    it('a click-driven dismissal is guarded the same as an explicit removeToast() call', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, minVisibleDuration: 1000, closable: true });
+        const row = document.getElementById(id)!.querySelector('.bt-toast-row') as HTMLElement;
+        row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
+        vi.advanceTimersByTime(1000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('a second premature attempt during the guard window re-shakes but does not stack a duplicate deferred removal', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, minVisibleDuration: 1000 });
+        t.removeToast(id);
+        t.removeToast(id);
+        vi.advanceTimersByTime(1000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+        vi.advanceTimersByTime(300);
+        expect(document.getElementById(id)).toBeNull();
+    });
+
+    it('never delays a timeout-driven removal, even when duration is shorter than minVisibleDuration', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 100, minVisibleDuration: 5000 });
+        vi.advanceTimersByTime(100);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('never delays an eviction-driven removal', () => {
+        const t = new Toasts();
+        t.configure({ maxToasts: 1, evictOldest: true, minVisibleDuration: 5000 });
+        const id1 = t.showToast('1', { duration: 0 });
+        t.showToast('2', { duration: 0 });
+        expect(document.getElementById(id1)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('0 (the default) disables the guard entirely - an immediate removeToast() dismisses right away', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0 });
+        t.removeToast(id);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('a negative or NaN minVisibleDuration is invalid - warns once and falls back to the configured default', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, minVisibleDuration: -5 });
+        t.removeToast(id);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        warnSpy.mockRestore();
     });
 });
 
@@ -692,6 +776,58 @@ describe('eviction and stacking', () => {
         expect(bottomLabel).not.toBe(topLabel);
         expect(bottomLabel).toBe('Notifications, bottom center');
         expect(topLabel).toBe('Notifications, top right');
+    });
+});
+
+describe('configurable gap and z-index (#76, #77)', () => {
+    afterEach(cleanup);
+
+    it('defaults the stacking gap to 8px, matching the library\'s previous hardcoded spacing', () => {
+        const t = new Toasts();
+        const id1 = t.showToast('1', { duration: 0, animation: ToastAnimation.NONE });
+        t.showToast('2', { duration: 0, animation: ToastAnimation.NONE });
+        expect(document.getElementById(id1)!.style.bottom).toBe(`${TOAST_EDGE_OFFSET + 8}px`);
+    });
+
+    it('configure({ gap }) changes the spacing applied between stacked toasts', () => {
+        const t = new Toasts();
+        t.configure({ gap: 50 });
+        const id1 = t.showToast('1', { duration: 0, animation: ToastAnimation.NONE });
+        t.showToast('2', { duration: 0, animation: ToastAnimation.NONE });
+        expect(document.getElementById(id1)!.style.bottom).toBe(`${TOAST_EDGE_OFFSET + 50}px`);
+    });
+
+    it('a negative or NaN gap is invalid - warns once and falls back to the previous default', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        t.configure({ gap: -5 });
+        expect(t.config.gap).toBe(8);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        warnSpy.mockRestore();
+    });
+
+    it('defaults every snackbar\'s --bt-z-index to 10000', () => {
+        const t = new Toasts();
+        const id = t.showToast('1', { duration: 0 });
+        const snackbar = document.getElementById(id)!.parentElement!;
+        expect(snackbar.style.getPropertyValue('--bt-z-index')).toBe('10000');
+    });
+
+    it('configure({ zIndex }) sets the snackbar\'s --bt-z-index custom property', () => {
+        const t = new Toasts();
+        t.configure({ zIndex: 5000 });
+        const id = t.showToast('1', { duration: 0 });
+        const snackbar = document.getElementById(id)!.parentElement!;
+        expect(snackbar.style.getPropertyValue('--bt-z-index')).toBe('5000');
+    });
+
+    it('a later configure({ zIndex }) updates an already-rendered snackbar live, same as locale/aria-label', () => {
+        const t = new Toasts();
+        const id = t.showToast('1', { duration: 0 });
+        const snackbar = document.getElementById(id)!.parentElement!;
+        t.configure({ zIndex: 42 });
+        t.showToast('2', { duration: 0 });
+        expect(snackbar.style.getPropertyValue('--bt-z-index')).toBe('42');
     });
 });
 

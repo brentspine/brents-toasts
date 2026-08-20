@@ -83,6 +83,26 @@ Both only fire on a real pause↔running transition (never for an already-paused
 and never for a sticky one, which has no timer state to transition in the first place) - the same
 no-op rules the timer methods above already follow.
 
+## Guarding against instant dismissal
+
+Nothing stops a `closable` toast from being clicked away, or `removeToast(id)` called, the
+instant it appears - which can happen accidentally (a stray click landing where the toast just
+rendered) or as a side effect of a fast-resolving async flow. `minVisibleDuration` guards against
+that: a `removeToast()` call that arrives before the toast has been visible for at least this many
+ms plays a `ToastTransition.SHAKE_LR` on the card as feedback and is **deferred**, not dropped -
+it still closes, just once the remaining time has passed.
+
+```ts live
+toasts.showToast('Are you sure?', { duration: 0, minVisibleDuration: 1000 });
+```
+
+Set it per-toast (`showToast`'s `options`/`ToastBuilder.withMinVisibleDuration()`) or library-wide
+via `configure({ minVisibleDuration })`. `0` (the default) disables the guard entirely. It never
+delays a `'timeout'` removal (that's already governed by `duration` itself) or an `'evicted'` one
+(`maxToasts` capacity has to be freed immediately) - see [`ToastCloseReason`](lifecycle.md). A
+negative or `NaN` value is invalid - warns once and falls back to the configured default, same as
+an invalid `duration`.
+
 A common use: reflecting the countdown back onto the toast itself via
 [`updateToast`](lifecycle.md) instead of spawning a new one every time:
 

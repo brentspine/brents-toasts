@@ -287,7 +287,7 @@ describe('Playground', () => {
   });
 
   it('hasCustomConfig() is true once the Config page has saved a non-default form', async () => {
-    localStorage.setItem('bt-demo:config-form', JSON.stringify({ duration: 9000 }));
+    localStorage.setItem('bt-demo:config-form', JSON.stringify({ form: { duration: 9000 }, json: {} }));
     const fixture = await createComponent();
     expect(fixture.componentInstance.hasCustomConfig()).toBe(true);
   });

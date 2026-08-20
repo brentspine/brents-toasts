@@ -7,6 +7,35 @@
   color: var(--muted);
 }
 
+.search-field {
+  max-width: 360px;
+  margin-bottom: 12px;
+}
+
+.empty {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.json-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.json-field textarea {
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+}
+
+.json-field label .type {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -44,15 +73,6 @@ textarea {
 input:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.theme-field {
-  margin-bottom: 20px;
-}
-
-.theme-field textarea {
-  font-family: ui-monospace, monospace;
-  font-size: 13px;
 }
 
 .error {

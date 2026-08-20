@@ -2,171 +2,102 @@
   <h1>Config</h1>
   <p class="intro">
     Change the library-wide defaults in every way <code>toasts.configure()</code> allows, then hit Apply: every
-    toast fired from the Playground afterwards reflects it. Your changes are saved locally and re-applied
-    automatically next time you visit.
+    toast fired from the Playground afterwards reflects it. Every field below - including the JSON-shaped ones -
+    is wired up to Apply, and the search box filters the form and the reference table together. Your changes are
+    saved locally and re-applied automatically next time you visit.
   </p>
 
-  <div class="grid">
-    <div class="field">
-      <label for="severity">severity</label>
-      <select id="severity" [ngModel]="form().severity" (ngModelChange)="updateForm('severity', $event)">
-        @for (s of severities; track s) {
-          <option [value]="s">{{ s }}</option>
-        }
-      </select>
-    </div>
-
-    <div class="field">
-      <label for="duration">duration</label>
-      <input
-        id="duration"
-        type="number"
-        [ngModel]="form().duration"
-        (ngModelChange)="updateForm('duration', $event)"
-      />
-    </div>
-
-    <div class="field">
-      <label for="position">position</label>
-      <select id="position" [ngModel]="form().position" (ngModelChange)="updateForm('position', $event)">
-        @for (p of positions; track p) {
-          <option [value]="p">{{ p }}</option>
-        }
-      </select>
-    </div>
-
-    <div class="field">
-      <label for="maxToasts">maxToasts</label>
-      <input
-        id="maxToasts"
-        type="number"
-        [ngModel]="form().maxToasts"
-        (ngModelChange)="updateForm('maxToasts', $event)"
-        [disabled]="!form().evictOldest"
-        [title]="!form().evictOldest ? 'maxToasts has no effect while evictOldest is off - the stack is never capped' : ''"
-      />
-    </div>
-
-    <div class="field">
-      <label for="locale">locale</label>
-      <select id="locale" [ngModel]="form().locale" (ngModelChange)="updateForm('locale', $event)">
-        <option value="auto">auto-detect</option>
-        <option value="en">en</option>
-        <option value="de">de</option>
-        <option value="es">es</option>
-        <option value="fr">fr</option>
-      </select>
-    </div>
-
-    <div class="field checkbox">
-      <label>
-        <input
-          type="checkbox"
-          [ngModel]="form().closable"
-          (ngModelChange)="updateForm('closable', $event)"
-        />
-        closable
-      </label>
-    </div>
-
-    <div class="field checkbox">
-      <label>
-        <input type="checkbox" [ngModel]="form().allowHtml" (ngModelChange)="updateForm('allowHtml', $event)" />
-        allowHtml
-      </label>
-    </div>
-
-    <div class="field checkbox">
-      <label>
-        <input
-          type="checkbox"
-          [ngModel]="form().allowLineBreaks"
-          (ngModelChange)="updateForm('allowLineBreaks', $event)"
-        />
-        allowLineBreaks
-      </label>
-    </div>
-
-    <div class="field checkbox">
-      <label>
-        <input
-          type="checkbox"
-          [ngModel]="form().evictOldest"
-          (ngModelChange)="updateForm('evictOldest', $event)"
-        />
-        evictOldest
-      </label>
-    </div>
-
-    <div class="field checkbox">
-      <label>
-        <input
-          type="checkbox"
-          [ngModel]="form().pauseOnHover"
-          (ngModelChange)="updateForm('pauseOnHover', $event)"
-        />
-        pauseOnHover
-      </label>
-    </div>
-
-    <div class="field checkbox">
-      <label>
-        <input
-          type="checkbox"
-          [ngModel]="form().pauseOnPageHidden"
-          (ngModelChange)="updateForm('pauseOnPageHidden', $event)"
-        />
-        pauseOnPageHidden
-      </label>
-    </div>
-
-    <div class="field checkbox">
-      <label>
-        <input type="checkbox" [ngModel]="form().progress" (ngModelChange)="updateForm('progress', $event)" />
-        progress
-      </label>
-    </div>
-
-    <div class="field checkbox">
-      <label
-        title="Only has an effect if set before the very first toast is shown anywhere on this page - this demo may have already injected the stylesheet elsewhere, so toggling this off and hitting Apply might not visibly change anything until a full reload."
-      >
-        <input
-          type="checkbox"
-          [ngModel]="form().injectStyles"
-          (ngModelChange)="updateForm('injectStyles', $event)"
-        />
-        injectStyles
-      </label>
-    </div>
-
-    <div class="field checkbox">
-      <label
-        title="Independent of injectStyles - gates only the positioning/stacking CSS (.bt-snackbar/.bt-toast-container). Same 'before the first toast anywhere on this page' caveat applies; turning it off without your own positioning CSS makes toasts render in normal document flow instead of as fixed, stacked notifications."
-      >
-        <input
-          type="checkbox"
-          [ngModel]="form().injectLayoutStyles"
-          (ngModelChange)="updateForm('injectLayoutStyles', $event)"
-        />
-        injectLayoutStyles
-      </label>
-    </div>
+  <div class="field search-field">
+    <label for="config-search">Search fields</label>
+    <input
+      id="config-search"
+      type="search"
+      placeholder="Filter by name, type, or description…"
+      [ngModel]="search()"
+      (ngModelChange)="search.set($event)"
+    />
   </div>
 
-  <div class="field theme-field">
-    <label for="themeJson">theme (JSON)</label>
-    <textarea
-      id="themeJson"
-      rows="3"
-      placeholder='{ "background": "#1c1c1c", "text": "#f5f5f5" }'
-      [ngModel]="form().themeJson"
-      (ngModelChange)="updateForm('themeJson', $event)"
-    ></textarea>
-    @if (themeError()) {
-      <p class="error">{{ themeError() }}</p>
+  @if (filteredScalarOptions().length === 0 && filteredJsonOptions().length === 0) {
+    <p class="empty">No config fields match "{{ search() }}" - try a different term.</p>
+  }
+
+  <div class="grid">
+    @for (opt of filteredScalarOptions(); track opt.name) {
+      @switch (opt.control) {
+        @case ('boolean') {
+          <div class="field checkbox">
+            <label [title]="opt.description">
+              <input
+                type="checkbox"
+                [ngModel]="form()[opt.name]"
+                (ngModelChange)="updateForm(opt.name, $event)"
+              />
+              {{ opt.name }}
+            </label>
+          </div>
+        }
+        @case ('select') {
+          <div class="field">
+            <label [for]="opt.name" [title]="opt.description">{{ opt.name }}</label>
+            <select
+              [id]="opt.name"
+              [ngModel]="form()[opt.name]"
+              (ngModelChange)="updateForm(opt.name, $event)"
+            >
+              @if (opt.name === 'locale') {
+                <option value="auto">auto-detect</option>
+              }
+              @for (choice of opt.selectOptions; track choice) {
+                @if (!(opt.name === 'locale' && choice === 'auto')) {
+                  <option [value]="choice">{{ choice }}</option>
+                }
+              }
+            </select>
+          </div>
+        }
+        @default {
+          <div class="field">
+            <label [for]="opt.name" [title]="opt.description">{{ opt.name }}</label>
+            <input
+              [id]="opt.name"
+              type="number"
+              [ngModel]="form()[opt.name]"
+              (ngModelChange)="updateForm(opt.name, $event)"
+              [disabled]="opt.name === 'maxToasts' && !form()['evictOldest']"
+              [title]="opt.name === 'maxToasts' && !form()['evictOldest'] ? 'maxToasts has no effect while evictOldest is off - the stack is never capped' : opt.description"
+            />
+          </div>
+        }
+      }
     }
   </div>
+
+  @if (filteredJsonOptions().length > 0) {
+    <h2>Advanced (JSON) fields</h2>
+    <p class="intro">
+      These fields accept a real value, entered as JSON - e.g. <code>{{ '{ "background": "#1c1c1c" }' }}</code> for
+      <code>theme</code>, or <code>["compact", "wide"]</code> for <code>modifiers</code>. Leave one blank to not
+      override it.
+    </p>
+    <div class="json-grid">
+      @for (opt of filteredJsonOptions(); track opt.name) {
+        <div class="field json-field">
+          <label [for]="opt.name" [title]="opt.description">{{ opt.name }} <span class="type">{{ opt.type }}</span></label>
+          <textarea
+            [id]="opt.name"
+            rows="3"
+            [placeholder]="opt.description"
+            [ngModel]="jsonFields()[opt.name]"
+            (ngModelChange)="updateJsonField(opt.name, $event)"
+          ></textarea>
+          @if (jsonErrors()[opt.name]) {
+            <p class="error">{{ jsonErrors()[opt.name] }}</p>
+          }
+        </div>
+      }
+    </div>
+  }
 
   <div class="apply-row">
     <button type="button" class="apply" (click)="apply()">Apply config</button>
@@ -230,12 +161,16 @@
         </tr>
       </thead>
       <tbody>
-        @for (opt of configOptions; track opt.name) {
+        @for (opt of filteredConfigOptions(); track opt.name) {
           <tr>
             <td><code>{{ opt.name }}</code></td>
             <td><code>{{ opt.type }}</code></td>
             <td>{{ opt.default }}</td>
             <td>{{ opt.description }}</td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="4" class="empty">No config fields match "{{ search() }}".</td>
           </tr>
         }
       </tbody>

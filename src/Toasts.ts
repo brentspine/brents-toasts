@@ -16,7 +16,7 @@ import { ToastLocales, matchToastLocale, detectBrowserLocales, type ToastTransla
 import type { ToastTheme } from './ToastTheme';
 import { ToastIcon, getIconSource, type ToastIconValue, type ToastIconSource } from './ToastIcon';
 import { applyColor, applyContent, applyIcon, applyProgress, renderActions, setProgressAriaValue, type ResolvedProgress } from './ToastRender';
-import { TOAST_EDGE_OFFSET, recalculatePositions, stackExistingAway, totalStackedExtent, edgeFor } from './ToastStacking';
+import { TOAST_EDGE_OFFSET, TOAST_GAP, recalculatePositions, stackExistingAway, totalStackedExtent, edgeFor } from './ToastStacking';
 import toastsCss from './toasts.css';
 import toastsLayoutCss from './toasts-layout.css';
 import VERSION from 'virtual:version';
@@ -89,6 +89,16 @@ export interface ToastOptions {
     color?: string;
     /** Auto-dismiss after ms. Use `0` to disable. Defaults to `3000` or the configured default. A negative or `NaN` value is invalid - warns once and falls back to the configured default. */
     duration?: number;
+    /** Milliseconds a toast must stay on screen before a `'user'`/`'programmatic'`/`'promise'`-reason
+     *  `removeToast()` call (including a click, if `closable`) is actually allowed to dismiss it -
+     *  guards against accidentally closing a toast the instant it appears. A call that arrives too
+     *  early plays a `ToastTransition.SHAKE_LR` on the card as feedback and is deferred (not dropped)
+     *  until the remaining time elapses, so the dismissal still happens, just not before the minimum
+     *  has passed. Never delays a `'timeout'` or `'evicted'` removal - the auto-dismiss timer and
+     *  `maxToasts` capacity management both still act immediately. `0` disables the guard entirely.
+     *  Defaults to `0` or the configured default. A negative or `NaN` value is invalid - warns once
+     *  and falls back to the configured default. */
+    minVisibleDuration?: number;
     /** Whether clicking the toast dismisses it. Also governs keyboard dismissal - a closable
      *  toast's row is focusable (`tabindex="0"`) with `role="button"` and an accessible name,
      *  and can be dismissed with Enter/Space while the row itself is focused, or Escape while
@@ -176,6 +186,8 @@ export interface ToastsConfig {
     /** Library-wide default `ToastOptions.severity`. Default `ToastSeverity.INFO`. */
     severity: ToastSeverityValue;
     duration: number;
+    /** Library-wide default for `ToastOptions.minVisibleDuration`. See there. Default `0` (no guard). */
+    minVisibleDuration: number;
     closable: boolean;
     allowHtml: boolean;
     /** Library-wide default for `ToastOptions.allowLineBreaks`. See there. */
@@ -246,6 +258,19 @@ export interface ToastsConfig {
      *  a `color` value against this table. Merges key-by-key over the current value (like `theme` does
      *  per-toast), so a partial override doesn't drop the other severities' colors. */
     colors: ToastColorPalette;
+    /** Pixel spacing between stacked toasts within the same snackbar - what `ToastStacking.ts`'s
+     *  positioning math (`recalculatePositions`/`stackExistingAway`/`totalStackedExtent`) adds on
+     *  top of each toast's own rendered height. Default `8`. A negative or `NaN` value is invalid -
+     *  warns once and falls back to the previous default. */
+    gap: number;
+    /** `z-index` of every snackbar (`.bt-snackbar`), applied as the `--bt-z-index` CSS custom
+     *  property (same inline-override-over-stylesheet-default pattern as `ToastTheme`) so plain CSS
+     *  targeting `.bt-snackbar` still works. Re-applied to already-rendered snackbars on every
+     *  `configure()` call, not just at creation - same "refreshed live" treatment the snackbar's
+     *  `aria-label` gets for `locale`. Default `10000`. Shared across every same-position `Toasts`
+     *  instance the same way the physical snackbar itself is - whichever instance's `configure()`
+     *  runs last for a given position wins. */
+    zIndex: number;
 }
 
 /**
@@ -322,6 +347,7 @@ interface ResolvedToastOptions {
     severity: ToastSeverityValue;
     color: string;
     duration: number;
+    minVisibleDuration: number;
     closable: boolean;
     allowHtml: boolean;
     allowLineBreaks: boolean;
@@ -371,6 +397,7 @@ type ToastState = ResolvedToastOptions & { message: string | Node };
 export const DEFAULT_CONFIG: ToastsConfig = {
     severity: ToastSeverity.INFO,
     duration: 3000,
+    minVisibleDuration: 0,
     closable: true,
     allowHtml: false,
     allowLineBreaks: true,
@@ -389,6 +416,8 @@ export const DEFAULT_CONFIG: ToastsConfig = {
     injectStyles: true,
     injectLayoutStyles: true,
     colors: { ...ToastColor },
+    gap: TOAST_GAP,
+    zIndex: 10000,
 };
 
 // Per-toast auto-dismiss timer bookkeeping, keyed off the toast's own root
@@ -502,6 +531,14 @@ export class Toasts {
     // button focuses it, then the mouse leaves - the timer must stay paused
     // until the button itself loses focus too).
     private _pointerFocusState: WeakMap<HTMLElement, { hovering: boolean; focused: boolean }>;
+    // `Date.now()` when each toast was actually mounted - what `removeToast`'s
+    // `minVisibleDuration` guard measures elapsed visible time against. Set once in
+    // `showToast`, never updated afterwards.
+    private _shownAt: WeakMap<HTMLElement, number>;
+    // A deferred `removeToast` re-attempt scheduled by the `minVisibleDuration` guard below -
+    // tracked so a second premature dismissal attempt (e.g. a repeated click) during the same
+    // guard window re-plays the shake feedback without stacking a second redundant timer.
+    private _pendingMinVisibleRemoval: WeakMap<HTMLElement, ReturnType<typeof setTimeout>>;
     // Per-instance, per-event-name listener sets registered via `on()`/`off()` - see
     // `ToastEventMap`. Deliberately instance state (not shared like `toastOwners`/`toastSeq`),
     // same scoping as `config` itself: a page-scoped `new Toasts()`'s listeners only ever see
@@ -525,6 +562,8 @@ export class Toasts {
         this._data = new WeakMap();
         this._toastState = new WeakMap();
         this._pointerFocusState = new WeakMap();
+        this._shownAt = new WeakMap();
+        this._pendingMinVisibleRemoval = new WeakMap();
         this._listeners = {};
     }
 
@@ -590,6 +629,10 @@ export class Toasts {
         if (!Number.isFinite(this.config.maxToasts) || this.config.maxToasts < 1) {
             this._warnInvalid('maxToasts', this.config.maxToasts, `${MAX_TOASTS}`);
             this.config.maxToasts = MAX_TOASTS;
+        }
+        if (!Number.isFinite(this.config.gap) || this.config.gap < 0) {
+            this._warnInvalid('gap', this.config.gap, `${TOAST_GAP}`);
+            this.config.gap = TOAST_GAP;
         }
     }
 
@@ -731,6 +774,7 @@ export class Toasts {
         if (opts.onClose) this._onCloseCallbacks.set(toastContainer, opts.onClose);
         if (opts.data !== undefined) this._data.set(toastContainer, opts.data);
         this._toastState.set(toastContainer, { ...opts, message });
+        this._shownAt.set(toastContainer, Date.now());
 
         const toast = document.createElement('div');
         toast.className = 'bt-toast';
@@ -786,10 +830,10 @@ export class Toasts {
             snackbar.insertBefore(toastContainer, snackbar.firstChild);
             // Existing toasts don't need to move - this one is landing
             // beyond all of them, not displacing them from the edge.
-            targetOffset = TOAST_EDGE_OFFSET + totalStackedExtent(snackbar, toastContainer);
+            targetOffset = TOAST_EDGE_OFFSET + totalStackedExtent(snackbar, toastContainer, this.config.gap);
         } else {
             snackbar.appendChild(toastContainer);
-            stackExistingAway(snackbar, toastContainer, animationDef.containerTransition);
+            stackExistingAway(snackbar, toastContainer, animationDef.containerTransition, this.config.gap);
             targetOffset = TOAST_EDGE_OFFSET;
         }
         // Mounted into the DOM now, as distinct from `show` (which fired before any rendering) -
@@ -799,7 +843,7 @@ export class Toasts {
         // Any later height change (details toggled open/closed, or a
         // consumer mutating the toast's own content in place) reflows the
         // whole stack, so an expanded toast never overlaps the ones above it.
-        const resizeObserver = new ResizeObserver(() => recalculatePositions(snackbar));
+        const resizeObserver = new ResizeObserver(() => recalculatePositions(snackbar, undefined, this.config.gap));
         resizeObserver.observe(toast);
         this._resizeObservers.set(toastContainer, resizeObserver);
 
@@ -916,6 +960,37 @@ export class Toasts {
             owner.removeToast(id, reason);
             return;
         }
+
+        // Guards against dismissing a toast before it's been visible for `minVisibleDuration` -
+        // doesn't apply to 'timeout' (already governed by `duration` itself) or 'evicted'
+        // (`maxToasts` capacity has to be freed immediately, or a newly-shown toast could push
+        // the visible count above the configured cap). A premature attempt plays a `SHAKE_LR` as
+        // feedback and is deferred (not dropped) until the remaining time passes, so the
+        // dismissal still happens rather than being silently swallowed.
+        if (reason !== 'timeout' && reason !== 'evicted') {
+            const state = this._toastState.get(toastContainer);
+            const shownAt = this._shownAt.get(toastContainer);
+            if (state && shownAt !== undefined && state.minVisibleDuration > 0) {
+                const remaining = state.minVisibleDuration - (Date.now() - shownAt);
+                if (remaining > 0) {
+                    this.playToastTransition(id, ToastTransition.SHAKE_LR);
+                    if (!this._pendingMinVisibleRemoval.has(toastContainer)) {
+                        const timeoutId = setTimeout(() => {
+                            this._pendingMinVisibleRemoval.delete(toastContainer);
+                            this.removeToast(id, reason);
+                        }, remaining);
+                        this._pendingMinVisibleRemoval.set(toastContainer, timeoutId);
+                    }
+                    return;
+                }
+            }
+        }
+        const pendingRemoval = this._pendingMinVisibleRemoval.get(toastContainer);
+        if (pendingRemoval) {
+            clearTimeout(pendingRemoval);
+            this._pendingMinVisibleRemoval.delete(toastContainer);
+        }
+
         const parent = toastContainer.parentElement;
 
         const onClose = this._onCloseCallbacks.get(toastContainer);
@@ -945,14 +1020,14 @@ export class Toasts {
         // The exiting toast is what's causing this reflow, so its own
         // transition (not each sibling's) governs how they move out of the
         // way - see applyOffset in ToastStacking.ts.
-        if (parent) recalculatePositions(parent, animationDef.containerTransition);
+        if (parent) recalculatePositions(parent, animationDef.containerTransition, this.config.gap);
 
         setTimeout(() => {
             toastContainer.remove();
             this._resizeObservers.get(toastContainer)?.disconnect();
             this._resizeObservers.delete(toastContainer);
             this._toastAnimations.delete(toastContainer);
-            if (parent) recalculatePositions(parent, animationDef.containerTransition);
+            if (parent) recalculatePositions(parent, animationDef.containerTransition, this.config.gap);
             this._emit('remove', { id, reason });
         }, animationDef.exitDurationMs);
     }
@@ -1766,6 +1841,7 @@ export class Toasts {
             severity: this.config.severity,
             color: this.config.colors[this.config.severity],
             duration: this.config.duration,
+            minVisibleDuration: this.config.minVisibleDuration,
             closable: this.config.closable,
             allowHtml: this.config.allowHtml,
             allowLineBreaks: this.config.allowLineBreaks,
@@ -1821,11 +1897,16 @@ export class Toasts {
     }
 
     // `duration: 0` deliberately means "sticky" - only reject values that can't mean
-    // anything (negative, NaN, Infinity), not 0 itself.
+    // anything (negative, NaN, Infinity), not 0 itself. Same treatment for
+    // `minVisibleDuration` ("0" means "no guard").
     private _validateDuration(opts: ResolvedToastOptions): ResolvedToastOptions {
         if (!Number.isFinite(opts.duration) || opts.duration < 0) {
             this._warnInvalid('duration', opts.duration, `the configured default (${this.config.duration})`);
             opts.duration = this.config.duration;
+        }
+        if (!Number.isFinite(opts.minVisibleDuration) || opts.minVisibleDuration < 0) {
+            this._warnInvalid('minVisibleDuration', opts.minVisibleDuration, `the configured default (${this.config.minVisibleDuration})`);
+            opts.minVisibleDuration = this.config.minVisibleDuration;
         }
         return opts;
     }
@@ -2040,8 +2121,10 @@ export class Toasts {
         if (cached) {
             // Refreshed on every call (not just at creation) so a later
             // configure({ locale }) updates an already-rendered snackbar's
-            // accessible name, not just newly-created ones.
+            // accessible name, not just newly-created ones - same live-refresh
+            // treatment `zIndex`/`--bt-z-index` gets just below.
             cached.setAttribute('aria-label', this._snackbarLabel(position, t));
+            cached.style.setProperty('--bt-z-index', String(this.config.zIndex));
             return cached;
         }
 
@@ -2050,6 +2133,7 @@ export class Toasts {
             : null;
         if (existing) {
             existing.setAttribute('aria-label', this._snackbarLabel(position, t));
+            existing.style.setProperty('--bt-z-index', String(this.config.zIndex));
             this.snackbars.set(position, existing);
             return existing;
         }
@@ -2060,6 +2144,7 @@ export class Toasts {
         if (position === ToastPosition.BOTTOM_CENTER) snackbar.id = 'snackbar';
         snackbar.setAttribute('role', 'region');
         snackbar.setAttribute('aria-label', this._snackbarLabel(position, t));
+        snackbar.style.setProperty('--bt-z-index', String(this.config.zIndex));
         const root = this._getRoot();
         root.appendChild(snackbar);
         root.insertBefore(document.createComment(`brents-toasts v${VERSION} snackbar container`), snackbar);
@@ -2084,8 +2169,8 @@ export class Toasts {
         if (source?.dataset.position === target) return;
         const targetSnackbar = this._getSnackbar(target, this._getTranslations());
         targetSnackbar.appendChild(toastEl);
-        if (source) recalculatePositions(source);
-        recalculatePositions(targetSnackbar);
+        if (source) recalculatePositions(source, undefined, this.config.gap);
+        recalculatePositions(targetSnackbar, undefined, this.config.gap);
     }
 }
 

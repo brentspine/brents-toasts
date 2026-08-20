@@ -1,63 +1,74 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { toasts, ToastAnimation, ToastSeverity, ToastPosition, type ToastSeverityValue, type ToastPositionValue, type PositionConfig } from 'brents-toasts';
+import { toasts, DEFAULT_CONFIG, ToastSeverity, ToastPosition, type ToastPositionValue, type ToastsConfig, type PositionConfig } from 'brents-toasts';
 import { CodeSnippet } from '../../shared/code-snippet';
 import { OptionsDataService } from '../../services/options-data';
+import optionsJson from '../../data/options.json';
+import type { OptionsData, OptionDescriptor } from '../../data/options.types';
 
-interface ConfigFormState {
-  severity: ToastSeverityValue;
-  duration: number;
-  closable: boolean;
-  allowHtml: boolean;
-  allowLineBreaks: boolean;
-  position: ToastPositionValue;
-  animation: 'slide';
-  maxToasts: number;
-  evictOldest: boolean;
-  pauseOnHover: boolean;
-  pauseOnPageHidden: boolean;
-  progress: boolean;
-  locale: 'auto' | 'en' | 'de' | 'es' | 'fr';
-  themeJson: string;
-  injectStyles: boolean;
-  injectLayoutStyles: boolean;
+// Imported directly (not via OptionsDataService) so the module-level default builders below
+// and `hasStoredConfigChanges()` - both used outside the component, before Angular DI exists -
+// can read the same canonical field list the rendered form is built from.
+const CONFIG_OPTIONS: OptionDescriptor[] = (optionsJson as OptionsData).configOptions;
+
+type ScalarValue = string | number | boolean;
+
+/**
+ * Every non-JSON (`control !== 'text'`) `configOptions` field maps 1:1 onto a form value here,
+ * keyed by name - driven entirely by `configOptions`' `control`/`selectOptions` metadata rather
+ * than a hand-maintained field list, so a new `ToastsConfig` field (added only to options.json
+ * per CLAUDE.md) shows up in this form automatically instead of needing a matching edit here.
+ */
+function buildDefaultForm(): Record<string, ScalarValue> {
+  const form: Record<string, ScalarValue> = {};
+  for (const opt of CONFIG_OPTIONS) {
+    if (opt.control === 'text') continue;
+    if (opt.name === 'locale') {
+      form['locale'] = 'auto'; // DEFAULT_CONFIG.locale is undefined - "auto" is this form's sentinel for that
+      continue;
+    }
+    form[opt.name] = (DEFAULT_CONFIG as unknown as Record<string, ScalarValue>)[opt.name];
+  }
+  return form;
 }
 
-const DEFAULT_FORM_STATE: ConfigFormState = {
-  severity: ToastSeverity.INFO,
-  duration: 3000,
-  closable: true,
-  allowHtml: false,
-  allowLineBreaks: true,
-  position: ToastPosition.BOTTOM_CENTER,
-  animation: ToastAnimation.SLIDE,
-  maxToasts: 5,
-  evictOldest: true,
-  pauseOnHover: true,
-  pauseOnPageHidden: true,
-  progress: false,
-  locale: 'auto',
-  themeJson: '',
-  injectStyles: true,
-  injectLayoutStyles: true,
-};
+/** Every JSON-shaped (`control: 'text'`) field's raw textarea contents - blank means "don't override". */
+function buildDefaultJson(): Record<string, string> {
+  const json: Record<string, string> = {};
+  for (const opt of CONFIG_OPTIONS) {
+    if (opt.control === 'text') json[opt.name] = '';
+  }
+  return json;
+}
+
+interface StoredConfigForm {
+  form: Record<string, ScalarValue>;
+  json: Record<string, string>;
+}
 
 const STORAGE_KEY = 'bt-demo:config-form';
 
-function loadStoredForm(): ConfigFormState {
+function loadStoredForm(): StoredConfigForm {
+  const defaults: StoredConfigForm = { form: buildDefaultForm(), json: buildDefaultJson() };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_FORM_STATE };
-    return { ...DEFAULT_FORM_STATE, ...JSON.parse(raw) };
+    if (!raw) return defaults;
+    const parsed = JSON.parse(raw) as Partial<StoredConfigForm>;
+    return {
+      form: { ...defaults.form, ...parsed.form },
+      json: { ...defaults.json, ...parsed.json },
+    };
   } catch {
-    return { ...DEFAULT_FORM_STATE };
+    return defaults;
   }
 }
 
 /** Whether the persisted config form (see STORAGE_KEY above) differs from the library defaults - used by the Playground to hint that toasts there reflect a customized config, not out-of-the-box behavior. */
 export function hasStoredConfigChanges(): boolean {
-  return JSON.stringify(loadStoredForm()) !== JSON.stringify(DEFAULT_FORM_STATE);
+  const stored = loadStoredForm();
+  const defaults: StoredConfigForm = { form: buildDefaultForm(), json: buildDefaultJson() };
+  return JSON.stringify(stored) !== JSON.stringify(defaults);
 }
 
 @Component({
@@ -69,11 +80,28 @@ export function hasStoredConfigChanges(): boolean {
 })
 export class Config {
   readonly configOptions = inject(OptionsDataService).data.configOptions;
+  readonly scalarOptions = this.configOptions.filter((o) => o.control !== 'text');
+  readonly jsonOptions = this.configOptions.filter((o) => o.control === 'text');
   readonly positions = Object.values(ToastPosition);
-  readonly severities = Object.values(ToastSeverity);
 
-  readonly form = signal<ConfigFormState>(loadStoredForm());
-  readonly themeError = signal<string | null>(null);
+  readonly search = signal('');
+  readonly filteredConfigOptions = computed(() => {
+    const query = this.search().trim().toLowerCase();
+    if (!query) return this.configOptions;
+    return this.configOptions.filter(
+      (opt) =>
+        opt.name.toLowerCase().includes(query) ||
+        opt.type.toLowerCase().includes(query) ||
+        opt.description.toLowerCase().includes(query),
+    );
+  });
+  readonly filteredScalarOptions = computed(() => this.filteredConfigOptions().filter((o) => o.control !== 'text'));
+  readonly filteredJsonOptions = computed(() => this.filteredConfigOptions().filter((o) => o.control === 'text'));
+
+  private readonly stored = loadStoredForm();
+  readonly form = signal<Record<string, ScalarValue>>(this.stored.form);
+  readonly jsonFields = signal<Record<string, string>>(this.stored.json);
+  readonly jsonErrors = signal<Record<string, string>>({});
   readonly appliedSnippet = signal('// Click "Apply config" to see the generated code here.');
 
   readonly overridePosition = signal<ToastPositionValue>(ToastPosition.TOP_RIGHT);
@@ -88,7 +116,7 @@ export class Config {
     this.apply();
 
     effect(() => {
-      const state = this.form();
+      const state: StoredConfigForm = { form: this.form(), json: this.jsonFields() };
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       } catch {
@@ -97,8 +125,12 @@ export class Config {
     });
   }
 
-  updateForm<K extends keyof ConfigFormState>(key: K, value: ConfigFormState[K]): void {
-    this.form.update((current) => ({ ...current, [key]: value }));
+  updateForm(name: string, value: ScalarValue): void {
+    this.form.update((current) => ({ ...current, [name]: value }));
+  }
+
+  updateJsonField(name: string, value: string): void {
+    this.jsonFields.update((current) => ({ ...current, [name]: value }));
   }
 
   resetConfig(): void {
@@ -107,8 +139,13 @@ export class Config {
       duration: 0,
       buttons: [
         toasts.confirmButton('Reset', () => {
-          this.form.set({ ...DEFAULT_FORM_STATE });
-          this.themeError.set(null);
+          this.form.set(buildDefaultForm());
+          this.jsonFields.set(buildDefaultJson());
+          this.jsonErrors.set({});
+          // Reverts every field the library tracks (including ones apply() would otherwise
+          // leave untouched, like a JSON field left blank meaning "don't override" rather than
+          // "clear back to default") before re-applying the now-default form on top.
+          toasts.resetConfig();
           this.apply();
         }),
       ],
@@ -117,38 +154,33 @@ export class Config {
 
   apply(): void {
     const state = this.form();
-    this.themeError.set(null);
+    const json = this.jsonFields();
+    const config: Record<string, unknown> = {};
+    const errors: Record<string, string> = {};
 
-    let theme: Record<string, string> | undefined;
-    if (state.themeJson.trim()) {
+    for (const opt of this.scalarOptions) {
+      if (opt.name === 'locale') {
+        if (state['locale'] !== 'auto') config['locale'] = state['locale'];
+        continue;
+      }
+      config[opt.name] = state[opt.name];
+    }
+
+    for (const opt of this.jsonOptions) {
+      const raw = (json[opt.name] ?? '').trim();
+      if (!raw) continue;
       try {
-        theme = JSON.parse(state.themeJson);
+        config[opt.name] = JSON.parse(raw);
       } catch {
-        this.themeError.set('Theme must be valid JSON, e.g. { "background": "#222" }');
-        return;
+        errors[opt.name] = `${opt.name} must be valid JSON`;
       }
     }
 
-    toasts.configure({
-      severity: state.severity,
-      duration: state.duration,
-      closable: state.closable,
-      allowHtml: state.allowHtml,
-      allowLineBreaks: state.allowLineBreaks,
-      position: state.position,
-      animation: state.animation,
-      maxToasts: state.maxToasts,
-      evictOldest: state.evictOldest,
-      pauseOnHover: state.pauseOnHover,
-      pauseOnPageHidden: state.pauseOnPageHidden,
-      progress: state.progress,
-      locale: state.locale === 'auto' ? undefined : state.locale,
-      theme,
-      injectStyles: state.injectStyles,
-      injectLayoutStyles: state.injectLayoutStyles,
-    });
+    this.jsonErrors.set(errors);
+    if (Object.keys(errors).length > 0) return;
 
-    this.appliedSnippet.set(this.buildSnippet(state, theme));
+    toasts.configure(config as Partial<ToastsConfig>);
+    this.appliedSnippet.set(this.buildSnippet(config));
   }
 
   applyPositionOverride(): void {
@@ -168,27 +200,12 @@ export class Config {
     return [...this.positionOverrides().entries()];
   }
 
-  private buildSnippet(state: ConfigFormState, theme: Record<string, string> | undefined): string {
-    const lines = [
-      'toasts.configure({',
-      `  severity: "${state.severity}",`,
-      `  duration: ${state.duration},`,
-      `  closable: ${state.closable},`,
-      `  allowHtml: ${state.allowHtml},`,
-      `  allowLineBreaks: ${state.allowLineBreaks},`,
-      `  position: "${state.position}",`,
-      `  animation: "${state.animation}",`,
-      `  maxToasts: ${state.maxToasts},`,
-      `  evictOldest: ${state.evictOldest},`,
-      `  pauseOnHover: ${state.pauseOnHover},`,
-      `  pauseOnPageHidden: ${state.pauseOnPageHidden},`,
-      `  progress: ${state.progress},`,
-      state.locale !== 'auto' ? `  locale: "${state.locale}",` : undefined,
-      theme ? `  theme: ${JSON.stringify(theme)},` : undefined,
-      !state.injectStyles ? `  injectStyles: false,` : undefined,
-      !state.injectLayoutStyles ? `  injectLayoutStyles: false,` : undefined,
-      '});',
-    ].filter((line): line is string => line !== undefined);
+  private buildSnippet(config: Record<string, unknown>): string {
+    const lines = ['toasts.configure({'];
+    for (const [key, value] of Object.entries(config)) {
+      lines.push(`  ${key}: ${JSON.stringify(value)},`);
+    }
+    lines.push('});');
     return lines.join('\n');
   }
 }

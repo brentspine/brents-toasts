@@ -94,7 +94,10 @@ cases, and worked examples before implementing anything non-trivial with it.
 - **Timers** - `pause`/`resume`/`reset`/`extend`/`removeToastTimer`, `getToastTimer(id)`. All
   no-ops on a sticky toast (`duration: 0`); it never has timer state. Timers also auto-pause on
   hover/focus (`pauseOnHover`, default on) and while the page is hidden (`pauseOnPageHidden`,
-  default on) - independent triggers, both must release to resume.
+  default on) - independent triggers, both must release to resume. `minVisibleDuration` (default
+  `0`, disabled) guards against dismissing a toast before it's been visible that long - a
+  premature `removeToast()`/click plays `SHAKE_LR` and defers rather than drops the dismissal;
+  never delays a `'timeout'`/`'evicted'` removal.
   → [guide/timers.md](guide/timers.md)
 - **Progress bar** - `progress: { mode: 'fill' | 'drain' | 'manual' }`; `'manual'` ignores the
   timer, drive it with `setToastProgress(id, 0-1)`. → [guide/progress.md](guide/progress.md)
@@ -127,7 +130,8 @@ cases, and worked examples before implementing anything non-trivial with it.
   separate pre-translated common words. → [guide/localization.md](guide/localization.md)
 - **Config** - `configure()`/`configurePosition()` for defaults, `resetConfig()` (or the exported
   `DEFAULT_CONFIG`) to revert `configure()`, six stacking positions, `maxToasts`/`evictOldest`,
-  responsive collapsing below `responsiveBreakpoint`. Scope defaults to one page/section with
+  responsive collapsing below `responsiveBreakpoint`, `gap` (default `8`px, spacing between
+  stacked toasts) and `zIndex` (default `10000`, applied as `--bt-z-index`). Scope defaults to one page/section with
   `new Toasts()` instead of the shared singleton. `role`/`aria-live`/`aria-atomic` come from
   `ToastOptions.severity` alone (`WARNING`/`ERROR` → `alert`/`assertive`, `INFO`/`SUCCESS` →
   `status`/`polite`) - `color` is purely visual and never affects them. An unset `color` defaults
@@ -159,5 +163,6 @@ cases, and worked examples before implementing anything non-trivial with it.
   instance.
 - A throwing `onClose`/button `onClick`/`promise()` message resolver is caught and warned about
   (`console.warn`), never left to crash the caller or abort the rest of a toast's cleanup.
-- An invalid `duration` (negative/NaN) or `maxToasts` (< 1) warns once and falls back to the
-  configured default instead of silently producing broken behavior.
+- An invalid `duration`/`minVisibleDuration` (negative/NaN), `maxToasts` (< 1), or `gap`
+  (negative/NaN) warns once and falls back to the configured default instead of silently
+  producing broken behavior.
