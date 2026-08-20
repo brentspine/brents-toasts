@@ -48,6 +48,18 @@
     width: 20px;
 }
 .bt-toast-row .bt-toast-content { margin-left: 10px; padding: 6px 0; flex: 1 1 auto; min-width: 0; }
+/* Opt-in (ToastOptions.icon/ToastsConfig.icon - see ToastIcon.ts) - only
+   exists in the DOM when an icon is actually set, so it costs nothing for
+   toasts that don't use it. Sits between .bt-toast-close and
+   .bt-toast-content (applyIcon in ToastRender.ts), so "icon left of the
+   message" is already the default with zero modifiers active. `color:
+   inherit` (from --bt-text) is enough for the single-color built-ins - no
+   contrast math needed like the close glyph, since this sits on the card's
+   own background, not the accent bar. */
+.bt-toast-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 20px; height: 20px; margin-left: 10px; color: inherit; }
+.bt-toast-icon img { display: block; width: 100%; height: 100%; object-fit: contain; }
+@keyframes bt-spin { to { transform: rotate(360deg); } }
+.bt-toast-icon-spin { animation: bt-spin 0.8s linear infinite; }
 /* Reserves the same 15.5px the close bar gains on hover (4.5px -> 20px) as
    trailing space after the message instead - so a closable toast's overall
    width never changes on hover, without leaving a dead gap between the
@@ -256,6 +268,52 @@
        modifier. */
     background-color: var(--bt-background, var(--data-background, #333));
 }
+
+/* icon-left (ToastModifier.ICON_LEFT) / icon-disabled (ToastModifier.ICON_DISABLED):
+   the only two icon-placement modifiers implemented so far - see the TODO in
+   ToastModifier.ts for why further placements (icon-right, icon-top, replacing
+   the accent bar) are deferred. Both rules touch only .bt-toast-icon itself,
+   never another element's rules - "modifiers only move the icon". */
+.bt-toast[data-bt-modifiers~="icon-left"] .bt-toast-icon {
+    /* Already the default position with no modifiers active - this pins it
+       there under modifiers that reorder .bt-toast-row's other children via
+       `order` (close-pinned-right below), so icon+close-pinned-right still
+       renders the icon first instead of falling in behind. */
+    order: -1;
+}
+.bt-toast[data-bt-modifiers~="icon-disabled"] .bt-toast-icon { display: none; }
+
+/* icon-pop / icon-bounce (ToastModifier.ICON_POP / ICON_BOUNCE): opt-in
+   entrance animations for .bt-toast-icon, plain CSS keyframes that play
+   once whenever the element is (re)created - applyIcon (ToastRender.ts)
+   fully rebuilds it on every showToast/updateToast({ icon }) rather than
+   diffing, so the animation replays naturally with no JS involvement.
+   Mutually exclusive in effect (both animate the same element on mount) -
+   pick one. Targets only .bt-toast-icon itself, same "modifiers only move
+   the icon" scoping as icon-left/icon-disabled above; composes cleanly
+   with ToastIcon.SPINNER since bt-spin (below) targets the spinner's own
+   inner <svg>, not this wrapper. */
+@keyframes bt-icon-pop {
+    from { transform: scale(0.5); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+.bt-toast[data-bt-modifiers~="icon-pop"] .bt-toast-icon { animation: bt-icon-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+@keyframes bt-icon-bounce {
+    0% { transform: scale(0.3); opacity: 0; }
+    50% { transform: scale(1.15); opacity: 1; }
+    70% { transform: scale(0.9); }
+    100% { transform: scale(1); }
+}
+.bt-toast[data-bt-modifiers~="icon-bounce"] .bt-toast-icon { animation: bt-icon-bounce 0.5s ease-out; }
+
+/* Icon-only sizing/spacing touch-ups so the icon slot still looks right
+   under modifiers whose own rules resize/reposition its neighbors - each
+   rule below only ever targets .bt-toast-icon, the existing modifier rules
+   above are untouched. */
+.bt-toast[data-bt-modifiers~="compact"] .bt-toast-icon { width: 16px; height: 16px; margin-left: 8px; }
+.bt-toast[data-bt-modifiers~="accent-top"] .bt-toast-icon { margin-left: 12px; }
+.bt-toast[data-bt-modifiers~="close-corner"] .bt-toast-icon { margin-left: 12px; }
 
 .bt-toast-row .bt-toast-title { font-weight: 600; }
 /* align-self: stretch makes this column span the row's full height, and

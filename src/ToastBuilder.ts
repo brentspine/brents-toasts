@@ -1,6 +1,7 @@
 import { toasts as defaultToasts, Toasts, type ToastOptions, type ToastDetailItem, type ToastButtonStep, type ToastProgressOptions, type ToastCloseReason } from './Toasts';
 import { ToastSeverity, type ToastSeverityValue } from './ToastColor';
 import type { ToastTheme } from './ToastTheme';
+import type { ToastIconValue } from './ToastIcon';
 import type { ToastPositionValue } from './ToastPosition';
 import type { ToastAnimationValue } from './ToastAnimation';
 import type { ToastLayoutValue } from './ToastLayout';
@@ -76,6 +77,8 @@ export class ToastBuilder {
     withSource(source: string): this { this._options.source = source; return this; }
     /** Extra color knobs beyond `withColor()` - merges key-by-key over `configure()`'s `theme` at `.show()` time. See `ToastOptions.theme`/`ToastTheme`. */
     withTheme(theme: ToastTheme): this { this._options.theme = theme; return this; }
+    /** Opt-in icon rendered between the accent bar and the message - a built-in/registered name, `{ src }`, `{ class }`, a `Node`, or a renderer function. See `ToastOptions.icon`/`ToastIcon`. */
+    withIcon(icon: ToastIconValue): this { this._options.icon = icon; return this; }
     /** No-op via `.show()` - there's nothing to transition from on a toast's first render, so this only takes effect if the built options object later reaches `updateToast`/`promise()` some other way. Included for shape-compatibility with `ToastOptions`. See `ToastOptions.transition`. */
     withTransition(transition: ToastTransitionValue = ToastTransition.FADE): this { this._options.transition = transition; return this; }
     andRemoveOtherToasts(): this { this._options.removeOtherToasts = true; return this; }

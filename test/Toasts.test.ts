@@ -6,6 +6,7 @@ import { ToastPosition } from '../src/ToastPosition';
 import { ToastAnimation, registerToastAnimation, getToastAnimation } from '../src/ToastAnimation';
 import { ToastLayout, registerToastLayout } from '../src/ToastLayout';
 import { ToastModifier, registerToastModifier } from '../src/ToastModifier';
+import { ToastIcon, registerToastIcon } from '../src/ToastIcon';
 import { ToastTransition, registerToastTransition } from '../src/ToastTransition';
 import { recalculatePositions } from '../src/ToastStacking';
 import { ToastQuickActions } from '../src/ToastQuickActions';
@@ -900,6 +901,163 @@ describe('theme', () => {
         const toast = document.getElementById(id)!.querySelector('.bt-toast') as HTMLElement;
         expect(toast.style.getPropertyValue('--bt-background')).toBe('#222');
         expect(toast.style.getPropertyValue('--bt-text')).toBe('#eee');
+    });
+});
+
+describe('icon', () => {
+    afterEach(cleanup);
+
+    function iconOf(id: string): HTMLElement | null {
+        return document.getElementById(id)!.querySelector('.bt-toast-icon');
+    }
+
+    it('renders no icon unless opted into', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0 });
+        expect(iconOf(id)).toBeNull();
+    });
+
+    it('renders a built-in icon by name, decorative and positioned before the message', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, icon: ToastIcon.SUCCESS });
+        const el = iconOf(id)!;
+        expect(el.getAttribute('aria-hidden')).toBe('true');
+        expect(el.querySelector('svg')).not.toBeNull();
+        const row = document.getElementById(id)!.querySelector('.bt-toast-row')!;
+        const children = Array.from(row.children);
+        expect(children.indexOf(el)).toBeLessThan(children.indexOf(row.querySelector('.bt-toast-content')!));
+    });
+
+    it('{ src } renders an <img>', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, icon: { src: '/icon.svg' } });
+        const img = iconOf(id)!.querySelector('img')!;
+        expect(img.src).toContain('/icon.svg');
+    });
+
+    it('{ class } renders an empty span carrying the given class', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, icon: { class: 'my-icon-font' } });
+        const span = iconOf(id)!.querySelector('span.my-icon-font');
+        expect(span).not.toBeNull();
+        expect(span!.textContent).toBe('');
+    });
+
+    it('a Node is appended directly', () => {
+        const t = new Toasts();
+        const node = document.createElement('b');
+        node.textContent = 'N';
+        const id = t.showToast('x', { duration: 0, icon: node });
+        expect(iconOf(id)!.contains(node)).toBe(true);
+    });
+
+    it('a renderer function is called and its returned Node appended', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, icon: () => {
+            const el = document.createElement('i');
+            el.className = 'fn-icon';
+            return el;
+        } });
+        expect(iconOf(id)!.querySelector('i.fn-icon')).not.toBeNull();
+    });
+
+    it('drops an unrecognized icon name and warns only once for it', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        const id1 = t.showToast('1', { duration: 0, icon: 'nope' });
+        const id2 = t.showToast('2', { duration: 0, icon: 'nope' });
+        expect(iconOf(id1)).toBeNull();
+        expect(iconOf(id2)).toBeNull();
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        warnSpy.mockRestore();
+    });
+
+    it('registerToastIcon() makes a custom name resolvable', () => {
+        registerToastIcon('custom-icon-test', { class: 'registered-custom-icon' });
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, icon: 'custom-icon-test' });
+        expect(iconOf(id)!.querySelector('span.registered-custom-icon')).not.toBeNull();
+    });
+
+    it('updateToast({ icon }) rebuilds the icon in place, and clears it back off with icon: undefined', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0 });
+        expect(iconOf(id)).toBeNull();
+
+        t.updateToast(id, { icon: ToastIcon.WARNING });
+        expect(iconOf(id)!.querySelector('svg')).not.toBeNull();
+
+        t.updateToast(id, { icon: undefined });
+        expect(iconOf(id)).toBeNull();
+    });
+
+    it('configure({ icon }) sets a library-wide default, overridable per toast', () => {
+        const t = new Toasts();
+        t.configure({ icon: ToastIcon.INFO });
+        const defaulted = t.showToast('x', { duration: 0 });
+        expect(iconOf(defaulted)).not.toBeNull();
+
+        const overridden = t.showToast('y', { duration: 0, icon: { class: 'overridden-icon' } });
+        expect(iconOf(overridden)!.querySelector('span.overridden-icon')).not.toBeNull();
+    });
+});
+
+describe('promise icons', () => {
+    afterEach(cleanup);
+
+    function iconOf(id: string): HTMLElement | null {
+        return document.getElementById(id)!.querySelector('.bt-toast-icon');
+    }
+
+    it('configure({ promiseIcons: true }) shows the built-in spinner while pending, then the success/error icon', async () => {
+        const t = new Toasts();
+        t.configure({ promiseIcons: true });
+        const p = Promise.resolve('x');
+        t.promise(p, { loading: 'Loading...', success: 'Done!' });
+        const toastId = document.querySelector('.bt-toast-container')!.id;
+        expect(iconOf(toastId)!.querySelector('svg.bt-toast-icon-spin')).not.toBeNull();
+
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(iconOf(toastId)!.querySelector('svg')).not.toBeNull();
+        expect(iconOf(toastId)!.querySelector('svg.bt-toast-icon-spin')).toBeNull();
+    });
+
+    it('renders no promise icons unless promiseIcons is configured', async () => {
+        const t = new Toasts();
+        const p = Promise.resolve('x');
+        t.promise(p, { loading: 'Loading...', success: 'Done!' });
+        const toastId = document.querySelector('.bt-toast-container')!.id;
+        expect(iconOf(toastId)).toBeNull();
+
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(iconOf(toastId)).toBeNull();
+    });
+
+    it('a partial promiseIcons object only sets the outcomes given', async () => {
+        const t = new Toasts();
+        t.configure({ promiseIcons: { error: { class: 'my-error-icon' } } });
+        const p = Promise.resolve('x');
+        t.promise(p, { loading: 'Loading...', success: 'Done!' });
+        const toastId = document.querySelector('.bt-toast-container')!.id;
+        expect(iconOf(toastId)).toBeNull(); // no `pending` entry given
+
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(iconOf(toastId)).toBeNull(); // success outcome has no configured icon either
+    });
+
+    it('a per-outcome messages.X.icon override wins over the configured promiseIcons default', async () => {
+        const t = new Toasts();
+        t.configure({ promiseIcons: true });
+        const p = Promise.resolve('x');
+        t.promise(p, { loading: 'Loading...', success: { message: 'Done!', icon: { class: 'my-success-icon' } } });
+        const toastId = document.querySelector('.bt-toast-container')!.id;
+
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(iconOf(toastId)!.querySelector('span.my-success-icon')).not.toBeNull();
     });
 });
 

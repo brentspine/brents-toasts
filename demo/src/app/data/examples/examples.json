@@ -50,6 +50,11 @@
     "description": "Override background, text, and action colors per toast without touching CSS."
   },
   {
+    "id": "icons",
+    "title": "Icons, animated",
+    "description": "A built-in icon with an entrance animation (ICON_BOUNCE), plus toasts.promise() automatically swapping in a spinner/success/error icon via configure({ promiseIcons: true })."
+  },
+  {
     "id": "sticky",
     "title": "Sticky toast with actions",
     "description": "duration: 0 keeps a toast on screen until the user acts on it, instead of auto-dismissing."

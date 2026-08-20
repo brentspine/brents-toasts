@@ -1,0 +1,10 @@
+new ToastBuilder("Saved!")
+  .withIcon(ToastIcon.SUCCESS)
+  .withModifiers([ToastModifier.ICON_BOUNCE])
+  .show();
+
+toasts.configure({ promiseIcons: true });
+toasts.promise(
+  new Promise((resolve) => setTimeout(() => resolve("done"), 1500)),
+  { loading: "Uploading...", success: "Uploaded!" }
+);

@@ -121,6 +121,13 @@ describe('ToastBuilder', () => {
         expect(toast.dataset.btLayout).toBe(ToastLayout.PROMINENT);
     });
 
+    it('withIcon renders the given icon on the toast', () => {
+        const t = new Toasts();
+        const id = new ToastBuilder('m', t).withIcon({ class: 'my-builder-icon' }).withDuration(0).show();
+        const icon = document.getElementById(id)!.querySelector('.bt-toast-icon');
+        expect(icon?.querySelector('span.my-builder-icon')).not.toBeNull();
+    });
+
     it('withOnClose is invoked when the toast is removed', () => {
         vi.useFakeTimers();
         const t = new Toasts();

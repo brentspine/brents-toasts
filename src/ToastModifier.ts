@@ -27,6 +27,34 @@
   Nothing stops an unintended combination at the type level, same as
   nothing stops passing two conflicting plain CSS classes - document it,
   don't contort the API to prevent it.
+
+  `icon-left`/`icon-disabled` control `.bt-toast-icon` (see ToastIcon.ts/
+  ToastRender.ts's applyIcon) and, per the same "modifiers carry no JS
+  behavior" rule, only ever touch that element's own rules - never another
+  modifier's. `icon-left` pins the icon to its default leading position
+  (already where it renders with no modifiers active) so it stays there
+  even under modifiers that reorder `.bt-toast-row`'s other children via
+  `order` (`close-pinned-right`). `icon-disabled` force-hides it regardless
+  of whatever `ToastOptions.icon`/`configure()`'s `icon` says - the same
+  "hide via CSS regardless of the JS option" role `close-hidden` already
+  plays for `closable`. TODO: further icon placements (`icon-right`,
+  `icon-top`, replacing the accent bar entirely) are deliberately not
+  implemented yet - they'd need to edit `accent-top`/`close-corner`'s own
+  existing rules rather than only adding new `.bt-toast-icon`-scoped ones,
+  which is a bigger change than this pass intentionally scoped down to.
+
+  `icon-pop`/`icon-bounce` are entrance-animation variants for
+  `.bt-toast-icon`, same "only touch that element's own rules" scoping as
+  `icon-left`/`icon-disabled` above - a plain CSS `@keyframes` animation
+  that plays once whenever the icon element is (re)created (initial
+  `showToast`, or an `updateToast({ icon })` that changes it - both go
+  through `applyIcon`'s full rebuild, never a diff, so the animation
+  replays naturally with no JS involvement). Opt-in and mutually exclusive
+  in effect (both animate the same element on mount) - pick one, not both.
+  Composes cleanly with `ToastIcon.SPINNER`: the spin keyframes target the
+  spinner's own inner `<svg>` (`bt-toast-icon-spin`), not the
+  `.bt-toast-icon` wrapper these animate, so a spinner can pop/bounce in
+  and then spin continuously without the two animations conflicting.
 */
 
 export const ToastModifier = {
@@ -39,6 +67,10 @@ export const ToastModifier = {
     CLOSE_PINNED_RIGHT: 'close-pinned-right',
     FILLED_BACKGROUND: 'filled-background',
     FULL_BLEED: 'full-bleed',
+    ICON_LEFT: 'icon-left',
+    ICON_DISABLED: 'icon-disabled',
+    ICON_POP: 'icon-pop',
+    ICON_BOUNCE: 'icon-bounce',
 } as const;
 
 // Widened so a name registered via registerToastModifier still type-checks

@@ -41,13 +41,18 @@ standalone, stacked with each other, and/or layered on top of a `layout`:
 | `'close-corner'` | `ToastModifier.CLOSE_CORNER` | Close button is a small circle overlaid on the card's top-right corner (modal-`×`-style) instead of living in the row's flex flow, letting content/actions use the row's full width beneath it. |
 | `'close-pinned-right'` | `ToastModifier.CLOSE_PINNED_RIGHT` | Close button is always visible, pinned to the row's trailing/right edge, in the row's normal flex flow (as opposed to `close-corner`'s overlaid circle). No swatch of its own - pair with `filled-background` below for the "colored bar with an always-on close" look. |
 | `'filled-background'` | `ToastModifier.FILLED_BACKGROUND` | Paints the whole card background from the toast's own color instead of the flat default background. An explicit `theme.background` still overrides this. Independent of the close-button variants - stacks with any of them (or none). |
+| `'icon-left'` | `ToastModifier.ICON_LEFT` | Pins a toast's icon (see [icons.md](icons.md)) to its default leading position, so it stays there under modifiers that reorder the row's other children (`close-pinned-right`). Already the default position with no modifiers active - only needed to keep it there under such a combination. |
+| `'icon-disabled'` | `ToastModifier.ICON_DISABLED` | Force-hides a toast's icon regardless of `ToastOptions.icon`/`configure()`'s `icon` - the same "hide via CSS regardless of the JS option" role `close-hidden` plays for `closable`. |
+| `'icon-pop'` | `ToastModifier.ICON_POP` | Plays a quick scale+fade pop-in animation on the icon when it (re)renders. Mutually exclusive with `icon-bounce` in effect - both animate the same element. |
+| `'icon-bounce'` | `ToastModifier.ICON_BOUNCE` | Plays an elastic bounce-in animation on the icon when it (re)renders. Mutually exclusive with `icon-pop` in effect. |
 
 `compact`/`wide` are mutually exclusive in effect, as are the three
 close-button variants (`close-hidden`/`close-corner`/`close-pinned-right`)
-- combining two from the same group produces a well-defined but unintended
-result (CSS source order decides which one visually wins) rather than a
-supported look. `filled-background` isn't part of either group and stacks
-cleanly with anything. Nothing prevents an unsupported combination at the
+and the icon-animation pair (`icon-pop`/`icon-bounce`) - combining two from
+the same group produces a well-defined but unintended result (CSS source
+order decides which one visually wins) rather than a supported look.
+`filled-background` isn't part of any group and stacks cleanly with
+anything. Nothing prevents an unsupported combination at the
 type level, the same way nothing stops you from passing two conflicting
 plain CSS classes.
 

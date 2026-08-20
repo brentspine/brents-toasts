@@ -72,6 +72,7 @@ Full walkthrough, including the other supported call shapes: [Getting started](d
 - **[Animations](docs/guide/animations.md)** - a pluggable entrance/exit/reflow engine (slide/fade/none built in, register your own).
 - **[Config](docs/guide/config.md)** - library-wide or page-scoped defaults, six stacking positions, per-position capacity limits, responsive collapsing on narrow screens, and independent opt-outs for the toast card's look (`injectStyles: false`) and its positioning/stacking CSS (`injectLayoutStyles: false`), for a custom design system or a strict CSP.
 - **[Theming](docs/guide/theming.md)** - every color is a CSS custom property, overridable per-toast or library-wide, with automatic close-icon contrast.
+- **[Icons](docs/guide/icons.md)** - opt-in icon rendered next to the message: built-in severity icons, an image URL, a CSS class, a custom `Node`, or your own renderer function, plus automatic pending/success/error icons for `promise()`.
 - **[Localization](docs/guide/localization.md)** - built-in `en`/`de`/`es`/`fr` chrome text with custom overrides, plus a standalone pre-translated action-word utility.
 
 TypeScript-first: full `.d.ts` types ship with every build, documented via JSDoc - your editor's hover/autocomplete covers most of the day-to-day API on its own.

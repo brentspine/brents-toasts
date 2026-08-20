@@ -2,6 +2,7 @@ import { SEVERITY_ROLE, type ToastSeverityValue } from './ToastColor';
 import { applyThemeVars, autoCloseIconColor, type ToastTheme } from './ToastTheme';
 import { createActionButton, renderToastButton, type ToastButton } from './ToastButton';
 import { renderTextWithBreaks } from './ToastText';
+import type { ToastIconSource } from './ToastIcon';
 import type { ToastTranslations } from './ToastLocale';
 import type { ToastDetailItem, ToastProgressOptions } from './Toasts';
 
@@ -123,6 +124,49 @@ export function applyContent(toastContent: HTMLElement, message: string | Node, 
     } else {
         renderTextWithBreaks(toastMessage, message, opts.allowLineBreaks);
     }
+}
+
+// Mechanical rendering of an already name-resolved icon source into `el` -
+// no name lookup/warning here, that's Toasts._resolveIcon's job (mirrors how
+// _resolveModifiers/_resolveLayout, not ToastLayout.ts/ToastModifier.ts,
+// own warning for unrecognized values). A bare `string` source is literal
+// inline SVG markup at this point, never a name to look up further.
+function renderIconSource(el: HTMLElement, source: ToastIconSource): void {
+    if (typeof source === 'function') {
+        const node = source();
+        if (node) el.appendChild(node);
+    } else if (source instanceof Node) {
+        el.appendChild(source);
+    } else if (typeof source === 'string') {
+        el.innerHTML = source;
+    } else if ('src' in source) {
+        const img = document.createElement('img');
+        img.src = source.src;
+        img.alt = '';
+        el.appendChild(img);
+    } else if ('class' in source) {
+        const span = document.createElement('span');
+        span.className = source.class;
+        el.appendChild(span);
+    }
+}
+
+// Shared by Toasts.showToast and Toasts.updateToast - fully rebuilds
+// `.bt-toast-icon` from scratch (same full-rebuild-not-diff approach as
+// applyProgress/renderActions), inserting it right before `insertBefore`
+// (toastContent) so DOM/flex order is close -> icon -> content, i.e. "icon
+// left of the message" by default with no modifier needed. `icon` is already
+// name-resolved (or undefined) by the caller - see renderIconSource above.
+// Purely decorative (aria-hidden) - role/aria-live come from severity alone,
+// same rule the close glyph already follows.
+export function applyIcon(toastRow: HTMLElement, insertBefore: HTMLElement, icon: ToastIconSource | undefined): void {
+    toastRow.querySelector('.bt-toast-icon')?.remove();
+    if (!icon) return;
+    const el = document.createElement('span');
+    el.className = 'bt-toast-icon';
+    el.setAttribute('aria-hidden', 'true');
+    renderIconSource(el, icon);
+    toastRow.insertBefore(el, insertBefore);
 }
 
 // Shared by applyProgress and Toasts._syncProgressBar - the only place that

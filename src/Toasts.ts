@@ -14,7 +14,8 @@ import { ToastTransition, getToastTransition, type ToastTransitionValue } from '
 import { createStepButton, type ToastButton, type ToastButtonStep } from './ToastButton';
 import { ToastLocales, matchToastLocale, detectBrowserLocales, type ToastTranslations } from './ToastLocale';
 import type { ToastTheme } from './ToastTheme';
-import { applyColor, applyContent, applyProgress, renderActions, setProgressAriaValue, type ResolvedProgress } from './ToastRender';
+import { ToastIcon, getIconSource, type ToastIconValue, type ToastIconSource } from './ToastIcon';
+import { applyColor, applyContent, applyIcon, applyProgress, renderActions, setProgressAriaValue, type ResolvedProgress } from './ToastRender';
 import { TOAST_EDGE_OFFSET, recalculatePositions, stackExistingAway, totalStackedExtent, edgeFor } from './ToastStacking';
 import toastsCss from './toasts.css';
 import toastsLayoutCss from './toasts-layout.css';
@@ -148,6 +149,14 @@ export interface ToastOptions {
     source?: string;
     /** Extra color knobs (background, text, close icon, ...) beyond `color`. Merges key-by-key over `configure()`'s `theme` - only the fields you set here change, the rest still come from the configured default (or the built-in look, if neither sets them). See `ToastTheme`. */
     theme?: ToastTheme;
+    /** Opt-in icon rendered between the accent bar and the message - a built-in/registered name (see
+     *  `ToastIcon`/`registerToastIcon`), an image URL (`{ src }`), a consumer-owned CSS class (`{ class }`,
+     *  icon-font/background-image style), an arbitrary `Node`, or a renderer function called fresh on every
+     *  render. Nothing renders unless this (or `configure()`'s `icon`) is set - there is no automatic
+     *  severity-derived icon. Purely decorative (`aria-hidden`) - has no effect on `role`/`aria-live`, which
+     *  come from `severity` alone, same independence `color` already has. Defaults to `configure()`'s `icon`
+     *  or unset. See `docs/guide/icons.md`. */
+    icon?: ToastIconValue;
     /** Only meaningful passed to `updateToast` (directly, or via `promise()`'s `messages`/shared `options`) - animates the whole toast card's transition to the patched content instead of an instant swap, e.g. for a `promise()` loading→success/error transition. `ToastTransition.FADE` (crossfade), `ToastTransition.SHAKE_LR` (shake left-right to draw attention, then apply), or a name registered via `registerToastTransition()`. `ToastTransition.NONE`/omitted applies instantly. No-op passed to `showToast`/`ToastBuilder` - there's nothing to transition from on a toast's first render. */
     transition?: ToastTransitionValue;
 }
@@ -196,6 +205,14 @@ export interface ToastsConfig {
     translations?: Partial<ToastTranslations>;
     /** Library-wide default for `ToastOptions.theme` - see there and `ToastTheme`. */
     theme?: ToastTheme;
+    /** Library-wide default for `ToastOptions.icon` - see there and `ToastIcon`. Unset by default - opt-in, no automatic icon. */
+    icon?: ToastIconValue;
+    /** Default icons for `promise()`'s `pending`/`success`/`error`/`timeout` outcomes - overridable per call via
+     *  `promise()`'s own `options`/`messages`, same as `severity`/`color` already are there. `true` is shorthand
+     *  for the built-in set (`{ pending: ToastIcon.SPINNER, success: ToastIcon.SUCCESS, error: ToastIcon.ERROR,
+     *  timeout: ToastIcon.WARNING }`); a partial object only sets the outcomes given. Unset/`false` by default -
+     *  fully opt-in, disable again any time by re-`configure()`-ing this to `false`/`undefined`. */
+    promiseIcons?: boolean | { pending?: ToastIconValue; success?: ToastIconValue; error?: ToastIconValue; timeout?: ToastIconValue };
     /** Library-wide default for `promise()`'s `timeout` - see there. `0` disables the timeout. Default `0`. */
     promiseTimeout: number;
     /** Whether the library injects its bundled toast-card CSS (colors, borders, spacing, modifier looks -
@@ -327,6 +344,7 @@ interface ResolvedToastOptions {
     data?: unknown;
     source?: string;
     theme?: ToastTheme;
+    icon?: ToastIconValue;
 }
 
 /**
@@ -743,6 +761,10 @@ export class Toasts {
 
         toastRow.appendChild(toastClose);
         toastRow.appendChild(toastContent);
+        // Must run after toastContent is appended - insertBefore's reference node has to
+        // already be a child of toastRow. Inserts .bt-toast-icon (if any) right before it,
+        // giving DOM/flex order close -> icon -> content with no modifier needed.
+        applyIcon(toastRow, toastContent, this._resolveIcon(opts.icon));
         toast.appendChild(toastRow);
         renderActions(toastRow, toast, opts, id, t, (toastId) => this.resetToastTimer(toastId));
         this._setProgressConfig(toastContainer, applyProgress(toast, opts.progress, opts.color, t));
@@ -976,7 +998,7 @@ export class Toasts {
 
         const hasVisualChange =
             'message' in update || 'title' in update || 'titleMode' in update || 'allowHtml' in update || 'allowLineBreaks' in update ||
-            'color' in update || 'severity' in update || 'theme' in update || 'progress' in update ||
+            'color' in update || 'severity' in update || 'theme' in update || 'progress' in update || 'icon' in update ||
             'buttons' in update || 'details' in update || 'detailsLabel' in update || 'detailsHideLabel' in update;
 
         const applyVisuals = () => {
@@ -1016,6 +1038,7 @@ export class Toasts {
             if ('buttons' in update || 'details' in update || 'detailsLabel' in update || 'detailsHideLabel' in update || 'allowLineBreaks' in update) {
                 renderActions(toastRow, toast, state, id, this._getTranslations(), (toastId) => this.resetToastTimer(toastId));
             }
+            if ('icon' in update) applyIcon(toastRow, toastContent, this._resolveIcon(state.icon));
         };
 
         if (update.transition && hasVisualChange) {
@@ -1528,8 +1551,16 @@ export class Toasts {
         },
         options?: ToastPromiseOptions
     ): Promise<T> {
+        // Resolved once per call - `true` is shorthand for the full built-in set, a partial
+        // object only supplies the outcomes given, and unset/`false` (the default) means no
+        // promise()-specific icon at all - see ToastsConfig.promiseIcons.
+        const promiseIconsCfg = this.config.promiseIcons;
+        const promiseIcons = promiseIconsCfg === true
+            ? { pending: ToastIcon.SPINNER, success: ToastIcon.SUCCESS, error: ToastIcon.ERROR, timeout: ToastIcon.WARNING }
+            : promiseIconsCfg || {};
+
         const loading = this._resolvePromiseMessage<void>(messages.loading);
-        const id = this.showToast(loading.message ?? '', { ...options, ...loading, duration: 0 });
+        const id = this.showToast(loading.message ?? '', { icon: promiseIcons.pending, ...options, ...loading, duration: 0 });
 
         let settled = false;
         const timeoutMs = options?.timeout ?? this.config.promiseTimeout;
@@ -1537,7 +1568,7 @@ export class Toasts {
             settled = true;
             if (messages.timeout === undefined) { this.removeToast(id, 'promise'); return; }
             const update = this._resolvePromiseMessage(messages.timeout);
-            this.updateToast(id, { severity: ToastSeverity.WARNING, color: this.config.colors.WARNING, duration: this.config.duration, ...options, ...update });
+            this.updateToast(id, { icon: promiseIcons.timeout, severity: ToastSeverity.WARNING, color: this.config.colors.WARNING, duration: this.config.duration, ...options, ...update });
         }, timeoutMs) : undefined;
 
         promise.then(
@@ -1546,14 +1577,14 @@ export class Toasts {
                 if (timeoutId !== undefined) clearTimeout(timeoutId);
                 if (messages.success === undefined) { this.removeToast(id, 'promise'); return; }
                 const update = this._resolvePromiseMessage(messages.success, data);
-                this.updateToast(id, { severity: ToastSeverity.SUCCESS, color: this.config.colors.SUCCESS, duration: this.config.duration, ...options, ...update });
+                this.updateToast(id, { icon: promiseIcons.success, severity: ToastSeverity.SUCCESS, color: this.config.colors.SUCCESS, duration: this.config.duration, ...options, ...update });
             },
             (err) => {
                 if (settled) return;
                 if (timeoutId !== undefined) clearTimeout(timeoutId);
                 if (messages.error === undefined) { this.removeToast(id, 'promise'); return; }
                 const update = this._resolvePromiseMessage(messages.error, err);
-                this.updateToast(id, { severity: ToastSeverity.ERROR, color: this.config.colors.ERROR, duration: this.config.duration, ...options, ...update });
+                this.updateToast(id, { icon: promiseIcons.error, severity: ToastSeverity.ERROR, color: this.config.colors.ERROR, duration: this.config.duration, ...options, ...update });
             }
         );
 
@@ -1757,6 +1788,7 @@ export class Toasts {
             data: undefined,
             source: undefined,
             theme: this.config.theme,
+            icon: this.config.icon,
         };
 
         if (colorOrOptions !== null && typeof colorOrOptions === 'object') {
@@ -1918,6 +1950,26 @@ export class Toasts {
         if (this._warned.has(key)) return;
         this._warned.add(key);
         console.warn(`[brents-toasts] modifier "${name}" is not implemented yet, ignoring it.`);
+    }
+
+    // Same one-time-per-bad-value dedup as _warnUnknownModifier, for an unrecognized icon name.
+    private _warnUnknownIcon(name: string): void {
+        const key = `icon:${name}`;
+        if (this._warned.has(key)) return;
+        this._warned.add(key);
+        console.warn(`[brents-toasts] icon "${name}" is not registered, ignoring it.`);
+    }
+
+    // Resolves ToastOptions.icon into a concrete ToastIconSource applyIcon can render, doing
+    // name lookup/warning here - not in ToastRender.ts/ToastIcon.ts - same split of
+    // responsibility as _resolveModifiers/_resolveLayout own warning for their own options.
+    // A non-string icon (Node/function/{src}/{class}) is already a concrete source.
+    private _resolveIcon(icon: ToastIconValue | undefined): ToastIconSource | undefined {
+        if (icon === undefined) return undefined;
+        if (typeof icon !== 'string') return icon;
+        const source = getIconSource(icon);
+        if (source === undefined) this._warnUnknownIcon(icon);
+        return source;
     }
 
     // Same one-time-per-bad-value dedup as _warnUnimplemented, for options that are

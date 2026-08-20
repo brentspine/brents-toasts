@@ -9,6 +9,7 @@
     { "title": "Multi-step & confirm buttons", "description": "Built-in confirm-before-action, copy-to-clipboard, and general multi-step button state machines.", "exampleId": "confirm" },
     { "title": "Expandable details", "description": "Attach extra collapsible detail lines to any toast without cluttering the main message.", "exampleId": "details" },
     { "title": "Progress bars", "description": "An optional thin progress bar synced to a toast's auto-dismiss countdown, fill or drain, any edge.", "exampleId": "progress" },
+    { "title": "Icons", "description": "Opt-in icon next to the message: built-in severity icons, an image URL, a CSS class, a custom Node, or your own renderer function - plus automatic icons for promise() outcomes." },
     { "title": "Promise-based toasts", "description": "toasts.promise() ties a toast to a fetch/async call's lifecycle: a loading state that patches itself to success or error once the promise settles.", "exampleId": "promise" },
     { "title": "TypeScript-first", "description": "Full .d.ts types ship with every build, with every option documented via JSDoc." }
   ],
@@ -40,6 +41,7 @@
     { "name": "data", "type": "unknown", "default": "undefined", "description": "Arbitrary data to associate with the toast, readable later via getToastData(id).", "builderCall": ".withData({ orderId: 1234 })" },
     { "name": "source", "type": "string", "default": "undefined", "description": "Grouping label - dismiss every toast sharing it at once via clearBySource(source), without tracking each toast's id yourself.", "builderCall": ".withSource(\"upload-manager\")" },
     { "name": "theme", "type": "ToastTheme", "typeRef": "ToastTheme", "default": "undefined", "description": "Extra color knobs beyond color: card background, text, details block, action/close-icon colors.", "builderCall": ".withTheme({ background: \"#1c1c1c\", text: \"#f5f5f5\" })" },
+    { "name": "icon", "type": "ToastIconValue", "typeRef": "ToastIconValue", "default": "undefined", "description": "Opt-in icon rendered between the accent bar and the message. Nothing renders unless set - no automatic severity-derived icon. Purely decorative, no effect on role/aria-live.", "builderCall": ".withIcon(ToastIcon.SUCCESS)" },
     { "name": "transition", "type": "ToastTransitionValue", "typeRef": "ToastTransitionValue", "default": "undefined", "description": "Only meaningful passed to updateToast (directly, or via promise()) - animates the whole toast card into the patch instead of swapping instantly. No-op at creation, since there's nothing to transition from yet.", "builderCall": ".withTransition(ToastTransition.FADE)" },
     { "name": "buttons", "type": "ToastButton[]", "typeRef": "ToastButton", "default": "undefined", "description": "Action buttons rendered right of the message. Clicks never trigger closable dismissal.", "builderCall": ".withButton(\"Undo\", (event, id) => console.log(\"undo\", id))" },
     { "name": "details", "type": "(string | ToastDetailItem)[]", "typeRef": "ToastDetailItem", "default": "undefined", "description": "Extra lines revealed by an auto-added Details toggle, rendered outside the dismissable row.", "builderCall": ".withDetails([\"Order #1234 shipped\", \"Tracking: 1Z999AA10123456784\"], \"Show details\", \"Hide details\")" },
@@ -70,6 +72,8 @@
     { "name": "locale", "type": "string | undefined", "default": "undefined (auto-detect)", "description": "Force a specific bundled locale (e.g. \"de\"). Omit to auto-detect from the browser, falling back to \"en\".", "control": "select", "selectOptions": ["auto", "en", "de", "es", "fr"] },
     { "name": "translations", "type": "Partial<ToastTranslations> | undefined", "default": "undefined", "description": "Partial string overrides layered on top of the resolved locale pack.", "control": "text" },
     { "name": "theme", "type": "ToastTheme", "typeRef": "ToastTheme", "default": "undefined", "description": "Library-wide default color overrides: card background, text, details block, action/close-icon colors.", "control": "text" },
+    { "name": "icon", "type": "ToastIconValue", "typeRef": "ToastIconValue", "default": "undefined", "description": "Library-wide default icon, overridable per toast. Unset by default - opt-in, no automatic icon.", "control": "text" },
+    { "name": "promiseIcons", "type": "boolean | ToastPromiseIcons", "typeRef": "ToastPromiseIcons", "default": "undefined", "description": "Default icons for promise()'s pending/success/error/timeout outcomes, overridable per call. true is shorthand for the built-in set (spinner/success/error/warning icons). Unset/false by default - fully opt-in.", "control": "text" },
     { "name": "colors", "type": "ToastColorPalette", "typeRef": "ToastColorPalette", "default": "{ ...ToastColor }", "description": "The severity -> default color lookup: what an unset color resolves to for a given severity, and what promise() defaults color to for its timeout/success/error outcomes. Accessibility (role/aria-live) is unaffected by this - it comes from severity alone. Merges key-by-key over the current value.", "control": "text" },
     { "name": "injectStyles", "type": "boolean", "default": "true", "description": "Whether the library injects the toast card's bundled look (.bt-toast/etc.) into <head> on first use. Set to false to style toasts yourself from scratch - only has an effect if set before the first toast is shown anywhere on the page.", "control": "boolean" },
     { "name": "injectLayoutStyles", "type": "boolean", "default": "true", "description": "Whether the library injects its bundled positioning/stacking CSS (.bt-snackbar/.bt-toast-container) into <head> on first use. Independent of injectStyles. Set to false only if you'll supply equivalent positioning CSS yourself (e.g. a strict CSP blocking all runtime <style> injection) - only has an effect if set before the first toast is shown anywhere on the page.", "control": "boolean" }
@@ -116,7 +120,11 @@
         { "value": "close-hidden", "description": "Removes all accent-bar/close-swatch chrome - just text (and buttons/progress, if present). Mutually exclusive with close-corner/close-pinned-right." },
         { "value": "close-corner", "description": "Close button becomes a small circle overlaid on the card's top-right corner. Mutually exclusive with close-hidden/close-pinned-right." },
         { "value": "close-pinned-right", "description": "Close button always visible, pinned to the row's trailing edge, in the row's normal flex flow. Mutually exclusive with close-hidden/close-corner." },
-        { "value": "filled-background", "description": "Paints the whole card background from the toast's own color instead of the flat default background. Independent of the close-button variants above - stacks with any of them." }
+        { "value": "filled-background", "description": "Paints the whole card background from the toast's own color instead of the flat default background. Independent of the close-button variants above - stacks with any of them." },
+        { "value": "icon-left", "description": "Pins the icon to its default leading position, so it stays there under modifiers that reorder the row's other children (close-pinned-right). Already the default position with no modifiers active." },
+        { "value": "icon-disabled", "description": "Force-hides the icon regardless of the icon option - the same role close-hidden plays for closable." },
+        { "value": "icon-pop", "description": "Plays a quick scale+fade pop-in animation on the icon when it (re)renders. Mutually exclusive with icon-bounce." },
+        { "value": "icon-bounce", "description": "Plays an elastic bounce-in animation on the icon when it (re)renders. Mutually exclusive with icon-pop." }
       ]
     },
     "ToastTransitionValue": {
@@ -229,6 +237,27 @@
         { "name": "doneTimeoutMs", "type": "number", "default": "2000", "description": "How long the done flash stays up before doneAction runs." },
         { "name": "doneAction", "type": "'restore' | 'close'", "default": "'restore'", "description": "What happens after the done flash (or immediately, if doneMessage is null): restore the original title/message/buttons/color, or close (dismiss) the toast." },
         { "name": "className", "type": "string", "description": "Extra class name(s) on the button itself." }
+      ]
+    },
+    "ToastIconValue": {
+      "kind": "object",
+      "description": "Opt-in per-toast icon - a bare string is always a name to look up (built-in or registered via registerToastIcon()), never a literal URL.",
+      "fields": [
+        { "name": "(name)", "type": "string", "description": "A built-in (ToastIcon.INFO/SUCCESS/WARNING/ERROR/SPINNER) or custom-registered name." },
+        { "name": "{ src }", "type": "{ src: string }", "description": "An image URL." },
+        { "name": "{ class }", "type": "{ class: string }", "description": "A consumer-owned CSS class (icon-font/background-image style) - the library renders an empty span with it." },
+        { "name": "Node", "type": "Node", "description": "An arbitrary pre-built DOM node, e.g. hand-authored animated SVG." },
+        { "name": "() => Node", "type": "() => Node", "description": "A renderer function, called fresh on every render - safest for a Node that shouldn't be shared/moved between toasts." }
+      ]
+    },
+    "ToastPromiseIcons": {
+      "kind": "object",
+      "description": "Shape of ToastsConfig.promiseIcons when it's an object (true is shorthand for the built-in set instead). Merges with promise()'s own options.icon (shared) and messages.X.icon (per-outcome, wins over everything).",
+      "fields": [
+        { "name": "pending", "type": "ToastIconValue", "default": "ToastIcon.SPINNER when promiseIcons: true", "description": "Icon on the loading toast while the promise is pending." },
+        { "name": "success", "type": "ToastIconValue", "default": "ToastIcon.SUCCESS when promiseIcons: true", "description": "Icon patched in on resolve." },
+        { "name": "error", "type": "ToastIconValue", "default": "ToastIcon.ERROR when promiseIcons: true", "description": "Icon patched in on rejection." },
+        { "name": "timeout", "type": "ToastIconValue", "default": "ToastIcon.WARNING when promiseIcons: true", "description": "Icon patched in if options.timeout elapses before the promise settles." }
       ]
     },
     "ToastDetailItem": {

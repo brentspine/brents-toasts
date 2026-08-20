@@ -21,7 +21,7 @@ import { hasStoredConfigChanges } from '../config/config';
 import type { OptionDescriptor, PlaygroundExample } from '../../data/options.types';
 
 const IMPORT_LINE =
-  "import { toasts, Toasts, ToastBuilder, ToastColor, ToastSeverity, ToastPosition, ToastAnimation, ToastLayout, ToastModifier, ToastTransition, ToastLocales, ToastQuickActions, QuickActionLocales, registerToastAnimation, registerToastLayout, registerToastModifier, registerToastTransition } from 'brents-toasts';";
+  "import { toasts, Toasts, ToastBuilder, ToastColor, ToastSeverity, ToastPosition, ToastAnimation, ToastLayout, ToastModifier, ToastIcon, ToastTransition, ToastLocales, ToastQuickActions, QuickActionLocales, registerToastAnimation, registerToastLayout, registerToastModifier, registerToastIcon, registerToastTransition } from 'brents-toasts';";
 const DEFAULT_CODE = 'new ToastBuilder("Something happened!")\n  .show();';
 const STORAGE_KEY = PLAYGROUND_STORAGE_KEY;
 

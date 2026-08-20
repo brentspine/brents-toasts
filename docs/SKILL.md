@@ -105,14 +105,23 @@ cases, and worked examples before implementing anything non-trivial with it.
   → [guide/theming.md](guide/theming.md)
 - **Layouts & modifiers** - `modifiers: ToastModifierValue[]` are small, composable design
   tweaks (`compact`, `wide`, `accent-top`, `stacked-actions`, `full-bleed`, `close-hidden`,
-  `close-corner`, `close-pinned-right`, `filled-background` - 9 built-ins), any number active
-  on one toast at once. `layout` is a mutually-exclusive named "look" via `layout:
-  ToastLayout.DEFAULT | PROMINENT` (2 built-ins, deliberately just a handful) - the
-  non-default one is itself a preset composed from `modifiers`, not a duplicate CSS path.
-  Not every modifier has a matching layout name - reach for `modifiers`
+  `close-corner`, `close-pinned-right`, `filled-background`, `icon-left`, `icon-disabled`,
+  `icon-pop`, `icon-bounce` - 13 built-ins), any number active on one toast at once. `layout` is a mutually-exclusive named
+  "look" via `layout: ToastLayout.DEFAULT | PROMINENT` (2 built-ins, deliberately just a
+  handful) - the non-default one is itself a preset composed from `modifiers`, not a duplicate
+  CSS path. Not every modifier has a matching layout name - reach for `modifiers`
   directly for a tweak that isn't a named "look". Custom ones via
   `registerToastLayout(name, modifiers?)`/`registerToastModifier(name)` plus your own
   `[data-bt-layout="name"]`/`[data-bt-modifiers~="name"]` CSS. → [guide/layouts.md](guide/layouts.md)
+- **Icons** - opt-in `icon: ToastIconValue` (a built-in/registered name, `{ src }`, `{ class }`,
+  a `Node`, or a renderer function) rendered between the accent bar and the message; nothing
+  renders unless set, no automatic severity-derived icon. `ToastIcon.INFO | SUCCESS | WARNING |
+  ERROR | SPINNER` built-ins, extend via `registerToastIcon(name, source)`. Placement is
+  `ICON_LEFT`/`ICON_DISABLED` modifiers (see above), not a separate option; `ICON_POP`/
+  `ICON_BOUNCE` play an opt-in CSS entrance animation on the icon instead (mutually exclusive
+  with each other).
+  `configure({ promiseIcons })` sets `toasts.promise()`'s pending/success/error/timeout icons.
+  → [guide/icons.md](guide/icons.md)
 - **Localization** - bundled `en`/`de`/`es`/`fr` chrome text (`configure({ locale })`), only
   affects the library's own labels, never your `title`/`message`. `ToastQuickActions` gives
   separate pre-translated common words. → [guide/localization.md](guide/localization.md)
