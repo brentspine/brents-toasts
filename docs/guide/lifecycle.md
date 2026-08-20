@@ -84,6 +84,25 @@ snackbar). `showToast(msg, { removeOtherToasts: true })` does the same thing
 before showing its own toast, for the common "replace whatever's on screen"
 case.
 
+### Choosing a toast's id
+
+`showToast` always returns an id, generated unless you supply your own via
+`id`:
+
+```ts live
+toasts.showToast('Saving...', { id: 'save-status', duration: 0 });
+// ...
+toasts.updateToast('save-status', { message: 'Saved!', duration: 3000 });
+```
+
+Handy when a single reusable indicator (a save-status toast, an upload
+progress toast, ...) is more natural to address by a name you chose than by
+capturing `showToast`'s return value and threading it through. `id` must be
+unique among elements currently on the page - a collision warns once and
+falls back to an auto-generated id rather than silently making the older
+element unreachable. Builder equivalent: `.withId(id)`. It can only be set
+at creation time; passing `id` to `updateToast` is a no-op.
+
 ### Clearing toasts by source
 
 Tag a toast with `source` at creation time to dismiss every toast sharing it

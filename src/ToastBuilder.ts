@@ -73,6 +73,8 @@ export class ToastBuilder {
     /** Adds a thin progress bar synced to the toast's auto-dismiss countdown.
      *  See `ToastOptions.progress`/`ToastProgressOptions`. */
     withProgress(progress: boolean | ToastProgressOptions = true): this { this._options.progress = progress; return this; }
+    /** Custom id for this toast instead of an auto-generated one - must be unique among elements currently on the page. See `ToastOptions.id`. */
+    withId(id: string): this { this._options.id = id; return this; }
     /** Arbitrary data readable later via `getToastData(id)`. See `ToastOptions.data`. */
     withData(data: unknown): this { this._options.data = data; return this; }
     /** Grouping label - dismiss every toast sharing it at once via `clearBySource(source)`. See `ToastOptions.source`. */

@@ -34,6 +34,7 @@ toast's id, same as `showToast()`.
 | `withPauseOnHover(pauseOnHover = true)` | `ToastOptions.pauseOnHover` | Called with no argument, enables it; also governs focus-to-pause |
 | `withPauseOnPageHidden(pauseOnPageHidden = true)` | `ToastOptions.pauseOnPageHidden` | Called with no argument, enables it; pauses while the page is hidden |
 | `withProgress(progress = true)` | `ToastOptions.progress` | See [Progress bar](progress.md) |
+| `withId(id)` | `ToastOptions.id` | Custom id instead of an auto-generated one; must be unique among elements currently on the page. See [Removing toasts](lifecycle.md#choosing-a-toasts-id) |
 | `withData(data)` | `ToastOptions.data` | See [Per-toast data](data.md) |
 | `withSource(source)` | `ToastOptions.source` | Grouping label - dismiss every toast sharing it via `clearBySource(source)`. See [Removing toasts](lifecycle.md#clearing-toasts-by-source) |
 | `withTheme(theme)` | `ToastOptions.theme` | Merges key-by-key over the configured default at `.show()` time |

@@ -52,7 +52,8 @@ new ToastBuilder('Saved!').asSuccess().withDuration(5000).withTitle('Done').show
 ```
 
 `showToast()` returns the toast's `id` (string); save it if you'll `removeToast`/`updateToast`/
-control its timer later. Defaults: `severity` `ToastSeverity.INFO` (which also picks the default
+control its timer later, or pass your own via `id` in options to choose it up front instead - see
+[guide/lifecycle.md](guide/lifecycle.md#choosing-a-toasts-id). Defaults: `severity` `ToastSeverity.INFO` (which also picks the default
 `color`, `ToastColor.INFO` - see Config below), `duration` `3000`ms, `closable`
 `true`, `allowHtml` `false`, `allowLineBreaks` `true` (all overridable via `configure()`, see
 [guide/config.md](guide/config.md)). Builder method reference:

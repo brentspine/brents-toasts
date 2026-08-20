@@ -58,6 +58,48 @@ describe('showToast call shapes', () => {
         for (let i = 0; i < 50; i++) ids.add(t.showToast('x', { duration: 0 }));
         expect(ids.size).toBe(50);
     });
+
+    it('a custom id is used as-is, and works with removeToast/updateToast (#53)', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { id: 'my-toast', duration: 0 });
+        expect(id).toBe('my-toast');
+        expect(document.getElementById('my-toast')).not.toBeNull();
+        t.updateToast('my-toast', { message: 'y' });
+        expect(document.getElementById('my-toast')!.querySelector('.bt-toast-message')?.textContent).toBe('y');
+        t.removeToast('my-toast');
+        expect(document.getElementById('my-toast')?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('a colliding custom id warns once and falls back to an auto-generated id', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        const id1 = t.showToast('x', { id: 'dup', duration: 0 });
+        const id2 = t.showToast('y', { id: 'dup', duration: 0 });
+        expect(id1).toBe('dup');
+        expect(id2).not.toBe('dup');
+        expect(document.getElementById(id2)?.querySelector('.bt-toast-message')?.textContent).toBe('y');
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        expect(warnSpy.mock.calls[0][0]).toContain('id "dup" is already in use');
+
+        // Same colliding value again - deduped, no second warning.
+        t.showToast('z', { id: 'dup', duration: 0 });
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        warnSpy.mockRestore();
+    });
+
+    it('id is a no-op passed to updateToast - the id stays the same', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0 });
+        t.updateToast(id, { id: 'renamed' });
+        expect(document.getElementById(id)).not.toBeNull();
+        expect(document.getElementById('renamed')).toBeNull();
+    });
+
+    it('ToastBuilder.withId mirrors ToastOptions.id', () => {
+        const t = new Toasts();
+        const id = new ToastBuilder('x', t).withId('built').withDuration(0).show();
+        expect(id).toBe('built');
+    });
 });
 
 describe('content rendering / XSS surface', () => {

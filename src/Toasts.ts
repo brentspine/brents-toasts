@@ -150,6 +150,14 @@ export interface ToastOptions {
      *  (`duration: 0`) - same "no timer state = no-op" rule the rest of the
      *  timer system follows. */
     progress?: boolean | ToastProgressOptions;
+    /** Custom id for this toast, used instead of an auto-generated one - pass this to
+     *  `removeToast`/`updateToast`/`getToastData`/etc. instead of capturing the string
+     *  `showToast()` returns. Must be unique among elements currently on the page (every
+     *  id-based lookup uses `document.getElementById` under the hood) - a collision warns
+     *  once and falls back to an auto-generated id instead of silently making the older
+     *  element unreachable. No-op if passed to `updateToast` - a toast's id can't be changed
+     *  after creation, only chosen at creation time. */
+    id?: string;
     /** Arbitrary data to associate with this toast, readable later via `getToastData(id)` - e.g. the item an "Undo" button should restore, so one shared `onClick` can look up what a specific toast represents instead of a new closure per toast. Never rendered or read internally. */
     data?: unknown;
     /** Arbitrary grouping label - e.g. the feature/module that showed this toast - so a whole
@@ -724,9 +732,12 @@ export class Toasts {
         // The `seq` component (shared, monotonically increasing across every `Toasts` instance -
         // see `toastSeq` above) makes a collision impossible outright, rather than merely
         // unlikely - two toasts can never be assigned the same `seq`, regardless of how
-        // improbable a random-suffix collision would already be on its own.
+        // improbable a random-suffix collision would already be on its own. A caller-supplied
+        // `ToastOptions.id` (only reachable via the options-object shape, not the legacy
+        // positional one) is used as-is once confirmed unique - see `_resolveId`.
+        const requestedId = typeof colorOrOptions === 'object' ? colorOrOptions.id : undefined;
         const seq = seqCounter++;
-        const id = `toast-${seq}-${Math.random().toString(36).slice(2, 11)}`;
+        const id = this._resolveId(requestedId, seq);
         this._emit('show', { id, severity: opts.severity, message: typeof message === 'string' ? message : (message?.textContent ?? '') });
 
         if (opts.removeOtherToasts) {
@@ -2021,6 +2032,28 @@ export class Toasts {
         if (this._warned.has(key)) return;
         this._warned.add(key);
         console.warn(`[brents-toasts] ${kind} "${value}" is not implemented yet, falling back to "${fallback}".`);
+    }
+
+    // Resolves ToastOptions.id: a requested id is used as-is once confirmed free, otherwise
+    // (unset, or colliding with an element already on the page) falls back to the same
+    // seq-based generated id showToast has always produced.
+    private _resolveId(requested: string | undefined, seq: number): string {
+        const generated = `toast-${seq}-${Math.random().toString(36).slice(2, 11)}`;
+        if (!requested) return generated;
+        if (document.getElementById(requested)) {
+            this._warnDuplicateId(requested);
+            return generated;
+        }
+        return requested;
+    }
+
+    // Same one-time-per-bad-value dedup as _warnUnimplemented, for a requested `id` that's
+    // already in use.
+    private _warnDuplicateId(id: string): void {
+        const key = `duplicate-id:${id}`;
+        if (this._warned.has(key)) return;
+        this._warned.add(key);
+        console.warn(`[brents-toasts] id "${id}" is already in use by an element on the page, falling back to an auto-generated id.`);
     }
 
     // Same one-time-per-bad-value dedup as _warnUnimplemented, but for an
