@@ -204,9 +204,14 @@
    .bt-toast-actions can use the row's full width beneath it. Niche: this
    visually detaches the close affordance from the row it logically belongs
    to - the ARIA/keyboard target is unchanged, still the row/container (see
-   Toasts.ts's _applyClosableAttrs), only its on-screen position moves. */
+   Toasts.ts's _applyClosableAttrs), only its on-screen position moves.
+   Gated on .bt-closable (not shown unconditionally like the rest of this
+   rule used to be) - a non-closable toast has nothing for it to do, and an
+   always-visible "x" on one falsely promised clicking it would dismiss the
+   toast (#115). */
 .bt-toast[data-bt-modifiers~="close-corner"] .bt-toast-row { padding: 8px 30px 8px 0; }
-.bt-toast[data-bt-modifiers~="close-corner"] .bt-toast-close {
+.bt-toast[data-bt-modifiers~="close-corner"] .bt-toast-close { display: none; }
+.bt-toast[data-bt-modifiers~="close-corner"] .bt-toast-row.bt-closable .bt-toast-close {
     display: flex;
     position: absolute;
     top: 6px;
@@ -224,13 +229,15 @@
 .bt-toast[data-bt-modifiers~="close-corner"] .bt-toast-row.bt-closable:focus-visible .bt-toast-content { margin-right: 0; }
 
 /* close-pinned-right (ToastModifier.CLOSE_PINNED_RIGHT): close button
-   always visible, pinned to the row's trailing edge instead of a
-   hover-revealed leading accent bar - pure flex `order` reordering,
-   .bt-toast-row is already display:flex so no DOM change is needed. Unlike
-   the old bundled close-persistent-right modifier this used to be part of,
-   it does NOT touch the card background - pair it with filled-background
-   below (see ToastLayout.PROMINENT) if that look is wanted too. */
-.bt-toast[data-bt-modifiers~="close-pinned-right"] .bt-toast-close {
+   always visible (for a closable toast - see the .bt-closable gate below,
+   #115), pinned to the row's trailing edge instead of a hover-revealed
+   leading accent bar - pure flex `order` reordering, .bt-toast-row is
+   already display:flex so no DOM change is needed. Unlike the old bundled
+   close-persistent-right modifier this used to be part of, it does NOT
+   touch the card background - pair it with filled-background below (see
+   ToastLayout.PROMINENT) if that look is wanted too. */
+.bt-toast[data-bt-modifiers~="close-pinned-right"] .bt-toast-close { display: none; }
+.bt-toast[data-bt-modifiers~="close-pinned-right"] .bt-toast-row.bt-closable .bt-toast-close {
     display: flex;
     order: 3;
     width: 28px;
@@ -242,7 +249,7 @@
     border-radius: 0 2px 2px 0;
     transition: none;
 }
-.bt-toast[data-bt-modifiers~="close-pinned-right"] .bt-toast-close span { opacity: 1; }
+.bt-toast[data-bt-modifiers~="close-pinned-right"] .bt-toast-row.bt-closable .bt-toast-close span { opacity: 1; }
 .bt-toast[data-bt-modifiers~="close-pinned-right"] .bt-toast-row .bt-toast-content {
     order: 1;
     margin-right: 10px;

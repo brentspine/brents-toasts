@@ -38,8 +38,8 @@ standalone, stacked with each other, and/or layered on top of a `layout`:
 | `'full-bleed'` | `ToastModifier.FULL_BLEED` | Edge-to-edge banner look - square corners, stretches to the snackbar's full width instead of shrink-wrapping. Most effective at a `*-center` position. |
 | `'accent-top'` | `ToastModifier.ACCENT_TOP` | The color accent becomes a thin horizontal strip across the top of the card instead of a left vertical bar, and the now-redundant default hover-reveal close bar is removed entirely. Dismissal still works via click/Enter/Space/Escape on the row. |
 | `'close-hidden'` | `ToastModifier.CLOSE_HIDDEN` | No accent-bar/close-swatch chrome at all - just text (and buttons/progress, if present). Dismissal still works the same way as `accent-top` above. |
-| `'close-corner'` | `ToastModifier.CLOSE_CORNER` | Close button is a small circle overlaid on the card's top-right corner (modal-`×`-style) instead of living in the row's flex flow, letting content/actions use the row's full width beneath it. |
-| `'close-pinned-right'` | `ToastModifier.CLOSE_PINNED_RIGHT` | Close button is always visible, pinned to the row's trailing/right edge, in the row's normal flex flow (as opposed to `close-corner`'s overlaid circle). No swatch of its own - pair with `filled-background` below for the "colored bar with an always-on close" look. |
+| `'close-corner'` | `ToastModifier.CLOSE_CORNER` | For a closable toast, the close button is a small circle overlaid on the card's top-right corner (modal-`×`-style) instead of living in the row's flex flow, letting content/actions use the row's full width beneath it. Hidden entirely on a non-closable toast, same as the default look. |
+| `'close-pinned-right'` | `ToastModifier.CLOSE_PINNED_RIGHT` | For a closable toast, the close button is always visible, pinned to the row's trailing/right edge, in the row's normal flex flow (as opposed to `close-corner`'s overlaid circle). No swatch of its own - pair with `filled-background` below for the "colored bar with an always-on close" look. Hidden entirely on a non-closable toast, same as the default look. |
 | `'filled-background'` | `ToastModifier.FILLED_BACKGROUND` | Paints the whole card background from the toast's own color instead of the flat default background. An explicit `theme.background` still overrides this. Independent of the close-button variants - stacks with any of them (or none). |
 | `'icon-left'` | `ToastModifier.ICON_LEFT` | Pins a toast's icon (see [icons.md](icons.md)) to its default leading position, so it stays there under modifiers that reorder the row's other children (`close-pinned-right`). Already the default position with no modifiers active - only needed to keep it there under such a combination. |
 | `'icon-disabled'` | `ToastModifier.ICON_DISABLED` | Force-hides a toast's icon regardless of `ToastOptions.icon`/`configure()`'s `icon` - the same "hide via CSS regardless of the JS option" role `close-hidden` plays for `closable`. |
@@ -71,7 +71,7 @@ the list still applies.
 | Name | `ToastLayout` constant | Modifiers it composes | Behavior |
 |---|---|---|---|
 | `'default'` | `ToastLayout.DEFAULT` | *(none)* | **Default.** Close button is a thin accent bar on the left, hidden until the toast is hovered. |
-| `'prominent'` | `ToastLayout.PROMINENT` | `close-pinned-right`, `filled-background` | Hard to miss: close button always visible, pinned to the right edge; the whole card is filled with the toast's own color. |
+| `'prominent'` | `ToastLayout.PROMINENT` | `close-pinned-right`, `filled-background` | Hard to miss: for a closable toast, the close button is always visible, pinned to the right edge; the whole card is filled with the toast's own color. On a non-closable toast, no close button is shown at all. |
 
 ```ts live
 toasts.showToast('Heads up.', { layout: ToastLayout.PROMINENT });
