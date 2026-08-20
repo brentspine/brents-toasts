@@ -1,6 +1,7 @@
 name: Feature request
 description: Suggest a new option, API, or capability for the library, demo, or docs.
-labels: ["enhancement"]
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
 body:
   - type: markdown
     attributes:
