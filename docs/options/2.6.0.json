@@ -1,0 +1,290 @@
+{
+  "contentRevision": {
+    "libraryVersion": "2.5.1",
+    "note": "Features + Playground examples fully rethought for current API coverage (localization, layouts, events, timers, incremental updates, bulk actions)."
+  },
+  "features": [
+    { "title": "Zero dependencies", "description": "No runtime dependencies at all: the whole library, CSS included, is a single self-contained bundle." },
+    { "title": "Framework-agnostic", "description": "Works with plain script tags (UMD), or as an ESM/CJS import in React, Vue, Angular, Svelte, or anything else." },
+    { "title": "No build step required", "description": "Drop in a single <script> tag and call toasts.showToast(...), no bundler or compilation needed." },
+    { "title": "TypeScript-first", "description": "Full .d.ts types ship with every build, with every option documented via JSDoc." },
+    { "title": "Six stacking positions", "description": "Edge-agnostic stacking math keeps toasts from overlapping in any corner or center-edge position.", "exampleId": "positions" },
+    { "title": "Fully themeable", "description": "Every color is a CSS custom property, overridable per-toast or library-wide, with automatic close-icon contrast.", "exampleId": "theme" },
+    { "title": "Built-in localization", "description": "English, German, Spanish and French chrome text out of the box, switchable live via configure({ locale }), with custom translation overrides.", "exampleId": "localization" },
+    { "title": "Icons", "description": "Opt-in icon next to the message: built-in severity icons, an image URL, a CSS class, a custom Node, or your own renderer function - plus automatic icons for promise() outcomes.", "exampleId": "icons" },
+    { "title": "Layouts & modifiers", "description": "Named layouts (default/prominent) plus 13 composable modifiers - density, close-button treatment, width, icon animation - for a distinct look with zero custom CSS.", "exampleId": "layouts" },
+    { "title": "Multi-step & confirm buttons", "description": "Built-in confirm-before-action, copy-to-clipboard, and general multi-step button state machines.", "exampleId": "confirm" },
+    { "title": "Expandable details", "description": "Attach extra collapsible detail lines to any toast without cluttering the main message.", "exampleId": "details" },
+    { "title": "Progress bars", "description": "An optional thin progress bar synced to a toast's auto-dismiss countdown, fill or drain, any edge.", "exampleId": "progress" },
+    { "title": "Timers you control", "description": "Pause, resume, or extend a toast's auto-dismiss countdown from a button, a hover, or your own code - never a no-op trap for sticky (duration: 0) toasts, which simply have no timer to control.", "exampleId": "timers" },
+    { "title": "Update in place", "description": "Add or remove a single button or detail line on an already-visible toast without re-declaring the whole thing.", "exampleId": "incremental-updates" },
+    { "title": "Bulk actions & grouping", "description": "Tag toasts with a source and dismiss the whole group at once via clearBySource(), or clear every other toast when a new one takes over.", "exampleId": "bulk-actions" },
+    { "title": "Live event hooks", "description": "Subscribe to show/open/visible/update/close/remove/pause/resume from anywhere in your app - independent of any single toast's own onClose.", "exampleId": "events" },
+    { "title": "Promise-based toasts", "description": "toasts.promise() ties a toast to a fetch/async call's lifecycle: a loading state that patches itself to success or error once the promise settles.", "exampleId": "promise" }
+  ],
+  "install": {
+    "npm": "npm install brents-toasts",
+    "yarn": "yarn add brents-toasts",
+    "cdn": "<script src=\"https://cdn.jsdelivr.net/npm/brents-toasts@{{VERSION}}/dist/index.umd.min.js\"></script>\n<script>\n  BrentsToasts.toasts.showToast(\"Hello world!\", {\n    color: BrentsToasts.ToastColor.SUCCESS\n  });\n</script>",
+    "cdnAlt": "<script src=\"https://unpkg.com/brents-toasts@{{VERSION}}/dist/index.umd.min.js\"></script>\n<script>\n  BrentsToasts.toasts.showToast(\"Hello world!\", {\n    color: BrentsToasts.ToastColor.SUCCESS\n  });\n</script>"
+  },
+  "toastOptions": [
+    { "name": "title", "type": "string", "default": "undefined", "description": "Optional bold title line above the message.", "builderCall": ".withTitle(\"Heads up!\")" },
+    { "name": "titleMode", "type": "'inline' | 'stacked'", "default": "\"stacked\"", "description": "Whether title renders on its own line above message (stacked) or as a bold lead-in sharing its line (inline). No effect when title is unset.", "builderCall": ".withTitleMode(\"inline\")" },
+    { "name": "severity", "type": "ToastSeverityValue", "typeRef": "ToastSeverityValue", "default": "ToastSeverity.INFO", "description": "Semantic severity - the sole driver of role/aria-live (WARNING/ERROR get role=\"alert\", INFO/SUCCESS get role=\"status\"). Also picks the default color (via configure()'s colors palette) when color itself isn't set.", "builderCall": ".withSeverity(ToastSeverity.WARNING)" },
+    { "name": "color", "type": "string", "typeRef": "ToastColorValue", "default": "colors[severity], e.g. ToastColor.INFO", "description": "Background color of the indicator bar. Purely presentational - has no effect on role/aria-live, which come from severity alone. Any CSS color string works; ToastColor just bundles presets.", "builderCall": ".withColor(\"#4bb543\")" },
+    { "name": "duration", "type": "number", "default": "3000", "description": "Auto-dismiss after this many ms. Use 0 to make the toast sticky (never auto-dismisses).", "builderCall": ".withDuration(5000)" },
+    { "name": "minVisibleDuration", "type": "number", "default": "0", "description": "Minimum ms the toast must stay visible before a removeToast()/click dismissal is allowed - a premature attempt plays a SHAKE_LR and defers rather than drops it. Never delays a timeout/eviction removal. 0 disables the guard.", "builderCall": ".withMinVisibleDuration(1000)" },
+    { "name": "closable", "type": "boolean", "default": "true", "description": "Whether the toast can be dismissed by the user at all - click, close icon, Enter/Space, and Escape.", "builderCall": ".withClosable(true)" },
+    { "name": "dismissOnClick", "type": "boolean", "default": "true", "description": "Whether clicking the row body (not just the close icon) dismisses a closable toast. false leaves every other dismissal path (close icon click, Enter/Space, Escape) working, and makes the close icon render permanently visible instead of hover-revealed.", "builderCall": ".withDismissOnClick(false)" },
+    { "name": "allowHtml", "type": "boolean", "default": "false", "description": "If true, message is rendered as HTML. Sanitize the input yourself if it may contain user-controlled content.", "builderCall": ".withAllowHtml(true)" },
+    { "name": "allowLineBreaks", "type": "boolean", "default": "true", "description": "Whether \\n or literal <br> in message/title/button labels/details renders as a real line break.", "builderCall": ".withAllowLineBreaks(false)" },
+    { "name": "position", "type": "ToastPositionValue", "typeRef": "ToastPositionValue", "default": "ToastPosition.BOTTOM_CENTER", "description": "Which screen edge/corner this toast stacks from.", "builderCall": ".withPosition(ToastPosition.TOP_RIGHT)" },
+    { "name": "animation", "type": "ToastAnimationValue", "typeRef": "ToastAnimationValue", "default": "ToastAnimation.SLIDE", "description": "Entry/exit animation. slide, fade, none, or a name registered via registerToastAnimation().", "builderCall": ".withAnimation(ToastAnimation.FADE)" },
+    { "name": "layout", "type": "ToastLayoutValue", "typeRef": "ToastLayoutValue", "default": "ToastLayout.DEFAULT", "description": "Mutually-exclusive named look. One of 2 built-ins (see ToastLayoutValue), deliberately just a handful - each non-default one itself a preset composed from modifiers - or a name registered via registerToastLayout(). Not every modifier has a matching layout name; use modifiers directly for a tweak that isn't a named look.", "builderCall": ".withLayout(ToastLayout.PROMINENT)" },
+    { "name": "modifiers", "type": "ToastModifierValue[]", "typeRef": "ToastModifierValue", "default": "[]", "description": "Small composable design tweaks (density, close-button treatment, width, ...) - unlike layout, any number can be active at once. These are the atomic building blocks: stack them on top of a layout preset, or assemble a custom look ad hoc without picking a named layout at all.", "builderCall": ".withModifiers([ToastModifier.WIDE, ToastModifier.STACKED_ACTIONS])" },
+    { "name": "onClose", "type": "(reason: ToastCloseReason) => void", "typeRef": "ToastCloseReason", "default": "undefined", "description": "Called as soon as the toast starts closing, with a reason saying why (click, timeout, eviction, promise() auto-close, or a direct removeToast() call).", "builderCall": ".withOnClose((reason) => console.log(\"closed:\", reason))" },
+    { "name": "removeOtherToasts", "type": "boolean", "default": "false", "description": "If true, dismisses every other currently-visible toast before showing this one.", "builderCall": ".andRemoveOtherToasts()" },
+    { "name": "reverseOrder", "type": "boolean", "default": "false", "description": "If true, inserts this toast at the far end of its position's stack instead of nearest the anchor edge. Creation-time only.", "builderCall": ".andReverseOrder()" },
+    { "name": "pauseOnHover", "type": "boolean", "default": "true", "description": "Whether hovering the toast, or focusing it or anything inside it, pauses its auto-dismiss timer. No effect on sticky toasts.", "builderCall": ".withPauseOnHover(false)" },
+    { "name": "pauseOnPageHidden", "type": "boolean", "default": "true", "description": "Whether the page becoming hidden (tab switched away, window minimized/backgrounded) pauses its auto-dismiss timer, resuming once visible again. Independent of pauseOnHover - either pausing is enough. No effect on sticky toasts.", "builderCall": ".withPauseOnPageHidden(false)" },
+    { "name": "progress", "type": "boolean | ToastProgressOptions", "typeRef": "ToastProgressOptions", "default": "false", "description": "Adds a thin progress bar. fill/drain sync to the auto-dismiss duration countdown; manual is driven yourself via setToastProgress(id, value). true = all defaults.", "builderCall": ".withProgress({ mode: \"fill\", color: \"#4bb543\" })" },
+    { "name": "id", "type": "string", "default": "undefined (auto-generated)", "description": "Custom id for the toast instead of an auto-generated one - must be unique among elements currently on the page; a collision warns once and falls back to an auto-generated id. Creation-time only.", "builderCall": ".withId(\"save-status\")" },
+    { "name": "data", "type": "unknown", "default": "undefined", "description": "Arbitrary data to associate with the toast, readable later via getToastData(id).", "builderCall": ".withData({ orderId: 1234 })" },
+    { "name": "source", "type": "string", "default": "undefined", "description": "Grouping label - dismiss every toast sharing it at once via clearBySource(source), without tracking each toast's id yourself.", "builderCall": ".withSource(\"upload-manager\")" },
+    { "name": "theme", "type": "ToastTheme", "typeRef": "ToastTheme", "default": "undefined", "description": "Extra color knobs beyond color: card background, text, details block, action/close-icon colors.", "builderCall": ".withTheme({ background: \"#1c1c1c\", text: \"#f5f5f5\" })" },
+    { "name": "icon", "type": "ToastIconValue", "typeRef": "ToastIconValue", "default": "undefined", "description": "Opt-in icon rendered between the accent bar and the message. Nothing renders unless set - no automatic severity-derived icon. Purely decorative, no effect on role/aria-live.", "builderCall": ".withIcon(ToastIcon.SUCCESS)" },
+    { "name": "transition", "type": "ToastTransitionValue", "typeRef": "ToastTransitionValue", "default": "undefined", "description": "Only meaningful passed to updateToast (directly, or via promise()) - animates the whole toast card into the patch instead of swapping instantly. No-op at creation, since there's nothing to transition from yet.", "builderCall": ".withTransition(ToastTransition.FADE)" },
+    { "name": "buttons", "type": "ToastButton[]", "typeRef": "ToastButton", "default": "undefined", "description": "Action buttons rendered right of the message. Clicks never trigger closable dismissal.", "builderCall": ".withButton(\"Undo\", (event, id) => console.log(\"undo\", id))" },
+    { "name": "details", "type": "(string | ToastDetailItem)[]", "typeRef": "ToastDetailItem", "default": "undefined", "description": "Extra lines revealed by an auto-added Details toggle, rendered outside the dismissable row.", "builderCall": ".withDetails([\"Order #1234 shipped\", \"Tracking: 1Z999AA10123456784\"], \"Show details\", \"Hide details\")" },
+    { "name": "detailsLabel", "type": "string", "default": "\"Details\" (locale)", "description": "Label for the auto-added details toggle button. Set together with details.", "builderCall": ".withDetails([\"Order #1234 shipped\", \"Tracking: 1Z999AA10123456784\"], \"Show details\", \"Hide details\")" },
+    { "name": "detailsHideLabel", "type": "string", "default": "\"Hide details\" (locale)", "description": "Label for the toggle button while details are expanded. Set together with details.", "builderCall": ".withDetails([\"Order #1234 shipped\", \"Tracking: 1Z999AA10123456784\"], \"Show details\", \"Hide details\")" },
+    { "name": "closeButton()", "type": "(label?, className?) => ToastButton", "typeRef": "ToastButton", "default": "-", "description": "Ready-made button that dismisses the toast it's on.", "builderCall": ".withCloseButton()" },
+    { "name": "confirmButton()", "type": "(label, onConfirm, options?) => ToastButton", "typeRef": "ToastConfirmButtonOptions", "default": "-", "description": "Ready-made confirm-before-action button: swaps the toast's message/color to a confirm step, then Yes/No, runs onConfirm, optionally a pending step, then a done flash that either restores the original content or closes the toast.", "builderCall": ".withConfirmButton(\"Delete\", (event, id) => console.log(\"deleted\", id))" },
+    { "name": "stepButton()", "type": "(steps, className?) => ToastButton", "typeRef": "ToastButtonStep", "default": "-", "description": "The general-purpose primitive behind detailsCopyButton(): a button that walks through custom steps in order.", "builderCall": ".withStepButton([{ label: \"Copy\" }, { label: \"Copied!\", revertAfterMs: 2000 }])" }
+  ],
+  "configOptions": [
+    { "name": "severity", "type": "ToastSeverityValue", "typeRef": "ToastSeverityValue", "default": "ToastSeverity.INFO", "description": "Library-wide default severity for calls that omit it - drives role/aria-live and the default color.", "control": "select", "selectOptions": ["INFO", "SUCCESS", "WARNING", "ERROR"] },
+    { "name": "duration", "type": "number", "default": "3000", "description": "Library-wide default auto-dismiss duration in ms.", "control": "number" },
+    { "name": "minVisibleDuration", "type": "number", "default": "0", "description": "Library-wide default minimum ms a toast must stay visible before a removeToast()/click dismissal is allowed. 0 disables the guard.", "control": "number" },
+    { "name": "closable", "type": "boolean", "default": "true", "description": "Library-wide default for whether a toast can be dismissed by the user at all.", "control": "boolean" },
+    { "name": "dismissOnClick", "type": "boolean", "default": "true", "description": "Library-wide default for whether clicking the row body (not just the close icon) dismisses a closable toast.", "control": "boolean" },
+    { "name": "allowHtml", "type": "boolean", "default": "false", "description": "Library-wide default for whether message is rendered as HTML.", "control": "boolean" },
+    { "name": "allowLineBreaks", "type": "boolean", "default": "true", "description": "Library-wide default for \\n/<br> rendering as real line breaks.", "control": "boolean" },
+    { "name": "titleMode", "type": "'inline' | 'stacked'", "default": "\"stacked\"", "description": "Library-wide default for whether title stacks above message or shares its line.", "control": "select", "selectOptions": ["stacked", "inline"] },
+    { "name": "position", "type": "ToastPositionValue", "typeRef": "ToastPositionValue", "default": "ToastPosition.BOTTOM_CENTER", "description": "Library-wide default stacking position.", "control": "select", "selectOptions": ["bottom-center", "top-center", "top-left", "top-right", "bottom-left", "bottom-right"] },
+    { "name": "responsiveBreakpoint", "type": "number", "default": "800", "description": "Below this viewport width (px), *-left/*-right positions collapse into their edge's *-center position and share one stack. Re-evaluated live on resize. Set to 0 to disable collapsing entirely.", "control": "number" },
+    { "name": "animation", "type": "ToastAnimationValue", "typeRef": "ToastAnimationValue", "default": "ToastAnimation.SLIDE", "description": "Library-wide default entry/exit animation.", "control": "select", "selectOptions": ["slide", "fade", "none"] },
+    { "name": "layout", "type": "ToastLayoutValue", "typeRef": "ToastLayoutValue", "default": "ToastLayout.DEFAULT", "description": "Library-wide default mutually-exclusive named look.", "control": "select", "selectOptions": ["default", "prominent"] },
+    { "name": "modifiers", "type": "ToastModifierValue[]", "typeRef": "ToastModifierValue", "default": "[]", "description": "Library-wide default composable modifiers, layered on top of layout. Any number can be active at once.", "control": "text" },
+    { "name": "maxToasts", "type": "number", "default": "5", "description": "Maximum toasts visible at once (per position, unless overridden via configurePosition()).", "control": "number" },
+    { "name": "evictOldest", "type": "boolean", "default": "true", "description": "When maxToasts is exceeded, evict the oldest toast to make room instead of blocking new ones.", "control": "boolean" },
+    { "name": "pauseOnHover", "type": "boolean", "default": "true", "description": "Library-wide default for whether hovering/focusing a toast pauses its timer.", "control": "boolean" },
+    { "name": "pauseOnPageHidden", "type": "boolean", "default": "true", "description": "Library-wide default for whether a toast's timer pauses while the page is hidden (tab switched away, window minimized/backgrounded).", "control": "boolean" },
+    { "name": "progress", "type": "boolean | ToastProgressOptions", "typeRef": "ToastProgressOptions", "default": "false", "description": "Library-wide default progress-bar behavior.", "control": "boolean" },
+    { "name": "promiseTimeout", "type": "number", "default": "0", "description": "Library-wide default for promise()'s timeout (ms). If a promise hasn't settled within this long, its loading toast is patched to messages.timeout instead. 0 disables the timeout.", "control": "number" },
+    { "name": "locale", "type": "string | undefined", "default": "undefined (auto-detect)", "description": "Force a specific bundled locale (e.g. \"de\"). Omit to auto-detect from the browser, falling back to \"en\".", "control": "select", "selectOptions": ["auto", "en", "de", "es", "fr"] },
+    { "name": "translations", "type": "Partial<ToastTranslations> | undefined", "default": "undefined", "description": "Partial string overrides layered on top of the resolved locale pack.", "control": "text" },
+    { "name": "theme", "type": "ToastTheme", "typeRef": "ToastTheme", "default": "undefined", "description": "Library-wide default color overrides: card background, text, details block, action/close-icon colors.", "control": "text" },
+    { "name": "icon", "type": "ToastIconValue", "typeRef": "ToastIconValue", "default": "undefined", "description": "Library-wide default icon, overridable per toast. Unset by default - opt-in, no automatic icon.", "control": "text" },
+    { "name": "promiseIcons", "type": "boolean | ToastPromiseIcons", "typeRef": "ToastPromiseIcons", "default": "undefined", "description": "Default icons for promise()'s pending/success/error/timeout outcomes, overridable per call. true is shorthand for the built-in set (spinner/success/error/warning icons). Unset/false by default - fully opt-in.", "control": "text" },
+    { "name": "colors", "type": "ToastColorPalette", "typeRef": "ToastColorPalette", "default": "{ ...ToastColor }", "description": "The severity -> default color lookup: what an unset color resolves to for a given severity, and what promise() defaults color to for its timeout/success/error outcomes. Accessibility (role/aria-live) is unaffected by this - it comes from severity alone. Merges key-by-key over the current value.", "control": "text" },
+    { "name": "autoDetectSeverity", "type": "boolean | { threshold?: number }", "default": "false", "description": "Opt-in: when a toast's color is set but severity isn't, infer severity from how close color is to one of colors' four entries instead of leaving it at the default. Off by default - color and severity stay fully independent unless this is turned on. true uses the built-in threshold; pass { threshold } to tune how close counts as close enough. An explicit severity always wins outright regardless of this setting.", "control": "boolean" },
+    { "name": "injectStyles", "type": "boolean", "default": "true", "description": "Whether the library injects the toast card's bundled look (.bt-toast/etc.) into <head> on first use. Set to false to style toasts yourself from scratch - only has an effect if set before the first toast is shown anywhere on the page.", "control": "boolean" },
+    { "name": "injectLayoutStyles", "type": "boolean", "default": "true", "description": "Whether the library injects its bundled positioning/stacking CSS (.bt-snackbar/.bt-toast-container) into <head> on first use. Independent of injectStyles. Set to false only if you'll supply equivalent positioning CSS yourself (e.g. a strict CSP blocking all runtime <style> injection) - only has an effect if set before the first toast is shown anywhere on the page.", "control": "boolean" },
+    { "name": "gap", "type": "number", "default": "8", "description": "Pixel spacing between stacked toasts within the same snackbar, on top of each toast's own rendered height.", "control": "number" },
+    { "name": "zIndex", "type": "number", "default": "10000", "description": "z-index of every snackbar, applied as the --bt-z-index CSS custom property. Raise it if toasts need to render above some other fixed/high-z-index element in your app.", "control": "number" }
+  ],
+  "typeSpecs": {
+    "ToastPositionValue": {
+      "kind": "enum",
+      "description": "Which screen edge/corner a toast stacks from. All six are implemented; stacking math is edge-agnostic.",
+      "values": [
+        { "value": "bottom-center", "description": "Stacks upward from the bottom-center of the screen. The default." },
+        { "value": "top-center", "description": "Stacks downward from the top-center of the screen." },
+        { "value": "top-left", "description": "Stacks downward from the top-left corner." },
+        { "value": "top-right", "description": "Stacks downward from the top-right corner." },
+        { "value": "bottom-left", "description": "Stacks upward from the bottom-left corner." },
+        { "value": "bottom-right", "description": "Stacks upward from the bottom-right corner." }
+      ]
+    },
+    "ToastAnimationValue": {
+      "kind": "enum",
+      "description": "Entry/exit animation. Passing an unimplemented/unregistered value falls back to slide with a one-time console warning. Custom animations can be added via registerToastAnimation().",
+      "values": [
+        { "value": "slide", "description": "Slides in/out from its stacking edge while fading. The default." },
+        { "value": "fade", "description": "Opacity-only - appears already at its resting position, nothing slides." },
+        { "value": "none", "description": "No transition at all: appears, disappears, and reflows instantly." }
+      ]
+    },
+    "ToastLayoutValue": {
+      "kind": "enum",
+      "description": "Mutually-exclusive named look. Deliberately just a handful - not every ToastModifierValue has a matching layout name. Each non-default built-in is itself a preset composed from ToastModifierValue entries (see there). Passing an unregistered value falls back to default with a one-time console warning. Custom layouts can be added via registerToastLayout(name, modifiers?) plus your own [data-bt-layout=\"name\"] CSS.",
+      "values": [
+        { "value": "default", "description": "Close button is a thin accent bar on the left, hidden until the toast is hovered. The default." },
+        { "value": "prominent", "description": "Close button is always visible, pinned to the right edge of the row; the whole card is filled with the toast's color. Composes: close-pinned-right, filled-background." }
+      ]
+    },
+    "ToastModifierValue": {
+      "kind": "enum",
+      "description": "Small, composable design tweak - unlike ToastLayoutValue, any number can be active on one toast at once. These are the atomic building blocks every built-in ToastLayoutValue is composed from, and are also usable directly. Passing an unrecognized value drops it (with a one-time console warning) rather than falling back to anything. Custom ones can be added via registerToastModifier(name) plus your own [data-bt-modifiers~=\"name\"] CSS.",
+      "values": [
+        { "value": "compact", "description": "Smaller min-width, tighter row height/padding, smaller hover-reveal close bar. Mutually exclusive with wide." },
+        { "value": "wide", "description": "Bigger min/max-width and roomier padding. Mutually exclusive with compact." },
+        { "value": "stacked-actions", "description": "Buttons and the details toggle wrap onto their own full-width row below the message." },
+        { "value": "full-bleed", "description": "Toast stretches to the snackbar's full content width, square corners." },
+        { "value": "accent-top", "description": "Accent becomes a horizontal strip across the top instead of a left vertical bar, and removes the now-redundant default hover-reveal close bar entirely." },
+        { "value": "close-hidden", "description": "Removes all accent-bar/close-swatch chrome - just text (and buttons/progress, if present). Mutually exclusive with close-corner/close-pinned-right." },
+        { "value": "close-corner", "description": "Close button becomes a small circle overlaid on the card's top-right corner. Mutually exclusive with close-hidden/close-pinned-right." },
+        { "value": "close-pinned-right", "description": "Close button always visible, pinned to the row's trailing edge, in the row's normal flex flow. Mutually exclusive with close-hidden/close-corner." },
+        { "value": "filled-background", "description": "Paints the whole card background from the toast's own color instead of the flat default background. Independent of the close-button variants above - stacks with any of them." },
+        { "value": "icon-left", "description": "Pins the icon to its default leading position, so it stays there under modifiers that reorder the row's other children (close-pinned-right). Already the default position with no modifiers active." },
+        { "value": "icon-disabled", "description": "Force-hides the icon regardless of the icon option - the same role close-hidden plays for closable." },
+        { "value": "icon-pop", "description": "Plays a quick scale+fade pop-in animation on the icon when it (re)renders. Mutually exclusive with icon-bounce." },
+        { "value": "icon-bounce", "description": "Plays an elastic bounce-in animation on the icon when it (re)renders. Mutually exclusive with icon-pop." }
+      ]
+    },
+    "ToastTransitionValue": {
+      "kind": "enum",
+      "description": "How updateToast() (directly, or via promise()) animates into a visual patch. Passing an unregistered value falls back to fade with a one-time console warning. Custom transitions can be added via registerToastTransition().",
+      "values": [
+        { "value": "fade", "description": "Fades the toast card out, applies the patch, then fades it back in." },
+        { "value": "shake-lr", "description": "Applies the patch immediately and shakes the card left-right over it, to draw attention rather than hide the change." },
+        { "value": "none", "description": "No animation: applies instantly. Same as omitting transition entirely." }
+      ]
+    },
+    "ToastColorValue": {
+      "kind": "enum",
+      "description": "Convenience color presets. color/theme fields accept any CSS color string, not just these.",
+      "values": [
+        { "value": "ToastColor.INFO (#28a6f5)", "description": "Default color for informational toasts." },
+        { "value": "ToastColor.SUCCESS (#4bb543)", "description": "For successful operations." },
+        { "value": "ToastColor.WARNING (#dfb200)", "description": "For warnings." },
+        { "value": "ToastColor.ERROR (#ff4433)", "description": "For errors/failures." }
+      ]
+    },
+    "ToastSeverityValue": {
+      "kind": "enum",
+      "description": "Semantic severity - the sole driver of a toast's role/aria-live. Independent of color: color is purely presentational and never affects accessibility semantics.",
+      "values": [
+        { "value": "ToastSeverity.INFO", "description": "role=\"status\"/aria-live=\"polite\". Default color ToastColor.INFO. The default severity." },
+        { "value": "ToastSeverity.SUCCESS", "description": "role=\"status\"/aria-live=\"polite\". Default color ToastColor.SUCCESS. Also promise()'s default success severity." },
+        { "value": "ToastSeverity.WARNING", "description": "role=\"alert\"/aria-live=\"assertive\". Default color ToastColor.WARNING. Also promise()'s default timeout severity." },
+        { "value": "ToastSeverity.ERROR", "description": "role=\"alert\"/aria-live=\"assertive\". Default color ToastColor.ERROR. Also promise()'s default error severity." }
+      ]
+    },
+    "ToastCloseReason": {
+      "kind": "enum",
+      "description": "Why a toast was dismissed - passed to onClose and the 'close'/'remove' lifecycle events (see toasts.on()).",
+      "values": [
+        { "value": "'user'", "description": "A direct human interaction: row click, Enter/Space on a focused row, the close button, or a built-in button's own close-on-done step." },
+        { "value": "'timeout'", "description": "The toast's own duration timer expired on its own." },
+        { "value": "'evicted'", "description": "maxToasts + evictOldest removed the oldest toast to make room for a new one." },
+        { "value": "'promise'", "description": "promise() auto-closed its loading toast (including its own timeout option elapsing) because no message was configured for that outcome." },
+        { "value": "'programmatic'", "description": "Any other direct removeToast()/removeAllToasts() call - the default removeToast() uses when a reason isn't given explicitly." }
+      ]
+    },
+    "ToastTheme": {
+      "kind": "object",
+      "description": "Extra color knobs beyond color: the toast's overall chrome, not just its accent bar. Each field mirrors a --bt-* CSS custom property, so plain CSS works too.",
+      "fields": [
+        { "name": "background", "type": "string", "default": "#333", "description": "Toast card background. CSS var --bt-background." },
+        { "name": "text", "type": "string", "default": "#fff", "description": "Toast text color. CSS var --bt-text." },
+        { "name": "detailsBackground", "type": "string", "default": "rgba(0,0,0,0.15)", "description": "Details block background. CSS var --bt-details-background." },
+        { "name": "actionColor", "type": "string", "default": "defaults to text", "description": "Action button/details toggle text color. CSS var --bt-action-color." },
+        { "name": "closeIcon", "type": "string", "default": "auto-computed for contrast", "description": "Close (x) icon color. Auto-picked dark/light against color unless set here. CSS var --bt-close-icon." }
+      ]
+    },
+    "ToastColorPalette": {
+      "kind": "object",
+      "description": "One default color string per severity (ToastSeverityValue key). Looked up when a toast's severity is known but color isn't set - never the other way around, so reskinning this never affects accessibility.",
+      "fields": [
+        { "name": "INFO", "type": "string", "default": "#28a6f5", "description": "Default color for ToastSeverity.INFO." },
+        { "name": "SUCCESS", "type": "string", "default": "#4bb543", "description": "Default color for ToastSeverity.SUCCESS; also promise()'s default success color." },
+        { "name": "WARNING", "type": "string", "default": "#dfb200", "description": "Default color for ToastSeverity.WARNING; also promise()'s default timeout color." },
+        { "name": "ERROR", "type": "string", "default": "#ff4433", "description": "Default color for ToastSeverity.ERROR; also promise()'s default error color." }
+      ]
+    },
+    "ToastProgressOptions": {
+      "kind": "object",
+      "description": "Configures the optional progress bar: synced to a toast's auto-dismiss countdown (fill/drain), or driven yourself (manual).",
+      "fields": [
+        { "name": "position", "type": "'top' | 'bottom'", "default": "'bottom'", "description": "Which edge of the toast card the bar sits on." },
+        { "name": "origin", "type": "'left' | 'right' | 'center'", "default": "'left'", "description": "Anchor point the bar grows from/shrinks toward. Always physical, not RTL-aware." },
+        { "name": "mode", "type": "'fill' | 'drain' | 'manual'", "default": "'drain'", "description": "fill starts empty and grows; drain starts full and shrinks; manual doesn't move on its own - call setToastProgress(id, value) yourself as real work progresses. Ignores the auto-dismiss timer entirely, so it stays visible on a sticky toast too." },
+        { "name": "value", "type": "number", "default": "0", "description": "Initial fill fraction (0-1) when mode: 'manual'. Ignored otherwise. Update later via setToastProgress(id, value)." },
+        { "name": "color", "type": "string", "default": "the toast's resolved color", "description": "Fill color." },
+        { "name": "trackColor", "type": "string", "default": "'transparent'", "description": "Color of the unfilled track." },
+        { "name": "height", "type": "number", "default": "3", "description": "Bar thickness in px." },
+        { "name": "label", "type": "string", "default": "resolved locale's \"Progress\"", "description": "Accessible name for the bar (role=\"progressbar\", with aria-valuemin/max/now kept in sync), e.g. \"Uploading file\"." }
+      ]
+    },
+    "ToastButton": {
+      "kind": "object",
+      "description": "One action button rendered on a toast (or a ToastDetailItem's own buttons).",
+      "fields": [
+        { "name": "label", "type": "string", "description": "Rendered as plain text; \\n/<br> still honored as line breaks." },
+        { "name": "onClick", "type": "(event, id) => void", "description": "Receives the click event and this toast's id." },
+        { "name": "className", "type": "string", "description": "Extra class name(s) appended alongside the built-in bt-toast-action class." }
+      ]
+    },
+    "ToastButtonStep": {
+      "kind": "object",
+      "description": "One step of a multi-step button's state machine (the primitive behind stepButton()/detailsCopyButton()).",
+      "fields": [
+        { "name": "label", "type": "string", "description": "Text shown while this step is active." },
+        { "name": "onClick", "type": "(event, id) => void | false | Promise<void | false>", "description": "Runs on click. Return false to stay on this step instead of advancing." },
+        { "name": "className", "type": "string", "description": "Extra class(es) applied only while this step is active." },
+        { "name": "revertAfterMs", "type": "number", "description": "Auto-advance to revertToStep this many ms after becoming active. No effect on steps[0]." },
+        { "name": "revertToStep", "type": "number", "default": "0", "description": "Step index revertAfterMs advances to." }
+      ]
+    },
+    "ToastConfirmButtonOptions": {
+      "kind": "object",
+      "description": "The third argument to confirmButton()/withConfirmButton() - customizes each step of the confirm flow (confirm, pending, done).",
+      "fields": [
+        { "name": "confirmMessage", "type": "string", "default": "\"Are you sure?\" (locale)", "description": "Message shown on the confirm step." },
+        { "name": "confirmColor", "type": "string", "default": "unchanged", "description": "Toast color during the confirm step." },
+        { "name": "yesLabel", "type": "string", "default": "\"Yes\" (locale)", "description": "Confirm step's confirm button label." },
+        { "name": "noLabel", "type": "string", "default": "\"No\" (locale)", "description": "Confirm step's cancel button label." },
+        { "name": "pendingMessage", "type": "string", "default": "undefined", "description": "Message shown while an async onConfirm is pending, replacing the buttons entirely. Unset keeps the confirm step's content and just disables the buttons instead." },
+        { "name": "pendingColor", "type": "string", "default": "unchanged", "description": "Toast color while an async onConfirm is pending." },
+        { "name": "doneMessage", "type": "string | null", "default": "\"Done\" (locale)", "description": "Message flashed after onConfirm succeeds. Pass null to skip the flash entirely." },
+        { "name": "doneColor", "type": "string", "default": "unchanged", "description": "Toast color during the done flash." },
+        { "name": "doneTimeoutMs", "type": "number", "default": "2000", "description": "How long the done flash stays up before doneAction runs." },
+        { "name": "doneAction", "type": "'restore' | 'close'", "default": "'restore'", "description": "What happens after the done flash (or immediately, if doneMessage is null): restore the original title/message/buttons/color, or close (dismiss) the toast." },
+        { "name": "className", "type": "string", "description": "Extra class name(s) on the button itself." }
+      ]
+    },
+    "ToastIconValue": {
+      "kind": "object",
+      "description": "Opt-in per-toast icon - a bare string is always a name to look up (built-in or registered via registerToastIcon()), never a literal URL.",
+      "fields": [
+        { "name": "(name)", "type": "string", "description": "A built-in (ToastIcon.INFO/SUCCESS/WARNING/ERROR/SPINNER) or custom-registered name." },
+        { "name": "{ src }", "type": "{ src: string }", "description": "An image URL." },
+        { "name": "{ class }", "type": "{ class: string }", "description": "A consumer-owned CSS class (icon-font/background-image style) - the library renders an empty span with it." },
+        { "name": "Node", "type": "Node", "description": "An arbitrary pre-built DOM node, e.g. hand-authored animated SVG." },
+        { "name": "() => Node", "type": "() => Node", "description": "A renderer function, called fresh on every render - safest for a Node that shouldn't be shared/moved between toasts." }
+      ]
+    },
+    "ToastPromiseIcons": {
+      "kind": "object",
+      "description": "Shape of ToastsConfig.promiseIcons when it's an object (true is shorthand for the built-in set instead). Merges with promise()'s own options.icon (shared) and messages.X.icon (per-outcome, wins over everything).",
+      "fields": [
+        { "name": "pending", "type": "ToastIconValue", "default": "ToastIcon.SPINNER when promiseIcons: true", "description": "Icon on the loading toast while the promise is pending." },
+        { "name": "success", "type": "ToastIconValue", "default": "ToastIcon.SUCCESS when promiseIcons: true", "description": "Icon patched in on resolve." },
+        { "name": "error", "type": "ToastIconValue", "default": "ToastIcon.ERROR when promiseIcons: true", "description": "Icon patched in on rejection." },
+        { "name": "timeout", "type": "ToastIconValue", "default": "ToastIcon.WARNING when promiseIcons: true", "description": "Icon patched in if options.timeout elapses before the promise settles." }
+      ]
+    },
+    "ToastDetailItem": {
+      "kind": "object",
+      "description": "One line of a toast's expandable details block. A plain string is shorthand for { value }.",
+      "fields": [
+        { "name": "label", "type": "string", "description": "Optional label shown before the value, e.g. \"Status\"." },
+        { "name": "value", "type": "string", "description": "The detail line's text." },
+        { "name": "buttons", "type": "ToastButton[]", "description": "Extra action buttons rendered after this item's value, e.g. a Copy button." }
+      ]
+    }
+  }
+}
