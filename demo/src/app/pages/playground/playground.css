@@ -289,6 +289,31 @@ tr.selected {
   animation: example-glow 2s ease-in-out;
 }
 
+.example-actions .delete {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.my-snippets {
+  padding: 20px 20px 80px;
+  scroll-margin-top: 80px;
+}
+
+.my-snippets h2 {
+  margin-bottom: 4px;
+}
+
+.empty-hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 16px;
+}
+
+.example .saved-at {
+  margin: -8px 0 14px;
+  font-size: 0.8rem;
+}
+
 @keyframes example-glow {
   0%,
   100% {

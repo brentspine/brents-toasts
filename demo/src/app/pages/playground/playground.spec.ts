@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { toasts } from 'brents-toasts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Playground } from './playground';
 
@@ -290,5 +291,132 @@ describe('Playground', () => {
     localStorage.setItem('bt-demo:config-form', JSON.stringify({ form: { duration: 9000 }, json: {} }));
     const fixture = await createComponent();
     expect(fixture.componentInstance.hasCustomConfig()).toBe(true);
+  });
+
+  it('openSaveDialog()/closeSaveDialog() toggle saveDialogOpen()', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    expect(component.saveDialogOpen()).toBe(false);
+
+    component.openSaveDialog();
+    expect(component.saveDialogOpen()).toBe(true);
+
+    component.closeSaveDialog();
+    expect(component.saveDialogOpen()).toBe(false);
+  });
+
+  it('confirmSaveSnippet() saves the current code under the given name, closes the dialog, and lists it', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    component.code.set('new ToastBuilder("Saved!").show();');
+    component.openSaveDialog();
+
+    component.confirmSaveSnippet('My saved snippet');
+
+    expect(component.saveDialogOpen()).toBe(false);
+    expect(component.snippets().map((s) => s.name)).toEqual(['My saved snippet']);
+    expect(component.snippets()[0].code).toBe('new ToastBuilder("Saved!").show();');
+    toasts.removeAllToasts();
+  });
+
+  it('existingSnippetNames() reflects the currently saved snippet names', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    expect(component.existingSnippetNames()).toEqual([]);
+
+    component.confirmSaveSnippet('First');
+    expect(component.existingSnippetNames()).toEqual(['First']);
+    toasts.removeAllToasts();
+  });
+
+  it('trySnippet() loads and runs a saved snippet, remembering the prior code for undo', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    const original = component.code();
+    component.confirmSaveSnippet('Loadable');
+    const snippet = component.snippets()[0];
+    component.code.set('new ToastBuilder("Something else").show();');
+
+    component.trySnippet(snippet);
+    fixture.detectChanges();
+
+    expect(component.code()).toBe(snippet.code);
+    expect(component.previousCode()).toBe('new ToastBuilder("Something else").show();');
+    expect(component.previousCode()).not.toBe(original);
+    toasts.removeAllToasts();
+  });
+
+  it('copySnippet() marks that snippet as copied, then clears it', async () => {
+    vi.useFakeTimers();
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    component.confirmSaveSnippet('Copyable');
+    const snippet = component.snippets()[0];
+
+    await component.copySnippet(snippet);
+    expect(component.copiedSnippetId()).toBe(snippet.id);
+
+    vi.advanceTimersByTime(1500);
+    expect(component.copiedSnippetId()).toBeNull();
+    vi.useRealTimers();
+    toasts.removeAllToasts();
+  });
+
+  it('deleteSnippet() shows a confirm toast; confirming it removes the snippet', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    component.confirmSaveSnippet('Deletable');
+    const snippet = component.snippets()[0];
+
+    component.deleteSnippet(snippet);
+    const findButton = (label: string) =>
+      Array.from(document.querySelectorAll<HTMLButtonElement>('.bt-toast-actions button')).find(
+        (b) => b.textContent === label,
+      );
+    findButton('Delete')!.click();
+    findButton('Yes')!.click();
+
+    expect(component.snippets()).toEqual([]);
+    toasts.removeAllToasts();
+  });
+
+  it('suggestSnippet() opens a pre-filled GitHub issue for that snippet in a new tab', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    component.confirmSaveSnippet('Suggestable');
+    const snippet = component.snippets()[0];
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    component.suggestSnippet(snippet);
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    const [url, target] = openSpy.mock.calls[0];
+    expect(String(url)).toContain('github.com/brentspine/brents-toasts/issues/new');
+    expect(String(url)).toContain('example-title=Suggestable');
+    expect(target).toBe('_blank');
+    openSpy.mockRestore();
+    toasts.removeAllToasts();
+  });
+
+  it('onGlobalKeydown() opens the save dialog on Ctrl+S and prevents the default browser save', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    const event = { ctrlKey: true, metaKey: false, key: 's', preventDefault: vi.fn() } as unknown as KeyboardEvent;
+
+    component.onGlobalKeydown(event);
+
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(component.saveDialogOpen()).toBe(true);
+  });
+
+  it('onGlobalKeydown() ignores keys other than Ctrl/Cmd+S', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    const event = { ctrlKey: true, metaKey: false, key: 'a', preventDefault: vi.fn() } as unknown as KeyboardEvent;
+
+    component.onGlobalKeydown(event);
+
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(component.saveDialogOpen()).toBe(false);
   });
 });

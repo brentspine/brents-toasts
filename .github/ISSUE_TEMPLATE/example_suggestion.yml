@@ -1,0 +1,35 @@
+name: Suggest an example
+description: Share a Playground snippet you'd like to see added to the curated "Browse examples" list.
+title: "[Example]: "
+labels: ["example", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing a snippet! If you got here via the Playground's "Suggest as example" button, the title and code below are already filled in - just add a description.
+
+  - type: input
+    id: example-title
+    attributes:
+      label: Example title
+      description: Short name for the "Browse examples" card.
+      placeholder: e.g. Retry with exponential backoff
+    validations:
+      required: true
+
+  - type: textarea
+    id: example-description
+    attributes:
+      label: What does this example demonstrate?
+      description: One or two sentences for the example card's description.
+    validations:
+      required: true
+
+  - type: textarea
+    id: example-code
+    attributes:
+      label: Snippet
+      description: The full runnable Playground snippet.
+      render: ts
+    validations:
+      required: true

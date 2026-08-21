@@ -8,6 +8,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -25,8 +26,11 @@ import {
 import type { ToastButton, ToastModifierValue, ToastProgressOptions } from 'brents-toasts';
 import { OptionsDataService } from '../../services/options-data';
 import { SectionService } from '../../services/section';
+import { SnippetsService, type SavedSnippet } from '../../services/snippets';
 import { TypeSpecPanel } from '../../shared/type-spec-panel';
 import { CodeEditor } from '../../shared/code-editor';
+import { SaveSnippetDialog } from '../../shared/save-snippet-dialog';
+import { buildSuggestExampleUrl } from '../../shared/github-suggest';
 import { PLAYGROUND_STORAGE_KEY, runSandboxedCode } from '../../shared/run-code';
 import { hasStoredConfigChanges } from '../config/config';
 import type { OptionDescriptor, PlaygroundExample } from '../../data/options.types';
@@ -101,7 +105,15 @@ function scrollToId(id: string): void {
 @Component({
   selector: 'app-playground',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, TypeSpecPanel, CodeEditor],
+  imports: [FormsModule, RouterLink, TypeSpecPanel, CodeEditor, SaveSnippetDialog, DatePipe],
+  host: {
+    // Ctrl+S (Cmd+S on Mac) opens the save dialog instead of triggering the browser's own
+    // "Save page" - see https://github.com/brentspine/brents-toasts/issues/121. Bound on
+    // `document`, not this component's host element, so it fires regardless of what's
+    // focused (including inside the Monaco editor); Angular tears this down automatically
+    // when the component is destroyed, same as any other host listener.
+    '(document:keydown)': 'onGlobalKeydown($event)',
+  },
   templateUrl: './playground.html',
   styleUrl: './playground.css',
 })
@@ -109,6 +121,7 @@ export class Playground {
   private readonly optionsDataService = inject(OptionsDataService);
   private readonly optionsData = this.optionsDataService.data;
   private readonly destroyRef = inject(DestroyRef);
+  private readonly snippetsService = inject(SnippetsService);
   protected readonly section = inject(SectionService);
 
   readonly importLine = IMPORT_LINE;
@@ -125,6 +138,11 @@ export class Playground {
   readonly copiedExampleId = signal<string | null>(null);
   readonly colorPickerValue = signal('#28a6f5');
   readonly colorCopied = signal(false);
+
+  readonly snippets = this.snippetsService.snippets;
+  readonly saveDialogOpen = signal(false);
+  readonly copiedSnippetId = signal<string | null>(null);
+  readonly existingSnippetNames = computed(() => this.snippets().map((s) => s.name));
 
   // Flips once the CodeEditor's Monaco instance has finished loading (or given up and
   // fallen back to a textarea) - see the fragment effect below for why a fragment scroll
@@ -255,13 +273,22 @@ export class Playground {
   }
 
   tryExample(example: PlaygroundExample): void {
-    // Only captured on the *first* example click of a streak (previousCode still null) -
-    // trying example 2 right after example 1 must not overwrite this with example 1's
-    // code, or Undo would restore example 1 instead of what the user actually had before.
-    if (this.previousCode() === null && this.code() !== example.code) {
+    this.loadCode(example.code);
+  }
+
+  trySnippet(snippet: SavedSnippet): void {
+    this.loadCode(snippet.code);
+  }
+
+  /** Loads and runs `code`, remembering whatever was there before (see `undoLastExample`). */
+  private loadCode(code: string): void {
+    // Only captured on the *first* load of a streak (previousCode still null) - loading a
+    // second example/snippet right after the first must not overwrite this, or Undo would
+    // restore the first one instead of what the user actually had before either.
+    if (this.previousCode() === null && this.code() !== code) {
       this.previousCode.set(this.code());
     }
-    this.code.set(example.code);
+    this.code.set(code);
     this.run();
   }
 
@@ -284,6 +311,52 @@ export class Playground {
     } catch {
       // Clipboard API unavailable, no-op, same fallback as the library's own detailsCopyButton().
     }
+  }
+
+  async copySnippet(snippet: SavedSnippet): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(`${this.importLine}\n\n${snippet.code}`);
+      this.copiedSnippetId.set(snippet.id);
+      setTimeout(() => {
+        if (this.copiedSnippetId() === snippet.id) this.copiedSnippetId.set(null);
+      }, 1500);
+    } catch {
+      // Clipboard API unavailable, no-op, same fallback as the library's own detailsCopyButton().
+    }
+  }
+
+  onGlobalKeydown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+      event.preventDefault();
+      this.openSaveDialog();
+    }
+  }
+
+  openSaveDialog(): void {
+    this.saveDialogOpen.set(true);
+  }
+
+  closeSaveDialog(): void {
+    this.saveDialogOpen.set(false);
+  }
+
+  confirmSaveSnippet(name: string): void {
+    this.snippetsService.save(name, this.code());
+    this.saveDialogOpen.set(false);
+    toasts.showToast(`Saved "${name}" locally.`, { severity: ToastSeverity.SUCCESS, duration: 2500 });
+  }
+
+  deleteSnippet(snippet: SavedSnippet): void {
+    toasts.showToast(`Delete "${snippet.name}"?`, {
+      severity: ToastSeverity.WARNING,
+      duration: 0,
+      buttons: [toasts.confirmButton('Delete', () => this.snippetsService.remove(snippet.id))],
+    });
+  }
+
+  /** Opens a pre-filled GitHub issue suggesting this snippet as a curated example - see issue #123. */
+  suggestSnippet(snippet: SavedSnippet): void {
+    window.open(buildSuggestExampleUrl(snippet.name, snippet.code), '_blank', 'noopener');
   }
 
   /**

@@ -62,6 +62,9 @@
         <button type="button" class="run" (click)="run()">Run</button>
         <button type="button" class="reset" (click)="reset()">Reset</button>
         <button type="button" (click)="copy()">{{ copied() ? 'Copied!' : 'Copy' }}</button>
+        <button type="button" class="save" (click)="openSaveDialog()" title="Save this snippet locally (Ctrl+S)">
+          Save
+        </button>
         <span class="spacer"></span>
         <div class="color-picker" title="Pick a color and copy its hex code">
           <input
@@ -119,6 +122,42 @@
     }
   </div>
 </section>
+
+<section class="container my-snippets" id="my-snippets">
+  <h2>My snippets</h2>
+  <p class="intro">Kept in this browser only. Feel free to suggest one of yours as an example for this page.</p>
+
+  @if (snippets().length === 0) {
+    <p class="empty-hint">No saved snippets yet - write something above, then Save (or Ctrl+S).</p>
+  } @else {
+    <div class="example-grid">
+      @for (snippet of snippets(); track snippet.id) {
+        <div class="example panel">
+          <h3>{{ snippet.name }}</h3>
+          <p class="saved-at">Saved {{ snippet.savedAt | date: 'medium' }}</p>
+          <div class="example-actions">
+            <button type="button" (click)="trySnippet(snippet)">Try it out</button>
+            <button type="button" (click)="copySnippet(snippet)">
+              {{ copiedSnippetId() === snippet.id ? 'Copied!' : 'Copy' }}
+            </button>
+            <button type="button" (click)="suggestSnippet(snippet)" title="Open a pre-filled GitHub issue suggesting this as a curated example">
+              Suggest as example
+            </button>
+            <button type="button" class="delete" (click)="deleteSnippet(snippet)">Delete</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</section>
+
+@if (saveDialogOpen()) {
+  <app-save-snippet-dialog
+    [existingNames]="existingSnippetNames()"
+    (save)="confirmSaveSnippet($event)"
+    (closed)="closeSaveDialog()"
+  />
+}
 
 @if (selectedTypeSpec(); as spec) {
   <app-type-spec-panel [typeName]="selectedTypeRef()!" [spec]="spec" (closed)="closeType()" />
