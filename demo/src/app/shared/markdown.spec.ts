@@ -41,6 +41,36 @@ describe('parseInline', () => {
       { text: ' for more', code: false },
     ]);
   });
+
+  it('autolinks a bare issue reference to the repo issues page', () => {
+    expect(parseInline('Fixed a bug - #118')).toEqual([
+      { text: 'Fixed a bug - ', code: false },
+      { text: '#118', code: false, link: 'https://github.com/Brentspine/brents-toasts/issues/118' },
+    ]);
+  });
+
+  it('autolinks a bare @mention to the user profile', () => {
+    expect(parseInline('Fixed a bug - @brentspine')).toEqual([
+      { text: 'Fixed a bug - ', code: false },
+      { text: '@brentspine', code: false, link: 'https://github.com/brentspine' },
+    ]);
+  });
+
+  it('does not autolink an issue reference or mention inside a code span', () => {
+    expect(parseInline('CSS `@media` and `#123` stay code')).toEqual([
+      { text: 'CSS ', code: false },
+      { text: '@media', code: true },
+      { text: ' and ', code: false },
+      { text: '#123', code: true },
+      { text: ' stay code', code: false },
+    ]);
+  });
+
+  it('does not autolink a hash followed by non-digits or an email-shaped @', () => {
+    expect(parseInline('#fff and user@example.com')).toEqual([
+      { text: '#fff and user@example.com', code: false },
+    ]);
+  });
 });
 
 describe('parseMarkdown', () => {

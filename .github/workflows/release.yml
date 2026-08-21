@@ -95,6 +95,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PREV_TAG: ${{ steps.prevtag.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           export VERSION="${GITHUB_REF_NAME#v}"
           node scripts/generate-changelog.js

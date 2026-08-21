@@ -7,6 +7,14 @@
  * changelog-only; also used to render `docs/guide/*.md` on the Docs page, which is why fenced
  * code/tables/blockquotes/emphasis were added. Returns a plain block AST instead of an HTML
  * string so templates render it with @for/@if (no innerHTML, nothing to sanitize).
+ *
+ * Also autolinks bare `#123` issue references and `@username` mentions to
+ * `github.com/Brentspine/brents-toasts` - the same plain-text convention GitHub's own markdown
+ * renderer uses, which is what `scripts/generate-changelog.js` writes into every changelog
+ * entry (issue refs and per-bullet maintainer credit) instead of markdown link syntax. Both are
+ * scanned for only outside code spans/fenced blocks/existing links (the code-span alternative in
+ * INLINE_TOKEN matches first whenever a `#`/`@` sits inside backticks, e.g. CSS `` `@media` ``
+ * in docs/guide/*.md), so this only fires on genuine prose references.
  */
 
 export interface InlineSegment {
@@ -18,8 +26,11 @@ export interface InlineSegment {
   image?: string;
 }
 
+const REPO_URL = 'https://github.com/Brentspine/brents-toasts';
+const GITHUB_URL = 'https://github.com';
+
 const INLINE_TOKEN =
-  /`([^`]*)`|\[!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\)|!\[([^\]]*)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*|\[([^\]]*)\]\(([^)]+)\)/g;
+  /`([^`]*)`|\[!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\)|!\[([^\]]*)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*|\[([^\]]*)\]\(([^)]+)\)|(?<![\w#])#(\d+)\b|(?<![\w@.])@([a-zA-Z\d](?:[a-zA-Z\d-]{0,37}[a-zA-Z\d])?)\b/g;
 
 export type MarkdownBlock =
   | { type: 'heading'; level: 1 | 2 | 3; segments: InlineSegment[] }
@@ -40,7 +51,7 @@ export function parseInline(text: string): InlineSegment[] {
       segments.push({ text: text.slice(lastIndex, match.index), code: false });
     }
 
-    const [, code, badgeAlt, badgeSrc, badgeHref, imageAlt, imageSrc, bold, italic, linkText, linkHref] = match;
+    const [, code, badgeAlt, badgeSrc, badgeHref, imageAlt, imageSrc, bold, italic, linkText, linkHref, issueNumber, mention] = match;
     if (code !== undefined) {
       segments.push({ text: code, code: true });
     } else if (badgeAlt !== undefined) {
@@ -51,6 +62,10 @@ export function parseInline(text: string): InlineSegment[] {
       segments.push({ text: bold, code: false, bold: true });
     } else if (italic !== undefined) {
       segments.push({ text: italic, code: false, italic: true });
+    } else if (issueNumber !== undefined) {
+      segments.push({ text: `#${issueNumber}`, code: false, link: `${REPO_URL}/issues/${issueNumber}` });
+    } else if (mention !== undefined) {
+      segments.push({ text: `@${mention}`, code: false, link: `${GITHUB_URL}/${mention}` });
     } else {
       segments.push({ text: linkText ?? '', code: false, link: linkHref });
     }
