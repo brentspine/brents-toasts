@@ -1,4 +1,8 @@
-toasts.on("close", (event) => {
+const stop = toasts.on("close", (event) => {
+  // One-shot: stop listening as soon as it fires, so the notification toast's
+  // own close (and any later runs of this snippet) can't retrigger it.
+  stop();
+
   new ToastBuilder(`Closed (${event.reason})`)
     .withSeverity(ToastSeverity.INFO)
     .withPosition(ToastPosition.BOTTOM_LEFT)

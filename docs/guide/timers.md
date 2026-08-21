@@ -13,9 +13,15 @@ tabbing to the toast itself or anything inside it (its close button, an
 action button, the "Details" toggle) pauses the countdown the same way,
 resuming once focus leaves the toast entirely. Hovering and focusing are
 tracked independently under the hood - either one pausing is enough to stop
-the countdown, and both have to release before it resumes (e.g. clicking a
+the countdown, and both have to release before it resumes (e.g. tabbing to a
 button leaves it focused even after the mouse moves away, so the timer stays
-paused until that button loses focus too).
+paused until that button loses focus too). This "focus" tracking only counts
+*keyboard* focus, though - clicking a button also focuses it, but that focus
+is deliberately ignored, since a mouse click is already covered by hovering
+(the pointer has to be over the toast to click something inside it) and,
+unlike a genuine Tab, doesn't release on its own when the mouse moves away;
+otherwise a clicked button would keep the toast paused indefinitely, with no
+way to resume it short of something else stealing focus.
 
 A timed toast also pauses while the page itself is hidden - the browser tab
 switched away from, or the window minimized/backgrounded (detected via the
@@ -28,6 +34,14 @@ switch tabs), both have to release before it resumes, same as hover and
 focus do. A toast shown while the page is already hidden starts paused
 right away, rather than counting down unseen. Sticky toasts are unaffected
 either way, for the same reason `pauseOnHover` doesn't affect them.
+
+`pauseToastTimer`/`resumeToastTimer` (below) are a third, independent pause reason alongside
+hover/focus and page-hidden, not an override of them - calling `resumeToastTimer(id)` while the
+mouse is still over the toast (e.g. clicking a "Resume" button rendered via `buttons`) clears only
+the manual reason; the countdown stays paused until hover (and page-hidden, if also active) release
+too, then resumes automatically as soon as the mouse leaves - no extra click elsewhere needed. This
+is what stops a manual pause/resume from being silently fought over and undone by the very next
+hover/focus event.
 
 For anything else (reset on a button click, extend while a related async
 action is running, pause while a dropdown opened from the toast is open), call
@@ -44,6 +58,12 @@ toasts.resetToastTimer(id, 8000); // ...or a new duration, which sticks for futu
 toasts.extendToastTimer(id, 2000); // add (or, negative, remove) time
 toasts.removeToastTimer(id);  // cancel it entirely: the toast becomes sticky
 ```
+
+`extendToastTimer` also raises the toast's stored full duration to match, whenever the extension
+pushes `remaining` past it (repeatedly clicking a "+5s" button, say) - otherwise a `progress` bar's
+elapsed-fraction math has no accurate "full" length to measure against once `remaining` exceeds it,
+and visibly sits frozen at "nothing elapsed yet" until the countdown drops back under the original
+duration.
 
 All six are no-ops on a sticky toast: there's nothing to pause, resume,
 reset, extend, or remove, because a sticky toast (`duration: 0`) never gets

@@ -428,6 +428,19 @@ describe('timer lifecycle', () => {
         expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
     });
 
+    it('extendToastTimer raises duration to match once remaining exceeds it, keeping the progress bar accurate', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000 });
+        // Pushes remaining past the original 1000ms duration - without widening `duration` too,
+        // `_syncProgressBar`'s remaining/duration fraction would clamp at "fully unelapsed" until
+        // remaining drops back under 1000ms, instead of counting down accurately the whole time.
+        t.extendToastTimer(id, 4000);
+        expect(t.getToastTimer(id)).toEqual({ duration: 5000, remaining: 5000, paused: false });
+        t.extendToastTimer(id, -2000);
+        expect(t.getToastTimer(id)).toEqual({ duration: 5000, remaining: 3000, paused: false });
+    });
+
     it('removeToastTimer cancels auto-dismiss and makes the toast sticky from then on', () => {
         vi.useFakeTimers();
         const t = new Toasts();
@@ -599,6 +612,37 @@ describe('pauseOnHover (mouse + focus)', () => {
         expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
     });
 
+    it('a click-focused button (mousedown before focusin) resumes on mouseleave alone, without needing a blur too', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000 });
+        const container = document.getElementById(id)!;
+        container.dispatchEvent(new Event('mouseenter'));
+        // Simulates clicking a button inside the toast: mousedown moves focus, then focusin
+        // fires, same order a real click produces - the resulting focus shouldn't count as a
+        // separate "keyboard focus" pause reason, since it's already covered by hovering.
+        container.dispatchEvent(new Event('mousedown'));
+        container.dispatchEvent(new FocusEvent('focusin'));
+        container.dispatchEvent(new Event('mouseleave'));
+        vi.advanceTimersByTime(1000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('a genuine Tab-focus (no preceding mousedown) still requires focusout to resume, even after mouseleave', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000 });
+        const container = document.getElementById(id)!;
+        container.dispatchEvent(new Event('mouseenter'));
+        container.dispatchEvent(new FocusEvent('focusin')); // no mousedown - keyboard Tab
+        container.dispatchEvent(new Event('mouseleave'));
+        vi.advanceTimersByTime(5000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
+        container.dispatchEvent(new FocusEvent('focusout', { relatedTarget: document.body }));
+        vi.advanceTimersByTime(1000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
     it('is a safe no-op for a sticky toast (duration: 0)', () => {
         vi.useFakeTimers();
         const t = new Toasts();
@@ -692,6 +736,118 @@ describe('pauseOnPageHidden', () => {
         const id = t.showToast('x', { duration: 0 });
         expect(() => setHidden(true)).not.toThrow();
         expect(t.getToastTimer(id)).toBeNull();
+    });
+});
+
+describe('manual pause/resume vs hover/focus/page-hidden', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+        cleanup();
+    });
+
+    it('manualPaused stays paused through mouseleave until resumeToastTimer is also called', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000 });
+        const container = document.getElementById(id)!;
+        container.dispatchEvent(new Event('mouseenter'));
+        t.pauseToastTimer(id);
+        container.dispatchEvent(new Event('mouseleave'));
+        vi.advanceTimersByTime(5000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
+        t.resumeToastTimer(id);
+        vi.advanceTimersByTime(1000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('resumeToastTimer does not override an active hover pause - resumes only once hover also releases', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000 });
+        const container = document.getElementById(id)!;
+        container.dispatchEvent(new Event('mouseenter'));
+        t.pauseToastTimer(id);
+        t.resumeToastTimer(id); // clears the manual reason, but hover still holds it paused
+        vi.advanceTimersByTime(5000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
+        container.dispatchEvent(new Event('mouseleave'));
+        vi.advanceTimersByTime(1000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('resumeToastTimer while a Tab-focused button inside the toast stays paused until focusout', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000 });
+        const container = document.getElementById(id)!;
+        t.pauseToastTimer(id);
+        container.dispatchEvent(new FocusEvent('focusin')); // no mousedown - a genuine keyboard Tab
+        t.resumeToastTimer(id);
+        vi.advanceTimersByTime(5000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
+        container.dispatchEvent(new FocusEvent('focusout', { relatedTarget: document.body }));
+        vi.advanceTimersByTime(1000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it("clicking a toast's own Resume button resumes as soon as the mouse leaves, with no extra click elsewhere needed", () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', {
+            duration: 1000,
+            buttons: [{ label: 'Resume', onClick: (_e, toastId) => t.resumeToastTimer(toastId) }],
+        });
+        const container = document.getElementById(id)!;
+        const resumeBtn = container.querySelector('.bt-toast-actions button') as HTMLButtonElement;
+        container.dispatchEvent(new Event('mouseenter'));
+        t.pauseToastTimer(id);
+        // A real click: the browser moves focus onto the button (mousedown, then focusin) before
+        // the click handler runs.
+        container.dispatchEvent(new Event('mousedown'));
+        container.dispatchEvent(new FocusEvent('focusin'));
+        resumeBtn.click();
+        vi.advanceTimersByTime(5000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false); // still hover-paused
+        container.dispatchEvent(new Event('mouseleave'));
+        vi.advanceTimersByTime(1000);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('extendToastTimer updates remaining time while hover-paused without resuming it', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 1000 });
+        const container = document.getElementById(id)!;
+        container.dispatchEvent(new Event('mouseenter'));
+        t.extendToastTimer(id, 2000);
+        expect(t.getToastTimer(id)?.paused).toBe(true);
+        expect(t.getToastTimer(id)?.remaining).toBe(3000);
+        container.dispatchEvent(new Event('mouseleave'));
+        vi.advanceTimersByTime(2999);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(false);
+        vi.advanceTimersByTime(1);
+        expect(document.getElementById(id)?.classList.contains('bt-hiding')).toBe(true);
+    });
+
+    it('pause/resume events fire only once when manual and hover reasons overlap', () => {
+        vi.useFakeTimers();
+        const onPause = vi.fn();
+        const onResume = vi.fn();
+        const t = new Toasts();
+        t.on('pause', onPause);
+        t.on('resume', onResume);
+        const id = t.showToast('x', { duration: 1000 });
+        const container = document.getElementById(id)!;
+
+        container.dispatchEvent(new Event('mouseenter')); // hover pauses
+        expect(onPause).toHaveBeenCalledTimes(1);
+        t.pauseToastTimer(id); // already paused via hover - no extra event
+        expect(onPause).toHaveBeenCalledTimes(1);
+
+        t.resumeToastTimer(id); // clears the manual reason, but hover still active - no resume yet
+        expect(onResume).toHaveBeenCalledTimes(0);
+        container.dispatchEvent(new Event('mouseleave')); // now truly resumes
+        expect(onResume).toHaveBeenCalledTimes(1);
     });
 });
 

@@ -95,7 +95,8 @@ cases, and worked examples before implementing anything non-trivial with it.
 - **Timers** - `pause`/`resume`/`reset`/`extend`/`removeToastTimer`, `getToastTimer(id)`. All
   no-ops on a sticky toast (`duration: 0`); it never has timer state. Timers also auto-pause on
   hover/focus (`pauseOnHover`, default on) and while the page is hidden (`pauseOnPageHidden`,
-  default on) - independent triggers, both must release to resume. `minVisibleDuration` (default
+  default on) - independent reasons alongside manual `pauseToastTimer`/`resumeToastTimer`, all of
+  which must release before the countdown actually resumes. `minVisibleDuration` (default
   `0`, disabled) guards against dismissing a toast before it's been visible that long - a
   premature `removeToast()`/click plays `SHAKE_LR` and defers rather than drops the dismissal;
   never delays a `'timeout'`/`'evicted'` removal.

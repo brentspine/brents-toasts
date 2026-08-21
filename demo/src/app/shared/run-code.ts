@@ -45,8 +45,36 @@ const SANDBOX_PARAM_NAMES = [
   'registerToastTransition',
 ] as const;
 
+/**
+ * Every `close`/`show`/... listener a run has registered on the shared `toasts` singleton via
+ * `on()`, so the *next* run can tear them down first. Without this, a snippet that forgets to
+ * unsubscribe (or one that's mid-edit and hasn't gotten there yet) leaves its listener attached
+ * forever - re-running "Try"/"Run" N times means N copies of the same handler firing on one
+ * real event, since the sandbox reuses the same persistent library instance across runs rather
+ * than getting a fresh one each time.
+ */
+let activeUnsubscribes: Array<() => void> = [];
+
+/**
+ * The `toasts` singleton, wrapped so every `on()` call made by sandboxed code is recorded into
+ * `activeUnsubscribes` - everything else passes straight through to the real instance. This is
+ * sandbox-only bookkeeping; it has no effect on `toasts.on()` used outside the Playground/Docs.
+ */
+const trackedToasts = new Proxy(toasts, {
+  get(target, prop, receiver) {
+    if (prop === 'on') {
+      return (...args: Parameters<Toasts['on']>) => {
+        const off = (target.on as (...a: Parameters<Toasts['on']>) => () => void)(...args);
+        activeUnsubscribes.push(off);
+        return off;
+      };
+    }
+    return Reflect.get(target, prop, receiver);
+  },
+}) as Toasts;
+
 const SANDBOX_PARAM_VALUES = [
-  toasts,
+  trackedToasts,
   Toasts,
   ToastBuilder,
   ToastColor,
@@ -140,6 +168,9 @@ const IMPORT_LINE = /^\s*import\s*\{[^}]*\}\s*from\s*['"]brents-toasts['"]\s*;?\
  * Monaco ambient lib comment already asks for.
  */
 export function runSandboxedCode(code: string): string | null {
+  activeUnsubscribes.forEach((off) => off());
+  activeUnsubscribes = [];
+
   try {
     const fn = new Function(...SANDBOX_PARAM_NAMES, ...DEMO_STUB_NAMES, code.replace(IMPORT_LINE, ''));
     fn(...SANDBOX_PARAM_VALUES, ...DEMO_STUB_VALUES);
