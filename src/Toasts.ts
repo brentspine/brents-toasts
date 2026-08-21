@@ -1,8 +1,8 @@
 /*
   Brents-Toasts ("Snackbar System v2")
-  Version 1.0
   Under Apache License 2.0
   Brentspine 2026
+  https://github.com/brentspine/brents-toasts
 */
 
 import { ToastColor, ToastSeverity, detectSeverityFromColor, DEFAULT_SEVERITY_DETECTION_THRESHOLD, type ToastColorPalette, type ToastSeverityValue } from './ToastColor';
