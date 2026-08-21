@@ -15,9 +15,13 @@ if errorlevel 1 goto :error
 git add .
 if errorlevel 1 goto :error
 
+git diff --cached --quiet
+if not errorlevel 1 goto :nochanges
+
 git commit -m "%commit_msg%" -a
 if errorlevel 1 goto :error
 
+:nochanges
 if "%bump_type%"=="none" goto :skipbump
 call npm version %bump_type%
 if errorlevel 1 goto :error
