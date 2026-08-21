@@ -8,6 +8,14 @@
  * redeploying the whole app. See RELEASING.md.
  */
 
+/** Records how fresh `features`/`examples/` are relative to the library's actual API surface. */
+export interface ContentRevision {
+    /** package.json version this features/examples content was last verified current against. */
+    libraryVersion: string;
+    /** Short human note on what prompted the update. */
+    note: string;
+}
+
 export interface Feature {
     title: string;
     description: string;
@@ -86,6 +94,8 @@ export type TypeSpec =
     | { kind: 'object'; description: string; fields: TypeSpecField[] };
 
 export interface OptionsData {
+    /** When `features`/`examples` were last substantially reviewed against the library's actual API - see `ContentRevision`. */
+    contentRevision: ContentRevision;
     features: Feature[];
     install: InstallSnippets;
     /** `ToastOptions` fields (+ button-factory helpers), shown in the Playground. */

@@ -1,0 +1,8 @@
+["invoice.pdf", "photo.png", "notes.txt"].forEach((name) => {
+  new ToastBuilder(`Uploading ${name}...`)
+    .withSource("uploads")
+    .withDuration(0)
+    .show();
+});
+
+setTimeout(() => toasts.clearBySource("uploads"), 2500);

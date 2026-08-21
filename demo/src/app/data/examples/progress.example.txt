@@ -1,9 +1,8 @@
 new ToastBuilder("Uploading...")
   .withDuration(6000)
-  .withProgress({ mode: "drain", color: "#28a6f5" })
-  .withOnClose(() => {
-    new ToastBuilder("Upload complete!")
-      .withColor(ToastColor.SUCCESS)
-      .show();
+  .withProgress({ mode: "drain", color: "#28a6f5", label: "Upload progress" })
+  .withOnClose((reason) => {
+    if (reason !== "timeout") return;
+    new ToastBuilder("Upload complete!").withSeverity(ToastSeverity.SUCCESS).show();
   })
   .show();

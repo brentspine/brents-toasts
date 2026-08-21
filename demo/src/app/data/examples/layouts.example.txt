@@ -1,0 +1,10 @@
+new ToastBuilder("Prominent layout")
+  .withColor(ToastColor.WARNING)
+  .withLayout(ToastLayout.PROMINENT)
+  .show();
+
+new ToastBuilder("Wide, with stacked actions")
+  .withModifiers([ToastModifier.WIDE, ToastModifier.STACKED_ACTIONS])
+  .withButton("Undo", () => {})
+  .withButton("Dismiss", (event, id) => toasts.removeToast(id))
+  .show();

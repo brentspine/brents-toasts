@@ -1,0 +1,10 @@
+const id = new ToastBuilder("Processing request...")
+  .withDuration(0)
+  .show();
+
+setTimeout(() => toasts.addToastDetail(id, "Step 1: input validated"), 800);
+
+setTimeout(() => {
+  toasts.addToastDetail(id, "Step 2: saved to database");
+  toasts.addToastButton(id, { label: "Close", onClick: (event, toastId) => toasts.removeToast(toastId) });
+}, 1800);

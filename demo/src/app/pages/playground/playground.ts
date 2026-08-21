@@ -11,7 +11,18 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { ToastBuilder, ToastColor, ToastPosition } from 'brents-toasts';
+import {
+  toasts,
+  ToastAnimation,
+  ToastBuilder,
+  ToastIcon,
+  ToastLayout,
+  ToastModifier,
+  ToastPosition,
+  ToastSeverity,
+  ToastTransition,
+} from 'brents-toasts';
+import type { ToastButton, ToastModifierValue, ToastProgressOptions } from 'brents-toasts';
 import { OptionsDataService } from '../../services/options-data';
 import { SectionService } from '../../services/section';
 import { TypeSpecPanel } from '../../shared/type-spec-panel';
@@ -26,8 +37,49 @@ const DEFAULT_CODE = 'new ToastBuilder("Something happened!")\n  .show();';
 const STORAGE_KEY = PLAYGROUND_STORAGE_KEY;
 
 const RANDOM_MESSAGES = ['Nice!', 'Boom.', 'All set.', 'Here you go!', 'Look at that.', 'Ta-da!'];
-const RANDOM_COLORS = [ToastColor.INFO, ToastColor.SUCCESS, ToastColor.WARNING, ToastColor.ERROR];
+const RANDOM_SEVERITIES = [ToastSeverity.INFO, ToastSeverity.SUCCESS, ToastSeverity.WARNING, ToastSeverity.ERROR];
+// Rare decorative flourish on top of the randomized severity above - same "occasional custom
+// color override" pattern as the theme/layouts Playground examples.
+const WILDCARD_COLORS = ['#9b59b6', '#ff6ec7', '#1abc9c', '#f39c12'];
 const RANDOM_POSITIONS = Object.values(ToastPosition);
+const RANDOM_ANIMATIONS = [ToastAnimation.SLIDE, ToastAnimation.FADE, ToastAnimation.NONE];
+const RANDOM_LAYOUTS = [ToastLayout.DEFAULT, ToastLayout.PROMINENT];
+const RANDOM_ICONS = [undefined, ToastIcon.INFO, ToastIcon.SUCCESS, ToastIcon.WARNING, ToastIcon.ERROR, ToastIcon.SPINNER];
+// One pick per group - these mirror the mutually-exclusive modifier groups documented in
+// options.json's ToastModifierValue typeSpec, so no combination here ever conflicts.
+const WIDTH_MODIFIERS: (ToastModifierValue | undefined)[] = [undefined, ToastModifier.COMPACT, ToastModifier.WIDE];
+const CLOSE_MODIFIERS: (ToastModifierValue | undefined)[] = [
+  undefined,
+  ToastModifier.CLOSE_CORNER,
+  ToastModifier.CLOSE_PINNED_RIGHT,
+  ToastModifier.CLOSE_HIDDEN,
+];
+const ICON_ANIM_MODIFIERS: ToastModifierValue[] = [ToastModifier.ICON_POP, ToastModifier.ICON_BOUNCE];
+const PROGRESS_MODES = ['fill', 'drain', 'manual'] as const;
+const PROGRESS_POSITIONS = ['top', 'bottom'] as const;
+const PROGRESS_ORIGINS = ['left', 'right', 'center'] as const;
+const SURPRISE_BUTTONS: ToastButton[] = [
+  { label: 'Nice!', onClick: (event, id) => toasts.removeToast(id) },
+  { label: 'Snooze', onClick: (event, id) => toasts.extendToastTimer(id, 3000) },
+  { label: 'Shake it', onClick: (event, id) => toasts.playToastTransition(id, ToastTransition.SHAKE_LR) },
+  { label: 'Undo', onClick: () => {} },
+];
+
+function pick<T>(pool: readonly T[]): T {
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function randomSurpriseProgress(): boolean | ToastProgressOptions {
+  const roll = Math.random();
+  if (roll < 0.3) return false;
+  if (roll < 0.5) return true;
+  return {
+    mode: pick(PROGRESS_MODES),
+    position: pick(PROGRESS_POSITIONS),
+    origin: pick(PROGRESS_ORIGINS),
+    value: Math.random(),
+  };
+}
 
 function loadStoredCode(): string {
   try {
@@ -256,17 +308,30 @@ export class Playground {
 
   /** Fires a toast with randomized options, just to show off how much the API can combine. */
   surpriseMe(): void {
-    const message = RANDOM_MESSAGES[Math.floor(Math.random() * RANDOM_MESSAGES.length)];
-    const color = RANDOM_COLORS[Math.floor(Math.random() * RANDOM_COLORS.length)];
-    const position = RANDOM_POSITIONS[Math.floor(Math.random() * RANDOM_POSITIONS.length)];
-    const withProgress = Math.random() > 0.5;
+    const icon = pick(RANDOM_ICONS);
+    const modifiers = [pick(WIDTH_MODIFIERS), pick(CLOSE_MODIFIERS), icon && pick(ICON_ANIM_MODIFIERS)].filter(
+      (m): m is ToastModifierValue => !!m,
+    );
 
-    new ToastBuilder(message)
-      .withColor(color)
-      .withPosition(position)
-      .withDuration(4000)
-      .withProgress(withProgress)
-      .show();
+    const builder = new ToastBuilder(pick(RANDOM_MESSAGES))
+      .withSeverity(pick(RANDOM_SEVERITIES))
+      .withPosition(pick(RANDOM_POSITIONS))
+      .withAnimation(pick(RANDOM_ANIMATIONS))
+      .withLayout(pick(RANDOM_LAYOUTS))
+      .withModifiers(modifiers)
+      .withProgress(randomSurpriseProgress())
+      .withDuration(4500);
+
+    if (icon) builder.withIcon(icon);
+    if (Math.random() < 0.15) builder.withColor(pick(WILDCARD_COLORS));
+
+    const buttonCount = Math.random() < 0.5 ? 0 : Math.random() < 0.8 ? 1 : 2;
+    [...SURPRISE_BUTTONS]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, buttonCount)
+      .forEach((btn) => builder.withButton(btn.label, btn.onClick));
+
+    builder.show();
   }
 
   run(): void {

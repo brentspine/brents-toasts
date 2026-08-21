@@ -1,0 +1,12 @@
+toasts.configure({ locale: "de" });
+new ToastBuilder("Bestellung versandt!")
+  .withSeverity(ToastSeverity.SUCCESS)
+  .withDetails(["Sendungsverfolgung: 1Z999AA10123456784"])
+  .show();
+
+setTimeout(() => {
+  toasts.configure({ locale: "en" });
+  new ToastBuilder("Same API, back to English")
+    .withDetails(["Details/Close/Confirm chrome text is auto-translated"])
+    .show();
+}, 2500);

@@ -1,17 +1,26 @@
 {
+  "contentRevision": {
+    "libraryVersion": "2.5.1",
+    "note": "Features + Playground examples fully rethought for current API coverage (localization, layouts, events, timers, incremental updates, bulk actions)."
+  },
   "features": [
     { "title": "Zero dependencies", "description": "No runtime dependencies at all: the whole library, CSS included, is a single self-contained bundle." },
     { "title": "Framework-agnostic", "description": "Works with plain script tags (UMD), or as an ESM/CJS import in React, Vue, Angular, Svelte, or anything else." },
     { "title": "No build step required", "description": "Drop in a single <script> tag and call toasts.showToast(...), no bundler or compilation needed." },
-    { "title": "Fully themeable", "description": "Every color is a CSS custom property, overridable per-toast or library-wide, with automatic close-icon contrast.", "exampleId": "theme" },
-    { "title": "Built-in localization", "description": "English, German, Spanish and French chrome text out of the box, with custom translation overrides." },
+    { "title": "TypeScript-first", "description": "Full .d.ts types ship with every build, with every option documented via JSDoc." },
     { "title": "Six stacking positions", "description": "Edge-agnostic stacking math keeps toasts from overlapping in any corner or center-edge position.", "exampleId": "positions" },
+    { "title": "Fully themeable", "description": "Every color is a CSS custom property, overridable per-toast or library-wide, with automatic close-icon contrast.", "exampleId": "theme" },
+    { "title": "Built-in localization", "description": "English, German, Spanish and French chrome text out of the box, switchable live via configure({ locale }), with custom translation overrides.", "exampleId": "localization" },
+    { "title": "Icons", "description": "Opt-in icon next to the message: built-in severity icons, an image URL, a CSS class, a custom Node, or your own renderer function - plus automatic icons for promise() outcomes.", "exampleId": "icons" },
+    { "title": "Layouts & modifiers", "description": "Named layouts (default/prominent) plus 13 composable modifiers - density, close-button treatment, width, icon animation - for a distinct look with zero custom CSS.", "exampleId": "layouts" },
     { "title": "Multi-step & confirm buttons", "description": "Built-in confirm-before-action, copy-to-clipboard, and general multi-step button state machines.", "exampleId": "confirm" },
     { "title": "Expandable details", "description": "Attach extra collapsible detail lines to any toast without cluttering the main message.", "exampleId": "details" },
     { "title": "Progress bars", "description": "An optional thin progress bar synced to a toast's auto-dismiss countdown, fill or drain, any edge.", "exampleId": "progress" },
-    { "title": "Icons", "description": "Opt-in icon next to the message: built-in severity icons, an image URL, a CSS class, a custom Node, or your own renderer function - plus automatic icons for promise() outcomes." },
-    { "title": "Promise-based toasts", "description": "toasts.promise() ties a toast to a fetch/async call's lifecycle: a loading state that patches itself to success or error once the promise settles.", "exampleId": "promise" },
-    { "title": "TypeScript-first", "description": "Full .d.ts types ship with every build, with every option documented via JSDoc." }
+    { "title": "Timers you control", "description": "Pause, resume, or extend a toast's auto-dismiss countdown from a button, a hover, or your own code - never a no-op trap for sticky (duration: 0) toasts, which simply have no timer to control.", "exampleId": "timers" },
+    { "title": "Update in place", "description": "Add or remove a single button or detail line on an already-visible toast without re-declaring the whole thing.", "exampleId": "incremental-updates" },
+    { "title": "Bulk actions & grouping", "description": "Tag toasts with a source and dismiss the whole group at once via clearBySource(), or clear every other toast when a new one takes over.", "exampleId": "bulk-actions" },
+    { "title": "Live event hooks", "description": "Subscribe to show/open/visible/update/close/remove/pause/resume from anywhere in your app - independent of any single toast's own onClose.", "exampleId": "events" },
+    { "title": "Promise-based toasts", "description": "toasts.promise() ties a toast to a fetch/async call's lifecycle: a loading state that patches itself to success or error once the promise settles.", "exampleId": "promise" }
   ],
   "install": {
     "npm": "npm install brents-toasts",

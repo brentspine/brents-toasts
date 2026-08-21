@@ -1,0 +1,11 @@
+toasts.on("close", (event) => {
+  new ToastBuilder(`Closed (${event.reason})`)
+    .withSeverity(ToastSeverity.INFO)
+    .withPosition(ToastPosition.BOTTOM_LEFT)
+    .withDuration(2000)
+    .show();
+});
+
+new ToastBuilder("Dismiss me - watch the bottom-left corner")
+  .withColor(ToastColor.WARNING)
+  .show();

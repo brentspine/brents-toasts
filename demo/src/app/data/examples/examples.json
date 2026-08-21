@@ -5,6 +5,26 @@
     "description": "Fires one toast per screen edge/corner, showing that the stacking math handles every position the same way."
   },
   {
+    "id": "theme",
+    "title": "Custom theme colors",
+    "description": "Every ToastTheme field at once - background, text, details background, action color, and even the normally auto-computed close-icon color."
+  },
+  {
+    "id": "localization",
+    "title": "Multilingual out of the box",
+    "description": "configure({ locale: 'de' }) switches the library's own chrome text - Details/Close/Confirm labels - live, without touching your own message/title strings."
+  },
+  {
+    "id": "icons",
+    "title": "Icons, from built-in to custom",
+    "description": "A built-in severity icon with an entrance animation, a hand-built DOM Node as an icon, and toasts.promise() automatically swapping in a spinner/success/error icon via configure({ promiseIcons: true })."
+  },
+  {
+    "id": "layouts",
+    "title": "Layouts & modifiers",
+    "description": "The prominent named layout, plus stacking wide + stacked-actions modifiers directly for a custom look with no CSS."
+  },
+  {
     "id": "confirm",
     "title": "Confirm before acting",
     "description": "Each step of the confirm flow gets its own color and message: confirm, a pending state while the (simulated) delete runs, then a success flash that closes the toast instead of reverting."
@@ -21,13 +41,33 @@
   },
   {
     "id": "details",
-    "title": "Expandable details",
-    "description": "Attach extra collapsible lines to a toast without cluttering the main message."
+    "title": "Expandable, copyable details",
+    "description": "A ToastDetailItem with its own label and a one-click Copy button via detailsCopyButton(), not just a plain line of text."
   },
   {
     "id": "progress",
     "title": "Progress bar",
-    "description": "A thin progress bar synced to the toast's auto-dismiss countdown."
+    "description": "A thin progress bar synced to the toast's auto-dismiss countdown, with an onClose that only fires the follow-up toast on a real timeout."
+  },
+  {
+    "id": "timers",
+    "title": "Timers you control",
+    "description": "Pause, resume, or extend a toast's auto-dismiss countdown from its own buttons - pauseToastTimer(), resumeToastTimer(), extendToastTimer()."
+  },
+  {
+    "id": "incremental-updates",
+    "title": "Update without a full re-render",
+    "description": "addToastDetail()/addToastButton() append to an already-visible toast piece by piece, instead of re-declaring the whole thing on every updateToast()."
+  },
+  {
+    "id": "bulk-actions",
+    "title": "Bulk actions & grouping",
+    "description": "Tag several toasts with the same source, then dismiss the whole group at once via clearBySource() - no manual id tracking needed."
+  },
+  {
+    "id": "events",
+    "title": "React to toast lifecycle events",
+    "description": "toasts.on('close', ...) subscribes to every toast's close event from one place, independent of any single toast's own onClose."
   },
   {
     "id": "promise",
@@ -43,21 +83,6 @@
     "id": "reverse-order",
     "title": "Reverse stacking order",
     "description": "Insert a toast at the far end of the stack instead of nearest the anchor edge."
-  },
-  {
-    "id": "theme",
-    "title": "Custom theme colors",
-    "description": "Override background, text, and action colors per toast without touching CSS."
-  },
-  {
-    "id": "icons",
-    "title": "Icons, animated",
-    "description": "A built-in icon with an entrance animation (ICON_BOUNCE), plus toasts.promise() automatically swapping in a spinner/success/error icon via configure({ promiseIcons: true })."
-  },
-  {
-    "id": "sticky",
-    "title": "Sticky toast with actions",
-    "description": "duration: 0 keeps a toast on screen until the user acts on it, instead of auto-dismissing."
   },
   {
     "id": "html-content",

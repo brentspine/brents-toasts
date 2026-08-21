@@ -1,6 +1,15 @@
 new ToastBuilder("Saved!")
+  .withSeverity(ToastSeverity.SUCCESS)
   .withIcon(ToastIcon.SUCCESS)
   .withModifiers([ToastModifier.ICON_BOUNCE])
+  .withDetails(["Icon: ToastIcon.SUCCESS, animated in via ToastModifier.ICON_BOUNCE"])
+  .show();
+
+const spinner = document.createElement("div");
+spinner.textContent = "⏳";
+new ToastBuilder("Custom icon node")
+  .withIcon(spinner)
+  .withDetails(["Any DOM Node works as an icon - not just the 5 built-ins"])
   .show();
 
 toasts.configure({ promiseIcons: true });

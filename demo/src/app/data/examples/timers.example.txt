@@ -1,0 +1,7 @@
+const id = new ToastBuilder("Auto-closes in 8s - try the buttons")
+  .withDuration(8000)
+  .withProgress({ mode: "drain" })
+  .withButton("Pause", (event, toastId) => toasts.pauseToastTimer(toastId))
+  .withButton("Resume", (event, toastId) => toasts.resumeToastTimer(toastId))
+  .withButton("+5s", (event, toastId) => toasts.extendToastTimer(toastId, 5000))
+  .show();

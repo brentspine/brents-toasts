@@ -12,9 +12,14 @@ import playTransition from './play-transition.example.txt';
 import reverseOrder from './reverse-order.example.txt';
 import theme from './theme.example.txt';
 import icons from './icons.example.txt';
-import sticky from './sticky.example.txt';
 import htmlContent from './html-content.example.txt';
 import bossFight from './boss-fight.example.txt';
+import localization from './localization.example.txt';
+import layouts from './layouts.example.txt';
+import timers from './timers.example.txt';
+import incrementalUpdates from './incremental-updates.example.txt';
+import bulkActions from './bulk-actions.example.txt';
+import events from './events.example.txt';
 
 /**
  * Maps each example's `id` (from examples.json) to its runnable source, kept in its own
@@ -38,9 +43,14 @@ const EXAMPLE_CODE: Record<string, string> = {
     'reverse-order': reverseOrder,
     theme,
     icons,
-    sticky,
     'html-content': htmlContent,
     'boss-fight': bossFight,
+    localization,
+    layouts,
+    timers,
+    'incremental-updates': incrementalUpdates,
+    'bulk-actions': bulkActions,
+    events,
 };
 
 /** Curated cards shown in the Playground's "Browse examples" section, metadata + code merged. */

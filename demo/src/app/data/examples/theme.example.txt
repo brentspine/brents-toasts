@@ -1,7 +1,11 @@
 new ToastBuilder("Custom themed toast")
+  .withColor("#9b59b6")
   .withTheme({
-    background: "#1c1c1c",
-    text: "#f5f5f5",
-    actionColor: "#4bb543"
+    background: "#241b2f",
+    text: "#f3e9ff",
+    detailsBackground: "rgba(155, 89, 182, 0.25)",
+    actionColor: "#d9b8ff",
+    closeIcon: "#f3e9ff",
   })
+  .withDetails(["Every color here - including the close icon - is a --bt-* CSS custom property, overridable individually"])
   .show();

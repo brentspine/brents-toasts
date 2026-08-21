@@ -1,8 +1,7 @@
 new ToastBuilder("Order shipped!")
-  .withColor(ToastColor.SUCCESS)
-  .withDetails(
-    ["Order #1234 shipped", "Tracking: 1Z999AA10123456784"],
-    "Show details",
-    "Hide details"
-  )
+  .withSeverity(ToastSeverity.SUCCESS)
+  .withDetails([
+    "Order #1234 shipped",
+    { label: "Tracking", value: "1Z999AA10123456784", buttons: [toasts.detailsCopyButton("1Z999AA10123456784")] },
+  ])
   .show();
