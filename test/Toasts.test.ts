@@ -1558,6 +1558,129 @@ describe('role/aria-live derivation from severity (#56)', () => {
     });
 });
 
+describe('autoDetectSeverity (#118)', () => {
+    afterEach(cleanup);
+
+    function roleOf(id: string): { role: string | null; ariaLive: string | null } {
+        const toast = document.getElementById(id)!.querySelector<HTMLElement>('.bt-toast')!;
+        return { role: toast.getAttribute('role'), ariaLive: toast.getAttribute('aria-live') };
+    }
+
+    it('is off by default - a custom color close to a severity color still never implies one', () => {
+        const t = new Toasts();
+        expect(roleOf(t.showToast('x', { color: '#dc3545', duration: 0 }))).toEqual({ role: 'status', ariaLive: 'polite' });
+    });
+
+    it('configure({ autoDetectSeverity: true }) infers severity from a color close to a palette entry', () => {
+        const t = new Toasts();
+        t.configure({ autoDetectSeverity: true });
+        const onShow = vi.fn();
+        t.on('show', onShow);
+
+        // Close to bundled WARNING (#dfb200ff); no severity given.
+        const id = t.showToast('x', { color: '#ffc107', duration: 0 });
+        expect(onShow).toHaveBeenCalledWith({ id, severity: ToastSeverity.WARNING, message: 'x' });
+        expect(roleOf(id)).toEqual({ role: 'alert', ariaLive: 'assertive' });
+    });
+
+    it('infers ERROR from literal pure red (#ff0000), not just near-matches of the bundled hex', () => {
+        const t = new Toasts();
+        t.configure({ autoDetectSeverity: true });
+        const onShow = vi.fn();
+        t.on('show', onShow);
+
+        // Pure red's hue is a few degrees from the bundled ERROR's (#ff4433) - matching on hue (not
+        // raw RGB distance) is what makes this match; see detectSeverityFromColor's JSDoc.
+        const id = t.showToast('x', { color: '#ff0000', duration: 0 });
+        expect(onShow).toHaveBeenCalledWith({ id, severity: ToastSeverity.ERROR, message: 'x' });
+        expect(roleOf(id)).toEqual({ role: 'alert', ariaLive: 'assertive' });
+    });
+
+    it('works via the legacy positional form too - the call shape with no severity parameter at all', () => {
+        const t = new Toasts();
+        t.configure({ autoDetectSeverity: true });
+        const onShow = vi.fn();
+        t.on('show', onShow);
+
+        // Close to bundled ERROR (#ff4433ff).
+        const id = t.showToast('x', '#dc3545', 0);
+        expect(onShow).toHaveBeenCalledWith({ id, severity: ToastSeverity.ERROR, message: 'x' });
+    });
+
+    it('leaves severity untouched when color is not close enough to any palette entry - no false positives', () => {
+        const t = new Toasts();
+        t.configure({ autoDetectSeverity: true });
+        const onShow = vi.fn();
+        t.on('show', onShow);
+
+        // A neutral gray - too desaturated to have a meaningful hue at all, so it's excluded by
+        // the saturation gate regardless of threshold (its hue happens to fall right next to
+        // INFO's, which is exactly why saturation is checked first).
+        const id = t.showToast('x', { color: '#6c757d', duration: 0 });
+        expect(onShow).toHaveBeenCalledWith({ id, severity: ToastSeverity.INFO, message: 'x' });
+    });
+
+    it('an explicit severity always wins outright, even alongside a mismatched color', () => {
+        const t = new Toasts();
+        t.configure({ autoDetectSeverity: true });
+        const onShow = vi.fn();
+        t.on('show', onShow);
+
+        const id = t.showToast('x', { severity: ToastSeverity.SUCCESS, color: '#dc3545', duration: 0 });
+        expect(onShow).toHaveBeenCalledWith({ id, severity: ToastSeverity.SUCCESS, message: 'x' });
+    });
+
+    it('updateToast infers severity from a color-only patch, but not when severity is also in the patch', () => {
+        const t = new Toasts();
+        t.configure({ autoDetectSeverity: true });
+        const id = t.showToast('x', { duration: 0 });
+        expect(roleOf(id)).toEqual({ role: 'status', ariaLive: 'polite' });
+
+        t.updateToast(id, { color: '#dc3545' });
+        expect(roleOf(id)).toEqual({ role: 'alert', ariaLive: 'assertive' });
+
+        t.updateToast(id, { color: '#ffc107', severity: ToastSeverity.SUCCESS });
+        expect(roleOf(id)).toEqual({ role: 'status', ariaLive: 'polite' });
+    });
+
+    it('threshold is tunable via { threshold } - a looser threshold matches a color a stricter one would reject', () => {
+        const t = new Toasts();
+        const onShow = vi.fn();
+        t.on('show', onShow);
+
+        // #ff8000 sits ~18 degrees of hue from bundled WARNING (#dfb200) - closer than any other
+        // palette entry, but outside a strict threshold and inside a loose one.
+        t.configure({ autoDetectSeverity: { threshold: 10 } });
+        const idStrict = t.showToast('x', { color: '#ff8000', duration: 0 });
+        expect(onShow).toHaveBeenLastCalledWith({ id: idStrict, severity: ToastSeverity.INFO, message: 'x' });
+
+        t.configure({ autoDetectSeverity: { threshold: 30 } });
+        const idLoose = t.showToast('x', { color: '#ff8000', duration: 0 });
+        expect(onShow).toHaveBeenLastCalledWith({ id: idLoose, severity: ToastSeverity.WARNING, message: 'x' });
+    });
+
+    it('matches against the live (possibly reskinned) colors palette, not the bundled ToastColor defaults', () => {
+        const t = new Toasts();
+        t.configure({ autoDetectSeverity: true, colors: { WARNING: '#123456' } });
+        const onShow = vi.fn();
+        t.on('show', onShow);
+
+        // Close to the custom WARNING, far from the bundled #dfb200ff.
+        const id = t.showToast('x', { color: '#12345a', duration: 0 });
+        expect(onShow).toHaveBeenCalledWith({ id, severity: ToastSeverity.WARNING, message: 'x' });
+    });
+
+    it('an unparseable/named CSS color (e.g. "red") never matches - a known resolveRgb limitation', () => {
+        const t = new Toasts();
+        t.configure({ autoDetectSeverity: true });
+        const onShow = vi.fn();
+        t.on('show', onShow);
+
+        const id = t.showToast('x', { color: 'red', duration: 0 });
+        expect(onShow).toHaveBeenCalledWith({ id, severity: ToastSeverity.INFO, message: 'x' });
+    });
+});
+
 describe('button/detail helpers', () => {
     afterEach(cleanup);
 

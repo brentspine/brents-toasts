@@ -5,7 +5,7 @@
   Brentspine 2026
 */
 
-import { ToastColor, ToastSeverity, type ToastColorPalette, type ToastSeverityValue } from './ToastColor';
+import { ToastColor, ToastSeverity, detectSeverityFromColor, DEFAULT_SEVERITY_DETECTION_THRESHOLD, type ToastColorPalette, type ToastSeverityValue } from './ToastColor';
 import { ToastPosition, IMPLEMENTED_POSITIONS, POSITION_EDGE, collapsedPosition, DEFAULT_RESPONSIVE_BREAKPOINT, type ToastPositionValue } from './ToastPosition';
 import { ToastAnimation, getToastAnimation, type ToastAnimationValue, type ToastAnimationDefinition } from './ToastAnimation';
 import { ToastLayout, isKnownLayout, getLayoutModifiers, type ToastLayoutValue } from './ToastLayout';
@@ -80,12 +80,14 @@ export interface ToastOptions {
      *  `role="alert"`/`aria-live="assertive"`; `'INFO'`/`'SUCCESS'` render `role="status"`/`aria-live="polite"`.
      *  Also picks this toast's default `color` (via `configure()`'s `colors` palette - see `ToastsConfig.colors`)
      *  when `color` itself isn't set, so `severity: ToastSeverity.WARNING` alone gets you both the right look
-     *  and the right role for free. Defaults to `ToastSeverity.INFO` or the configured default. */
+     *  and the right role for free. Defaults to `ToastSeverity.INFO` or the configured default, *unless*
+     *  `ToastsConfig.autoDetectSeverity` is opted into and `color` is set without `severity` - see there. */
     severity?: ToastSeverityValue;
     /** Background color of the indicator bar. Purely presentational - has no effect on `role`/`aria-live`,
      *  which come from `severity` alone (see above). Defaults to `configure()`'s `colors[severity]` (see
      *  `ToastsConfig.colors`) unless set here. Passing a custom `color` never changes this toast's
-     *  accessibility semantics; set `severity` for that, independently of whatever `color` looks like. */
+     *  accessibility semantics *by default*; set `severity` for that, independently of whatever `color`
+     *  looks like - or opt into `ToastsConfig.autoDetectSeverity` to infer it from `color` instead. */
     color?: string;
     /** Auto-dismiss after ms. Use `0` to disable. Defaults to `3000` or the configured default. A negative or `NaN` value is invalid - warns once and falls back to the configured default. */
     duration?: number;
@@ -277,6 +279,19 @@ export interface ToastsConfig {
      *  a `color` value against this table. Merges key-by-key over the current value (like `theme` does
      *  per-toast), so a partial override doesn't drop the other severities' colors. */
     colors: ToastColorPalette;
+    /** Opt-in: when a toast's `color` is set but `severity` isn't, infer `severity` from how close
+     *  `color` is to one of `colors`' four entries (`detectSeverityFromColor` in `ToastColor.ts`) instead
+     *  of leaving it at the default. Off by default - color and severity stay fully independent unless
+     *  this is turned on (see #56/#118: an earlier version of this library inferred severity from color
+     *  unconditionally, and that was reverted for exactly this reason - a silent, unrequested
+     *  accessibility semantics change isn't something to default on). `true` uses
+     *  `DEFAULT_SEVERITY_DETECTION_THRESHOLD`; pass `{ threshold }` to tune how close counts as "close
+     *  enough" (hue distance in degrees, 0-180 - lower is stricter; grayish/desaturated colors never
+     *  match regardless of threshold). An explicit `severity` always wins
+     *  outright regardless of this setting, same as it already wins over any other `color`-derived
+     *  default. Matches against the *current* `colors` palette, so a reskinned palette (see above) is
+     *  matched against, not the bundled `ToastColor` defaults. */
+    autoDetectSeverity?: boolean | { threshold?: number };
     /** Pixel spacing between stacked toasts within the same snackbar - what `ToastStacking.ts`'s
      *  positioning math (`recalculatePositions`/`stackExistingAway`/`totalStackedExtent`) adds on
      *  top of each toast's own rendered height. Default `8`. A negative or `NaN` value is invalid -
@@ -437,6 +452,7 @@ export const DEFAULT_CONFIG: ToastsConfig = {
     injectStyles: true,
     injectLayoutStyles: true,
     colors: { ...ToastColor },
+    autoDetectSeverity: false,
     gap: TOAST_GAP,
     zIndex: 10000,
 };
@@ -1127,6 +1143,13 @@ export class Toasts {
         if (!toast || !toastRow || !toastClose || !toastContent) return;
 
         const state: ToastState = { ...prev, ...update };
+        // Opt-in (`ToastsConfig.autoDetectSeverity`) - only when this patch sets `color` without
+        // also setting `severity`, so an explicit `severity` in the same patch still always wins
+        // outright, same precedence `_resolveOptions` already gives it at creation time.
+        if ('color' in update && !('severity' in update) && typeof update.color === 'string') {
+            const detected = this._detectSeverityForColor(update.color);
+            if (detected !== undefined) state.severity = detected;
+        }
         this._toastState.set(toastContainer, state);
 
         const hasVisualChange =
@@ -1973,6 +1996,12 @@ export class Toasts {
             if (colorOrOptions.severity !== undefined && colorOrOptions.color === undefined) {
                 resolved.color = this.config.colors[resolved.severity];
             }
+            // Opt-in (`ToastsConfig.autoDetectSeverity`) - only when `severity` wasn't given
+            // explicitly, so an explicit `severity` still always wins outright.
+            if (colorOrOptions.severity === undefined && colorOrOptions.color !== undefined) {
+                const detected = this._detectSeverityForColor(colorOrOptions.color);
+                if (detected !== undefined) resolved.severity = detected;
+            }
             // Merged key-by-key (unlike every other object-shaped option,
             // e.g. `progress`, which is a whole-value replacement) so a
             // per-toast theme only needs to give the fields it wants to
@@ -1984,12 +2013,31 @@ export class Toasts {
         }
 
         // Legacy positional signature has no `severity` parameter - it keeps
-        // whatever the configured default severity is, same as it always has.
-        if (colorOrOptions !== undefined) base.color = colorOrOptions;
+        // whatever the configured default severity is, same as it always has,
+        // unless `autoDetectSeverity` is opted into - this call shape is the
+        // more compelling case for it, since there's no other way to express
+        // severity here at all.
+        if (colorOrOptions !== undefined) {
+            base.color = colorOrOptions;
+            const detected = this._detectSeverityForColor(colorOrOptions);
+            if (detected !== undefined) base.severity = detected;
+        }
         if (duration !== undefined) base.duration = duration;
         if (closable !== undefined) base.closable = closable;
         if (allowHtml !== undefined) base.allowHtml = allowHtml;
         return this._validateDuration(base);
+    }
+
+    // Interprets `ToastsConfig.autoDetectSeverity`'s tri-state (`false`/`true`/`{ threshold }`)
+    // in exactly one place - called from both `_resolveOptions` branches and from `updateToast`'s
+    // color-only-update path, so the three never drift into interpreting it differently.
+    private _detectSeverityForColor(color: string): ToastSeverityValue | undefined {
+        const setting = this.config.autoDetectSeverity;
+        if (!setting) return undefined;
+        const threshold = typeof setting === 'object' && setting.threshold !== undefined
+            ? setting.threshold
+            : DEFAULT_SEVERITY_DETECTION_THRESHOLD;
+        return detectSeverityFromColor(color, this.config.colors, threshold);
     }
 
     // `duration: 0` deliberately means "sticky" - only reject values that can't mean

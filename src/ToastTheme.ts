@@ -57,8 +57,12 @@ export function applyThemeVars(el: HTMLElement, theme: ToastTheme | undefined): 
 // Resolves an arbitrary CSS color string (hex, rgb()/rgba(), named, ...) to
 // its r/g/b channels by letting the browser's own CSSOM parse it, instead of
 // hand-rolling a hex/rgb/named-color parser here. Returns undefined for an
-// unparseable string (or outside a DOM environment).
-function resolveRgb(color: string): [number, number, number] | undefined {
+// unparseable string (or outside a DOM environment). Note: named CSS colors
+// (e.g. "red") aren't normalized by an uncomputed `style.color` read, only
+// hex/rgb()/rgba()/hsl() are - a known limitation shared by every caller of
+// this function, not just `isLightColor` below (see `detectSeverityFromColor`
+// in `ToastColor.ts`).
+export function resolveRgb(color: string): [number, number, number] | undefined {
     if (typeof document === 'undefined') return undefined;
     const probe = document.createElement('span');
     probe.style.color = color;

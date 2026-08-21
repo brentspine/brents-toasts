@@ -136,9 +136,12 @@ cases, and worked examples before implementing anything non-trivial with it.
   stacked toasts) and `zIndex` (default `10000`, applied as `--bt-z-index`). Scope defaults to one page/section with
   `new Toasts()` instead of the shared singleton. `role`/`aria-live`/`aria-atomic` come from
   `ToastOptions.severity` alone (`WARNING`/`ERROR` → `alert`/`assertive`, `INFO`/`SUCCESS` →
-  `status`/`polite`) - `color` is purely visual and never affects them. An unset `color` defaults
-  to `configure()`'s `colors[severity]` (default bundled `ToastColor`), so
-  `severity: ToastSeverity.WARNING` alone gets both the right look and the right role. A
+  `status`/`polite`) - `color` is purely visual and never affects them *by default*. An unset
+  `color` defaults to `configure()`'s `colors[severity]` (default bundled `ToastColor`), so
+  `severity: ToastSeverity.WARNING` alone gets both the right look and the right role.
+  `configure({ autoDetectSeverity: true })` (default `false`) opts into inferring `severity` from
+  `color` when a toast sets `color` without `severity`, by nearest-match against `colors` - see
+  [Config](guide/config.md#opt-in-inferring-severity-from-color). A
   `closable` toast's row is focusable (`role="button"`, accessible name) and dismissible via
   Enter/Space (focused row) or Escape (focus anywhere inside the toast), not just click.
   `dismissOnClick: false` narrows just the click path - the row body stops dismissing on click,

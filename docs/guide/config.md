@@ -72,9 +72,9 @@ only, a no-op passed to `updateToast`).
 `aria-live="polite"`. Every toast also gets `aria-atomic="true"`, so a
 screen reader re-announces the toast's whole content on a later
 `updateToast`, not just whichever text node happened to change. `color` is
-purely presentational and has **no** bearing on any of this - unlike
-versions before this, nothing ever inspects a `color` value to guess what
-it means.
+purely presentational and has **no** bearing on any of this by default -
+unlike versions before this, nothing inspects a `color` value to guess what
+it means *unless* you explicitly opt into `autoDetectSeverity` below.
 
 A `closable` toast's row (see `ToastOptions.closable`) is focusable with
 `role="button"` and an accessible name (the localized "Close" string),
@@ -138,6 +138,38 @@ from `severity` alone, reskinning `colors` never risks changing which
 toasts get announced as `alert`s - that's controlled independently via
 `configure({ severity })` (the library-wide default) or each call's own
 `severity`.
+
+### Opt-in: inferring severity from color
+
+If you'd rather not set `severity` everywhere and are willing to accept a
+heuristic, `autoDetectSeverity` infers it from `color` when a toast sets
+`color` but not `severity` - comparing `color`'s hue against `configure()`'s
+`colors` palette and picking the nearest entry, but only when it's a clearly
+close match. Grayish/desaturated colors (including black and white) never
+match anything, since they have no meaningful hue to compare:
+
+```ts live
+toasts.configure({ autoDetectSeverity: true });
+toasts.showToast('Something went wrong.', { color: '#dc3545' }); // inferred as ERROR
+```
+
+This is **off by default** - an earlier version of this library inferred
+severity from color unconditionally, and that was deliberately reverted (see
+above); `autoDetectSeverity` is the same idea brought back strictly opt-in,
+so nobody's accessibility semantics change just by upgrading. An explicit
+`severity` always wins outright, on any call, regardless of this setting. A
+color with no close match (an unrelated brand color, a neutral gray, ...)
+simply leaves `severity` at whatever it already resolved to - there's no
+warning, since a color that doesn't happen to resemble a severity isn't a
+mistake. It also works with the legacy positional `showToast(message, color)`
+form, which has no `severity` parameter to set at all otherwise.
+
+Pass `{ threshold }` instead of `true` to tune how close counts as "close
+enough" (lower is stricter):
+
+```ts live
+toasts.configure({ autoDetectSeverity: { threshold: 40 } });
+```
 
 Builder equivalents: `.withSeverity(severity)`, or the shorthands
 `.asInfo()` / `.asSuccess()` / `.asWarning()` / `.asError()` (each sets
