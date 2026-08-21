@@ -8,6 +8,8 @@ export interface SavedSnippet {
   name: string;
   code: string;
   savedAt: string;
+  /** e.g. `'examples'` when saved right after loading a curated example unedited - see `Playground.confirmSaveSnippet`. */
+  tags?: string[];
 }
 
 function loadStored(): SavedSnippet[] {
@@ -38,14 +40,14 @@ export class SnippetsService {
   readonly snippets = signal<SavedSnippet[]>(loadStored());
 
   /** Saves `code` under `name`, overwriting any existing snippet with the same (trimmed) name. */
-  save(name: string, code: string): void {
+  save(name: string, code: string, tags?: string[]): void {
     const trimmed = name.trim();
     if (!trimmed) return;
     const savedAt = new Date().toISOString();
 
     this.snippets.update((current) => {
       const existing = current.find((s) => s.name === trimmed);
-      const entry: SavedSnippet = { id: existing?.id ?? generateId(), name: trimmed, code, savedAt };
+      const entry: SavedSnippet = { id: existing?.id ?? generateId(), name: trimmed, code, savedAt, tags };
       return [...current.filter((s) => s.name !== trimmed), entry].sort((a, b) => a.name.localeCompare(b.name));
     });
     this.persist();

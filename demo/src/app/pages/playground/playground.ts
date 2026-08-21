@@ -136,6 +136,11 @@ export class Playground {
   // one step reversible instead of silently discarding whatever the user had.
   readonly previousCode = signal<string | null>(null);
   readonly copiedExampleId = signal<string | null>(null);
+
+  // The code of the example last loaded via tryExample(), so confirmSaveSnippet() can tag
+  // the resulting snippet 'examples' - only while the editor still holds that exact code
+  // unedited (trySnippet()/reset() clear it, and any hand-edit just stops matching code()).
+  private readonly lastExampleCode = signal<string | null>(null);
   readonly colorPickerValue = signal('#28a6f5');
   readonly colorCopied = signal(false);
 
@@ -270,14 +275,17 @@ export class Playground {
   reset(): void {
     this.code.set(DEFAULT_CODE);
     this.runError.set(null);
+    this.lastExampleCode.set(null);
   }
 
   tryExample(example: PlaygroundExample): void {
     this.loadCode(example.code);
+    this.lastExampleCode.set(example.code);
   }
 
   trySnippet(snippet: SavedSnippet): void {
     this.loadCode(snippet.code);
+    this.lastExampleCode.set(null);
   }
 
   /** Loads and runs `code`, remembering whatever was there before (see `undoLastExample`). */
@@ -341,7 +349,8 @@ export class Playground {
   }
 
   confirmSaveSnippet(name: string): void {
-    this.snippetsService.save(name, this.code());
+    const tags = this.code() === this.lastExampleCode() ? ['examples'] : undefined;
+    this.snippetsService.save(name, this.code(), tags);
     this.saveDialogOpen.set(false);
     toasts.showToast(`Saved "${name}" locally.`, { severity: ToastSeverity.SUCCESS, duration: 2500 });
   }

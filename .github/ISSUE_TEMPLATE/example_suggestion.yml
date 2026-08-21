@@ -1,7 +1,7 @@
 name: Suggest an example
 description: Share a Playground snippet you'd like to see added to the curated "Browse examples" list.
 title: "[Example]: "
-labels: ["example", "needs-triage"]
+labels: ["examples", "needs-triage"]
 body:
   - type: markdown
     attributes:
