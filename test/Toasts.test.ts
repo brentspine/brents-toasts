@@ -1843,6 +1843,56 @@ describe('animations', () => {
     });
 });
 
+describe('reduced motion', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+        cleanup();
+    });
+
+    it('overrides a requested animation with NONE when the system reports prefers-reduced-motion: reduce', () => {
+        vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true } as MediaQueryList);
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, animation: ToastAnimation.SLIDE });
+        const el = document.getElementById(id)!;
+        expect(el.style.transition).toBe('none');
+        expect(el.style.opacity).toBe('1');
+    });
+
+    it('leaves the requested animation alone when the system does not prefer reduced motion', () => {
+        vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false } as MediaQueryList);
+        const slideTransition = getToastAnimation(ToastAnimation.SLIDE)!.containerTransition;
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, animation: ToastAnimation.SLIDE });
+        expect(document.getElementById(id)!.style.transition).toBe(slideTransition);
+    });
+
+    it('config.reducedMotion: true forces NONE regardless of the system preference', () => {
+        vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false } as MediaQueryList);
+        const t = new Toasts();
+        t.configure({ reducedMotion: true });
+        const id = t.showToast('x', { duration: 0, animation: ToastAnimation.SLIDE });
+        expect(document.getElementById(id)!.style.transition).toBe('none');
+    });
+
+    it('config.reducedMotion: false keeps the requested animation even if the system prefers reduced motion', () => {
+        vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true } as MediaQueryList);
+        const slideTransition = getToastAnimation(ToastAnimation.SLIDE)!.containerTransition;
+        const t = new Toasts();
+        t.configure({ reducedMotion: false });
+        const id = t.showToast('x', { duration: 0, animation: ToastAnimation.SLIDE });
+        expect(document.getElementById(id)!.style.transition).toBe(slideTransition);
+    });
+
+    it('still warns once for an unimplemented animation value even when reduced motion overrides the resolved result', () => {
+        vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true } as MediaQueryList);
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, animation: 'nope' });
+        expect(document.getElementById(id)!.style.transition).toBe('none');
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe('layouts', () => {
     afterEach(cleanup);
 

@@ -7,7 +7,7 @@
 
 import { ToastColor, ToastSeverity, detectSeverityFromColor, DEFAULT_SEVERITY_DETECTION_THRESHOLD, type ToastColorPalette, type ToastSeverityValue } from './ToastColor';
 import { ToastPosition, IMPLEMENTED_POSITIONS, POSITION_EDGE, collapsedPosition, DEFAULT_RESPONSIVE_BREAKPOINT, type ToastPositionValue } from './ToastPosition';
-import { ToastAnimation, getToastAnimation, type ToastAnimationValue, type ToastAnimationDefinition } from './ToastAnimation';
+import { ToastAnimation, getToastAnimation, systemPrefersReducedMotion, type ToastAnimationValue, type ToastAnimationDefinition } from './ToastAnimation';
 import { ToastLayout, isKnownLayout, getLayoutModifiers, type ToastLayoutValue } from './ToastLayout';
 import { isKnownModifier, type ToastModifierValue } from './ToastModifier';
 import { ToastTransition, getToastTransition, type ToastTransitionValue } from './ToastTransition';
@@ -219,6 +219,18 @@ export interface ToastsConfig {
     /** Viewport width (px) at/below which `*-left`/`*-right` positions collapse into their edge's `*-center` equivalent, so they share one container/stack instead of visually overlapping on narrow (mobile) screens. Re-evaluated live on window resize/orientation-change, moving already-shown toasts into the right container. `0` disables collapsing entirely. Defaults to `800`. See `collapsedPosition`. */
     responsiveBreakpoint: number;
     animation: ToastAnimationValue;
+    /** Overrides every toast's resolved `animation` (per-call, `configure()`'s own default, or a
+     *  registered custom one) with `ToastAnimation.NONE` whenever reduced motion is in effect, so
+     *  a user who's asked their OS/browser for less motion doesn't get toasts sliding/fading
+     *  regardless of what a page's own `animation` choice is. Unset (default) auto-detects from
+     *  the `prefers-reduced-motion: reduce` media query, re-checked on every `showToast()` (not
+     *  latched once at page load, so toggling the OS setting mid-session is honored by the next
+     *  toast shown - already-shown toasts keep whatever animation they entered with, same as any
+     *  other `configure()` change). Set explicitly to `true`/`false` to force reduced motion on/off
+     *  regardless of the system preference - e.g. for a test that doesn't want to mock
+     *  `matchMedia`, or a page that intentionally offers its own in-app motion toggle instead of
+     *  deferring to the OS one. */
+    reducedMotion?: boolean;
     /** Library-wide default for `ToastOptions.layout`. See there. */
     layout: ToastLayoutValue;
     /** Library-wide default for `ToastOptions.modifiers`. See there. */
@@ -2076,9 +2088,22 @@ export class Toasts {
     }
 
     private _resolveAnimation(animation: ToastAnimationValue): ToastAnimationValue {
-        if (getToastAnimation(animation)) return animation;
-        this._warnUnimplemented('animation', animation, ToastAnimation.SLIDE);
-        return ToastAnimation.SLIDE;
+        let resolved = animation;
+        if (!getToastAnimation(resolved)) {
+            this._warnUnimplemented('animation', resolved, ToastAnimation.SLIDE);
+            resolved = ToastAnimation.SLIDE;
+        }
+        // Checked after the unimplemented-value fallback above (not instead of it) so an invalid
+        // `animation` still warns even when reduced motion is going to override the result anyway
+        // - the warning is about the config being wrong, independent of what it gets overridden to.
+        if (this._prefersReducedMotion()) return ToastAnimation.NONE;
+        return resolved;
+    }
+
+    // `config.reducedMotion` (explicit true/false) always wins outright; unset defers to the
+    // system's own `prefers-reduced-motion: reduce` media query - see `ToastsConfig.reducedMotion`.
+    private _prefersReducedMotion(): boolean {
+        return this.config.reducedMotion ?? systemPrefersReducedMotion();
     }
 
     private _resolveLayout(layout: ToastLayoutValue): ToastLayoutValue {

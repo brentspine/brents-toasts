@@ -34,6 +34,7 @@ overrides set via `configurePosition()` are untouched.
 | `position` | `ToastPosition.BOTTOM_CENTER` | |
 | `responsiveBreakpoint` | `800` | px; see "Positions on narrow screens" below |
 | `animation` | `ToastAnimation.SLIDE` | see [Animations](animations.md) |
+| `reducedMotion` | `undefined` (auto-detect) | overrides `animation` with `NONE` when reduced motion is in effect; see "Reduced motion" in [Animations](animations.md#reduced-motion) |
 | `layout` | `ToastLayout.DEFAULT` | see [Layouts](layouts.md) |
 | `maxToasts` | `5` | see "Capacity and eviction" below |
 | `evictOldest` | `true` | |

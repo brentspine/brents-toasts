@@ -40,6 +40,27 @@ special-cased stacking logic, and what stops a `NONE` toast appearing/
 disappearing instantly from leaving `SLIDE` siblings visibly still gliding
 out of its way.
 
+## Reduced motion
+
+Whatever `animation` a toast requests, it's overridden with `ToastAnimation.NONE`
+whenever reduced motion is in effect, so a user who's asked their OS/browser
+for less motion never gets sliding/fading toasts regardless of what a page's
+own `animation` choice is. By default this auto-detects from the
+`prefers-reduced-motion: reduce` media query, re-checked on every
+`showToast()` call (already-shown toasts keep whatever animation they
+entered with).
+
+```ts
+toasts.configure({ reducedMotion: true });  // force reduced motion, ignoring the system setting
+toasts.configure({ reducedMotion: false }); // ignore the system setting, always honor `animation`
+toasts.configure({ reducedMotion: undefined }); // back to auto-detecting (the default)
+```
+
+Set `ToastsConfig.reducedMotion` explicitly to `true`/`false` to override the
+system preference - e.g. for a test that doesn't want to mock `matchMedia`,
+or a page that offers its own in-app motion toggle instead of deferring to
+the OS one.
+
 ## Registering a custom animation
 
 ```ts live

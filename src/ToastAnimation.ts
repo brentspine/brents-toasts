@@ -168,3 +168,17 @@ export function registerToastAnimation(name: string, definition: ToastAnimationD
 export function getToastAnimation(name: string): ToastAnimationDefinition | undefined {
     return registry.get(name);
 }
+
+/**
+ * Whether the browser currently reports `prefers-reduced-motion: reduce` - the system-level
+ * signal `Toasts.ts`'s animation resolution falls back to when `ToastsConfig.reducedMotion`
+ * itself is left unset (see there). `false` in any environment without `matchMedia` (SSR, a
+ * jsdom test run without the shim in `test/setup.ts`) rather than throwing - the same
+ * "missing browser API degrades to a safe default" treatment `ResizeObserver`/
+ * `navigator.clipboard` get elsewhere in this codebase.
+ */
+export function systemPrefersReducedMotion(): boolean {
+    return typeof window !== 'undefined'
+        && typeof window.matchMedia === 'function'
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}

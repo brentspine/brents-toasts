@@ -104,7 +104,9 @@ cases, and worked examples before implementing anything non-trivial with it.
 - **Progress bar** - `progress: { mode: 'fill' | 'drain' | 'manual' }`; `'manual'` ignores the
   timer, drive it with `setToastProgress(id, 0-1)`. → [guide/progress.md](guide/progress.md)
 - **Animations** - `configure({ animation: ToastAnimation.SLIDE | FADE | NONE })`, or
-  `registerToastAnimation(...)` for a custom one. → [guide/animations.md](guide/animations.md)
+  `registerToastAnimation(...)` for a custom one. Auto-overridden with `NONE` when
+  `prefers-reduced-motion: reduce` is set (or forced/disabled via `configure({ reducedMotion })`).
+  → [guide/animations.md](guide/animations.md)
 - **Theming** - every color is a `--bt-*` CSS custom property; override via `theme:` on
   `configure()`/a single toast, or with plain CSS on `.bt-toast`.
   → [guide/theming.md](guide/theming.md)
