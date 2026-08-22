@@ -6,6 +6,18 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-LS3BPWCPLC"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    // send_page_view is off here because routing is hash-based (withHashLocation()) -
+    // AnalyticsService (see app/services/analytics.ts) sends every pageview, including
+    // the first, keyed off the Angular route instead of the one-time initial load.
+    gtag('config', 'G-LS3BPWCPLC', { send_page_view: false });
+  </script>
 </head>
 <body>
   <app-root></app-root>

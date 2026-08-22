@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
+import { AnalyticsService } from './services/analytics';
 import { GithubStatsService } from './services/github-stats';
 import { PagesStatsService } from './services/pages-stats';
 import { SectionService } from './services/section';
@@ -17,6 +18,9 @@ import { formatCompactCount, formatRelativeTime } from './shared/format';
 })
 export class App {
   private readonly router = inject(Router);
+  // Unused directly - injecting it is what constructs this root-provided singleton so
+  // its route-change subscription (see analytics.ts) actually starts.
+  private readonly analytics = inject(AnalyticsService);
   protected readonly githubStats = inject(GithubStatsService);
   protected readonly pagesStats = inject(PagesStatsService);
   protected readonly versionService = inject(VersionService);
