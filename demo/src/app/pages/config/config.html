@@ -1,10 +1,10 @@
 <section class="container config">
   <h1>Config</h1>
   <p class="intro">
-    Change the library-wide defaults in every way <code>toasts.configure()</code> allows, then hit Apply: every
-    toast fired from the Playground afterwards reflects it. Every field below - including the JSON-shaped ones -
-    is wired up to Apply, and the search box filters the form and the reference table together. Your changes are
-    saved locally and re-applied automatically next time you visit.
+    Change the library-wide defaults in every way <code>toasts.configure()</code> allows - every toast fired from
+    the Playground afterwards reflects it. Changes apply as you make them (a JSON field applies once it's valid
+    JSON, so a half-typed value isn't flagged as an error), and the search box filters the form and the reference
+    table together. Your changes are saved locally and re-applied automatically next time you visit.
   </p>
 
   <div class="field search-field">
@@ -23,20 +23,8 @@
   }
 
   <div class="grid">
-    @for (opt of filteredScalarOptions(); track opt.name) {
+    @for (opt of filteredNonBooleanScalarOptions(); track opt.name) {
       @switch (opt.control) {
-        @case ('boolean') {
-          <div class="field checkbox">
-            <label [title]="opt.description">
-              <input
-                type="checkbox"
-                [ngModel]="form()[opt.name]"
-                (ngModelChange)="updateForm(opt.name, $event)"
-              />
-              {{ opt.name }}
-            </label>
-          </div>
-        }
         @case ('select') {
           <div class="field">
             <label [for]="opt.name" [title]="opt.description">{{ opt.name }}</label>
@@ -68,6 +56,21 @@
     }
   </div>
 
+  @if (filteredBooleanScalarOptions().length > 0) {
+    <div class="toggles">
+      @for (opt of filteredBooleanScalarOptions(); track opt.name) {
+        <label class="toggle" [title]="opt.description">
+          <input
+            type="checkbox"
+            [ngModel]="form()[opt.name]"
+            (ngModelChange)="updateForm(opt.name, $event)"
+          />
+          {{ opt.name }}
+        </label>
+      }
+    </div>
+  }
+
   @if (filteredJsonOptions().length > 0) {
     <h2>Advanced (JSON) fields</h2>
     <p class="intro">
@@ -78,13 +81,24 @@
     <div class="json-grid">
       @for (opt of filteredJsonOptions(); track opt.name) {
         <div class="field json-field">
-          <label [for]="opt.name" [title]="opt.description">{{ opt.name }} <span class="type">{{ opt.type }}</span></label>
+          <label [for]="opt.name" [title]="opt.description">
+            <span class="name-row">
+              {{ opt.name }}
+              @if (opt.typeRef) {
+                <button type="button" class="type-btn" (click)="openType(opt.typeRef, $event)">{{ opt.type }}</button>
+              } @else {
+                <span class="type">{{ opt.type }}</span>
+              }
+            </span>
+            <span class="default">default: {{ opt.default }}</span>
+          </label>
           <textarea
             [id]="opt.name"
             rows="3"
             [placeholder]="opt.description"
             [ngModel]="jsonFields()[opt.name]"
             (ngModelChange)="updateJsonField(opt.name, $event)"
+            (blur)="apply()"
           ></textarea>
           @if (jsonErrors()[opt.name]) {
             <p class="error">{{ jsonErrors()[opt.name] }}</p>
@@ -94,12 +108,16 @@
     </div>
   }
 
+  @if (selectedTypeSpec(); as spec) {
+    <app-type-spec-panel [typeName]="selectedTypeRef()!" [spec]="spec" (closed)="closeType()" />
+  }
+
   <div class="apply-row">
-    <button type="button" class="apply" (click)="apply()">Apply config</button>
     <button type="button" class="reset" (click)="resetConfig()">Reset to defaults</button>
     <a class="try-it-out" routerLink="/playground">Try it out on the Playground &#8594;</a>
   </div>
 
+  <p class="intro snippet-label">Currently applied - equivalent to calling:</p>
   <app-code-snippet [code]="appliedSnippet()" />
 
   <h2>Per-position overrides</h2>

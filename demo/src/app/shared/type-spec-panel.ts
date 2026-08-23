@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, input, output, viewChild } from '@angular/core';
 import type { TypeSpec } from '../data/options.types';
 
 @Component({
@@ -10,9 +10,11 @@ import type { TypeSpec } from '../data/options.types';
   template: `
     <div class="backdrop" (click)="closed.emit()">
       <div
+        #panelEl
         class="panel"
         role="dialog"
         aria-modal="true"
+        tabindex="-1"
         [attr.aria-label]="typeName()"
         (click)="$event.stopPropagation()"
       >
@@ -123,4 +125,14 @@ export class TypeSpecPanel {
   typeName = input.required<string>();
   spec = input.required<TypeSpec>();
   closed = output<void>();
+
+  private readonly panelEl = viewChild.required<ElementRef<HTMLDivElement>>('panelEl');
+
+  constructor() {
+    // Moves focus into the panel so the host's `(keydown.escape)` listener actually receives the
+    // event - without this, focus stays on whatever button opened the panel (outside this
+    // component's DOM subtree), and Escape keydowns never bubble to the host at all. Mirrors
+    // SaveSnippetDialog's same pattern (it focuses its name input instead of the panel itself).
+    afterNextRender(() => this.panelEl().nativeElement.focus());
+  }
 }

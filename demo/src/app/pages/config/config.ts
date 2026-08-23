@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { toasts, DEFAULT_CONFIG, ToastSeverity, ToastPosition, type ToastPositionValue, type ToastsConfig, type PositionConfig } from 'brents-toasts';
 import { CodeSnippet } from '../../shared/code-snippet';
+import { TypeSpecPanel } from '../../shared/type-spec-panel';
 import { OptionsDataService } from '../../services/options-data';
 import optionsJson from '../../data/options.json';
 import type { OptionsData, OptionDescriptor } from '../../data/options.types';
@@ -122,12 +123,13 @@ function selectOptionLabel(optName: string, choice: string): string {
 @Component({
   selector: 'app-config',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, CodeSnippet],
+  imports: [FormsModule, RouterLink, CodeSnippet, TypeSpecPanel],
   templateUrl: './config.html',
   styleUrl: './config.css',
 })
 export class Config {
-  readonly configOptions = inject(OptionsDataService).data.configOptions;
+  private readonly optionsData = inject(OptionsDataService).data;
+  readonly configOptions = this.optionsData.configOptions;
   readonly selectOptionLabel = selectOptionLabel;
   readonly scalarOptions = this.configOptions.filter((o) => o.control !== 'text');
   readonly jsonOptions = this.configOptions.filter((o) => o.control === 'text');
@@ -146,17 +148,28 @@ export class Config {
   });
   readonly filteredScalarOptions = computed(() => this.filteredConfigOptions().filter((o) => o.control !== 'text'));
   readonly filteredJsonOptions = computed(() => this.filteredConfigOptions().filter((o) => o.control === 'text'));
+  // Dropdowns/numbers render first, booleans as their own aligned group after - see #120,
+  // where mixing them in one grid made checkboxes "float" at whatever column auto-fit gave them.
+  readonly filteredNonBooleanScalarOptions = computed(() => this.filteredScalarOptions().filter((o) => o.control !== 'boolean'));
+  readonly filteredBooleanScalarOptions = computed(() => this.filteredScalarOptions().filter((o) => o.control === 'boolean'));
 
   private readonly stored = loadStoredForm();
   readonly form = signal<Record<string, ScalarValue>>(this.stored.form);
   readonly jsonFields = signal<Record<string, string>>(this.stored.json);
   readonly jsonErrors = signal<Record<string, string>>({});
-  readonly appliedSnippet = signal('// Click "Apply config" to see the generated code here.');
+  readonly appliedSnippet = signal('// toasts.configure({});');
 
   readonly overridePosition = signal<ToastPositionValue>(ToastPosition.TOP_RIGHT);
   readonly overrideMaxToasts = signal(3);
   readonly overrideEvictOldest = signal(true);
   readonly positionOverrides = signal(new Map(toasts.positionConfig));
+
+  /** Drives the shared `TypeSpecPanel` (same one the Playground's options table uses) for a JSON field's `typeRef`. */
+  readonly selectedTypeRef = signal<string | null>(null);
+  readonly selectedTypeSpec = computed(() => {
+    const ref = this.selectedTypeRef();
+    return ref ? this.optionsData.typeSpecs[ref] : null;
+  });
 
   constructor() {
     // Re-apply whatever was last configured (including on first load, which is a harmless
@@ -174,12 +187,24 @@ export class Config {
     });
   }
 
+  /** Scalar fields (select/number/boolean) apply immediately - there's no invalid intermediate state to guard against. */
   updateForm(name: string, value: ScalarValue): void {
     this.form.update((current) => ({ ...current, [name]: value }));
+    this.apply();
   }
 
+  /** Just updates the draft - `apply()` runs separately (see the textarea's `(blur)` in config.html), so a JSON field mid-edit isn't parsed/flagged invalid on every keystroke. */
   updateJsonField(name: string, value: string): void {
     this.jsonFields.update((current) => ({ ...current, [name]: value }));
+  }
+
+  openType(ref: string | undefined, event: Event): void {
+    event.stopPropagation();
+    if (ref) this.selectedTypeRef.set(ref);
+  }
+
+  closeType(): void {
+    this.selectedTypeRef.set(null);
   }
 
   resetConfig(): void {
@@ -229,8 +254,11 @@ export class Config {
       }
     }
 
+    // A field with invalid JSON is reported but doesn't block the rest of `config` (already
+    // built above, minus that field) from applying - with scalar edits auto-applying on every
+    // change (see updateForm()), a stray invalid JSON field must not silently freeze every other
+    // field's live-apply until it's fixed.
     this.jsonErrors.set(errors);
-    if (Object.keys(errors).length > 0) return;
 
     toasts.configure(config as Partial<ToastsConfig>);
     this.appliedSnippet.set(this.buildSnippet(config));

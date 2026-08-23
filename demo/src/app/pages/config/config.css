@@ -30,7 +30,39 @@
   font-size: 13px;
 }
 
+.json-field label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.json-field label .name-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
 .json-field label .type {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.json-field label .type-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--fg);
+  text-decoration: underline dotted;
+  cursor: pointer;
+}
+
+.json-field label .default {
   font-weight: 400;
   color: var(--muted);
   font-size: 11px;
@@ -51,11 +83,27 @@
   font-family: ui-monospace, monospace;
 }
 
-.field.checkbox label {
+.toggles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px 16px;
+  margin: 4px 0 20px;
+}
+
+.toggle {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: inherit;
+  font-size: 13px;
+  font-family: ui-monospace, monospace;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.toggle input {
+  width: auto;
+  margin: 0;
+  flex-shrink: 0;
 }
 
 input,
@@ -88,13 +136,9 @@ input:disabled {
   margin-bottom: 16px;
 }
 
-.apply {
-  background: var(--info);
-  color: #05111a;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 16px;
-  font-weight: 600;
+.snippet-label {
+  font-size: 12px;
+  margin-bottom: 6px;
 }
 
 .reset {
