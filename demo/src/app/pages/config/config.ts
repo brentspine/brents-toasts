@@ -28,6 +28,10 @@ function buildDefaultForm(): Record<string, ScalarValue> {
       form['locale'] = 'auto'; // DEFAULT_CONFIG.locale is undefined - "auto" is this form's sentinel for that
       continue;
     }
+    if (opt.name === 'reducedMotion') {
+      form['reducedMotion'] = 'auto'; // DEFAULT_CONFIG.reducedMotion is undefined - "auto" is this form's sentinel for that
+      continue;
+    }
     form[opt.name] = (DEFAULT_CONFIG as unknown as Record<string, ScalarValue>)[opt.name];
   }
   return form;
@@ -71,6 +75,50 @@ export function hasStoredConfigChanges(): boolean {
   return JSON.stringify(stored) !== JSON.stringify(defaults);
 }
 
+/**
+ * The `reducedMotion` override currently saved in the persisted config form (via the Config
+ * page's select, or `setReducedMotionOverride()` below) - `undefined` for the "auto" sentinel,
+ * meaning no override. Read straight from localStorage rather than `toasts.config.reducedMotion`,
+ * so it's accurate even before the Config page has been visited this session (which is what
+ * actually re-applies the stored form to `toasts.config` - see its constructor).
+ */
+export function getReducedMotionOverride(): boolean | undefined {
+  const raw = loadStoredForm().form['reducedMotion'];
+  return raw === 'true' ? true : raw === 'false' ? false : undefined;
+}
+
+/**
+ * Persists a `reducedMotion` override into the same config form the Config page reads/writes,
+ * and applies it to `toasts.config` immediately - used by the Playground's "force animations
+ * on" quick-fix so the override sticks around (and shows correctly on the Config page) without
+ * requiring a trip there first.
+ */
+export function setReducedMotionOverride(value: boolean): void {
+  const stored = loadStoredForm();
+  stored.form['reducedMotion'] = String(value);
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+  } catch {
+    // Storage unavailable (private browsing, quota): persistence is a nice-to-have, not required.
+  }
+  toasts.configure({ reducedMotion: value });
+}
+
+/**
+ * Friendly label for one `<option>` of a `control: 'select'` field, for the couple of fields
+ * (`locale`, `reducedMotion`) whose raw `selectOptions` value ("auto", "true", ...) isn't
+ * self-explanatory on its own. Every other select field's choices are shown as-is.
+ */
+function selectOptionLabel(optName: string, choice: string): string {
+  if (optName === 'locale' && choice === 'auto') return 'auto-detect';
+  if (optName === 'reducedMotion') {
+    if (choice === 'auto') return 'auto (system default)';
+    if (choice === 'true') return 'true (force reduced motion)';
+    if (choice === 'false') return 'false (force animations on)';
+  }
+  return choice;
+}
+
 @Component({
   selector: 'app-config',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -80,6 +128,7 @@ export function hasStoredConfigChanges(): boolean {
 })
 export class Config {
   readonly configOptions = inject(OptionsDataService).data.configOptions;
+  readonly selectOptionLabel = selectOptionLabel;
   readonly scalarOptions = this.configOptions.filter((o) => o.control !== 'text');
   readonly jsonOptions = this.configOptions.filter((o) => o.control === 'text');
   readonly positions = Object.values(ToastPosition);
@@ -161,6 +210,10 @@ export class Config {
     for (const opt of this.scalarOptions) {
       if (opt.name === 'locale') {
         if (state['locale'] !== 'auto') config['locale'] = state['locale'];
+        continue;
+      }
+      if (opt.name === 'reducedMotion') {
+        if (state['reducedMotion'] !== 'auto') config['reducedMotion'] = state['reducedMotion'] === 'true';
         continue;
       }
       config[opt.name] = state[opt.name];

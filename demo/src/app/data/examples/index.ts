@@ -11,6 +11,7 @@ import promise from './promise.example.txt';
 import playTransition from './play-transition.example.txt';
 import reverseOrder from './reverse-order.example.txt';
 import theme from './theme.example.txt';
+import gradients from './gradients.example.txt';
 import icons from './icons.example.txt';
 import htmlContent from './html-content.example.txt';
 import bossFight from './boss-fight.example.txt';
@@ -42,6 +43,7 @@ const EXAMPLE_CODE: Record<string, string> = {
     'play-transition': playTransition,
     'reverse-order': reverseOrder,
     theme,
+    gradients,
     icons,
     'html-content': htmlContent,
     'boss-fight': bossFight,

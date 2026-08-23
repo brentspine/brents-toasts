@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { toasts } from 'brents-toasts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getReducedMotionOverride } from '../config/config';
 import { Playground } from './playground';
 
 describe('Playground', () => {
@@ -291,6 +292,26 @@ describe('Playground', () => {
     localStorage.setItem('bt-demo:config-form', JSON.stringify({ form: { duration: 9000 }, json: {} }));
     const fixture = await createComponent();
     expect(fixture.componentInstance.hasCustomConfig()).toBe(true);
+  });
+
+  it('reducedMotionHint() defaults to false when matchMedia is unavailable, rather than throwing', async () => {
+    const fixture = await createComponent();
+    expect(fixture.componentInstance.reducedMotionHint()).toBe(false);
+  });
+
+  it('forceAnimationsOn() overrides reducedMotion to false, persists it, and hides the hint', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    component.reducedMotionHint.set(true); // simulate the hint already being shown
+
+    component.forceAnimationsOn();
+
+    expect(component.reducedMotionHint()).toBe(false);
+    expect(component.hasCustomConfig()).toBe(true);
+    expect(toasts.config.reducedMotion).toBe(false);
+    expect(getReducedMotionOverride()).toBe(false);
+
+    toasts.configure({ reducedMotion: undefined });
   });
 
   it('openSaveDialog()/closeSaveDialog() toggle saveDialogOpen()', async () => {

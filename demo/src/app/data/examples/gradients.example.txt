@@ -1,0 +1,26 @@
+new ToastBuilder("Default layout")
+  .withColor(ToastColor.gradient("#28a6f5", "#4bb543"))
+  .withPosition(ToastPosition.TOP_LEFT)
+  .withDetails(["ToastColor.gradient(...colors, angle?) - defaults to a 135deg diagonal sweep"])
+  .show();
+
+new ToastBuilder("Prominent layout")
+  .withColor(ToastColor.gradient("#dfb200", "#ff4433"))
+  .withLayout(ToastLayout.PROMINENT)
+  .withPosition(ToastPosition.TOP_RIGHT)
+  .withDetails(["filled-background paints the whole card with the gradient; close-pinned-right blends into it instead of repainting its own copy"])
+  .show();
+
+new ToastBuilder("close-corner modifier")
+  .withColor(ToastColor.radialGradient("#dfb200", "#ff4433"))
+  .withModifiers([ToastModifier.CLOSE_CORNER])
+  .withPosition(ToastPosition.BOTTOM_LEFT)
+  .withDetails(["ToastColor.radialGradient(...colors) - no angle, radial gradients don't have one. Here the close button keeps its own swatch on purpose"])
+  .show();
+
+new ToastBuilder("accent-top modifier")
+  .withColor(ToastColor.conicGradient("#28a6f5", "#4bb543", "#dfb200", 45))
+  .withModifiers([ToastModifier.ACCENT_TOP])
+  .withPosition(ToastPosition.BOTTOM_RIGHT)
+  .withDetails(["ToastColor.conicGradient(...colors, angle?) - angle is the CSS 'from <deg>' starting point"])
+  .show();

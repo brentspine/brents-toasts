@@ -45,13 +45,8 @@
               [ngModel]="form()[opt.name]"
               (ngModelChange)="updateForm(opt.name, $event)"
             >
-              @if (opt.name === 'locale') {
-                <option value="auto">auto-detect</option>
-              }
               @for (choice of opt.selectOptions; track choice) {
-                @if (!(opt.name === 'locale' && choice === 'auto')) {
-                  <option [value]="choice">{{ choice }}</option>
-                }
+                <option [value]="choice">{{ selectOptionLabel(opt.name, choice) }}</option>
               }
             </select>
           </div>

@@ -108,7 +108,9 @@ cases, and worked examples before implementing anything non-trivial with it.
   `prefers-reduced-motion: reduce` is set (or forced/disabled via `configure({ reducedMotion })`).
   → [guide/animations.md](guide/animations.md)
 - **Theming** - every color is a `--bt-*` CSS custom property; override via `theme:` on
-  `configure()`/a single toast, or with plain CSS on `.bt-toast`.
+  `configure()`/a single toast, or with plain CSS on `.bt-toast`. `color`/`theme.background`
+  accept any CSS `background` value including a gradient -
+  `ToastColor.gradient()`/`radialGradient()`/`conicGradient()` build the string from 2+ colors.
   → [guide/theming.md](guide/theming.md)
 - **Layouts & modifiers** - `modifiers: ToastModifierValue[]` are small, composable design
   tweaks (`compact`, `wide`, `accent-top`, `stacked-actions`, `full-bleed`, `close-hidden`,

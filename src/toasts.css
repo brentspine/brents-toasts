@@ -28,7 +28,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--data-background, #555);
+    background: var(--data-background, #555);
     width: 4.5px;
     overflow: hidden;
     transition: width 0.2s;
@@ -173,7 +173,7 @@
     left: 0;
     right: 0;
     height: 4px;
-    background-color: var(--data-background, #555);
+    background: var(--data-background, #555);
 }
 .bt-toast[data-bt-modifiers~="accent-top"] .bt-toast-close {
     display: flex;
@@ -252,8 +252,20 @@
     opacity: 1;
     /* No swatch of its own here (unlike the default look's accent bar) -
        stacked with filled-background, the color already shows via the card
-       background, so the close button just blends into it. */
-    background-color: transparent;
+       background, so the close button just blends into it. Must be the full
+       `background` shorthand, not `background-color` alone: the base
+       .bt-toast-close rule above sets `background: var(--data-background, ...)`,
+       and when that color is a gradient (ToastColor.gradient()/etc - see
+       theming.md) the shorthand routes it into background-image, not
+       background-color, so `background-color: transparent` would leave the
+       gradient painted independently inside this small box - a visibly
+       different, "restarted" copy of the same gradient rather than one
+       continuous sweep across the card. `background: transparent` clears
+       every sub-property at once, so the card's own filled-background paints
+       straight through this element with nothing left to override. Any
+       future modifier that wants the close button to blend into the card
+       instead of showing its own swatch should do the same. */
+    background: transparent;
     border-radius: 0 2px 2px 0;
     transition: none;
 }
@@ -281,7 +293,7 @@
        wins when present, so an explicit per-toast/config theme.background
        stays an override rather than being silently swallowed by this
        modifier. */
-    background-color: var(--bt-background, var(--data-background, #333));
+    background: var(--bt-background, var(--data-background, #333));
 }
 
 /* icon-left (ToastModifier.ICON_LEFT) / icon-disabled (ToastModifier.ICON_DISABLED):

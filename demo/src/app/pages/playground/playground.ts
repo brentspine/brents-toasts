@@ -32,7 +32,7 @@ import { CodeEditor } from '../../shared/code-editor';
 import { SaveSnippetDialog } from '../../shared/save-snippet-dialog';
 import { buildSuggestExampleUrl } from '../../shared/github-suggest';
 import { PLAYGROUND_STORAGE_KEY, runSandboxedCode } from '../../shared/run-code';
-import { hasStoredConfigChanges } from '../config/config';
+import { getReducedMotionOverride, hasStoredConfigChanges, setReducedMotionOverride } from '../config/config';
 import type { OptionDescriptor, PlaygroundExample } from '../../data/options.types';
 
 const IMPORT_LINE =
@@ -159,6 +159,26 @@ export class Playground {
   // needing to watch localStorage while already on this page.
   readonly hasCustomConfig = signal(hasStoredConfigChanges());
 
+  // Whether toasts fired from this page currently render without animation because of the
+  // OS-level `prefers-reduced-motion: reduce` setting - mirrors `Toasts.ts`'s own
+  // `config.reducedMotion ?? systemPrefersReducedMotion()` resolution (see ToastAnimation.ts);
+  // re-derived here since that resolution isn't exposed as a public library helper. Checked
+  // against getReducedMotionOverride() (the persisted Config-page form), not toasts.config
+  // directly - the stored override is only actually re-applied to toasts.config once the Config
+  // page itself has been visited this session, but the hint should already reflect it. Kept
+  // live (not just read once like hasCustomConfig above) via the matchMedia listener in the
+  // constructor, since unlike a Config-page change, the OS setting can flip without a navigation
+  // back to this page.
+  readonly reducedMotionHint = signal(Playground.detectReducedMotionHint());
+
+  private static detectReducedMotionHint(): boolean {
+    const systemReducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return systemReducedMotion && getReducedMotionOverride() !== false;
+  }
+
   readonly filteredOptions = computed(() => {
     const query = this.search().trim().toLowerCase();
     if (!query) return this.optionsData.toastOptions;
@@ -233,6 +253,15 @@ export class Playground {
     });
 
     this.destroyRef.onDestroy(() => this.section.activeSection.set('playground'));
+
+    // Keeps reducedMotionHint() live if the OS setting is flipped while this page is already
+    // open, rather than only reflecting it as of the last navigation here.
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const mql = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const update = () => this.reducedMotionHint.set(mql.matches && getReducedMotionOverride() !== false);
+      mql.addEventListener('change', update);
+      this.destroyRef.onDestroy(() => mql.removeEventListener('change', update));
+    }
   }
 
   /** Briefly glows an example card's border to draw attention to it after a fragment link scroll. */
@@ -270,6 +299,23 @@ export class Playground {
 
   closeType(): void {
     this.selectedTypeRef.set(null);
+  }
+
+  /**
+   * Quick-fix for the reduced-motion hint: forces `reducedMotion: false` into the persisted
+   * Config-page form and applies it immediately, so toasts here (and on future visits) render
+   * with animation despite the OS setting. Overrides the OS's own reduced-motion preference for
+   * every toast this library shows - not a general accessibility setting - which is why the hint
+   * calls that out explicitly rather than just offering this as a silent one-click fix.
+   */
+  forceAnimationsOn(): void {
+    setReducedMotionOverride(false);
+    this.reducedMotionHint.set(false);
+    this.hasCustomConfig.set(true);
+    toasts.showToast('Animations forced on - reducedMotion is now false in your saved Config.', {
+      severity: ToastSeverity.SUCCESS,
+      duration: 3500,
+    });
   }
 
   reset(): void {

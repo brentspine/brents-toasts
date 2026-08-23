@@ -1558,6 +1558,36 @@ describe('role/aria-live derivation from severity (#56)', () => {
     });
 });
 
+describe('ToastColor.gradient / radialGradient / conicGradient', () => {
+    afterEach(cleanup);
+
+    it('gradient() joins two or more colors with a default 135deg angle', () => {
+        expect(ToastColor.gradient('#28a6f5', '#4bb543')).toBe('linear-gradient(135deg, #28a6f5, #4bb543)');
+        expect(ToastColor.gradient('#28a6f5', '#4bb543', '#dfb200')).toBe('linear-gradient(135deg, #28a6f5, #4bb543, #dfb200)');
+    });
+
+    it('gradient() takes a trailing number as an explicit angle instead of a color stop', () => {
+        expect(ToastColor.gradient('#28a6f5', '#4bb543', 90)).toBe('linear-gradient(90deg, #28a6f5, #4bb543)');
+    });
+
+    it('radialGradient() joins colors with no angle, since radial gradients have none', () => {
+        expect(ToastColor.radialGradient('#28a6f5', '#4bb543')).toBe('radial-gradient(#28a6f5, #4bb543)');
+    });
+
+    it('conicGradient() omits "from" when no angle is given, and includes it when one is', () => {
+        expect(ToastColor.conicGradient('#28a6f5', '#4bb543')).toBe('conic-gradient(#28a6f5, #4bb543)');
+        expect(ToastColor.conicGradient('#28a6f5', '#4bb543', 45)).toBe('conic-gradient(from 45deg, #28a6f5, #4bb543)');
+    });
+
+    it('a gradient() string used as a toast color is stored verbatim on --data-background, reaching the accent bar/filled-background CSS unmodified', () => {
+        const t = new Toasts();
+        const grad = ToastColor.gradient('#28a6f5', '#4bb543');
+        const id = t.showToast('x', { color: grad, duration: 0 });
+        const toastClose = document.getElementById(id)!.querySelector<HTMLElement>('.bt-toast-close')!;
+        expect(toastClose.style.getPropertyValue('--data-background')).toBe(grad);
+    });
+});
+
 describe('autoDetectSeverity (#118)', () => {
     afterEach(cleanup);
 

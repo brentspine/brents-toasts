@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { toasts } from 'brents-toasts';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { Config } from './config';
+import { Config, getReducedMotionOverride, setReducedMotionOverride } from './config';
 
 describe('Config', () => {
   async function createComponent() {
@@ -76,6 +76,31 @@ describe('Config', () => {
     component.apply();
 
     expect(toasts.config.locale).toBeUndefined();
+  });
+
+  it('apply() maps reducedMotion "auto" to undefined so the library auto-detects', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+    component.updateForm('reducedMotion', 'auto');
+
+    component.apply();
+
+    expect(toasts.config.reducedMotion).toBeUndefined();
+  });
+
+  it('apply() maps reducedMotion "true"/"false" to real booleans', async () => {
+    const fixture = await createComponent();
+    const component = fixture.componentInstance;
+
+    component.updateForm('reducedMotion', 'true');
+    component.apply();
+    expect(toasts.config.reducedMotion).toBe(true);
+
+    component.updateForm('reducedMotion', 'false');
+    component.apply();
+    expect(toasts.config.reducedMotion).toBe(false);
+
+    toasts.configure({ reducedMotion: undefined });
   });
 
   it('apply() rejects invalid JSON in an advanced field without throwing, and reports it', async () => {
@@ -197,6 +222,20 @@ describe('Config', () => {
     // Re-applied automatically on construction, without needing another click of Apply.
     expect(toasts.config.duration).toBe(9000);
     expect(toasts.config.theme?.background).toBe('#111111');
+  });
+
+  it('getReducedMotionOverride() reads undefined by default and reflects setReducedMotionOverride(), applying it to toasts.config too', async () => {
+    expect(getReducedMotionOverride()).toBeUndefined();
+
+    setReducedMotionOverride(false);
+    expect(getReducedMotionOverride()).toBe(false);
+    expect(toasts.config.reducedMotion).toBe(false);
+
+    // A Config page opened afterwards picks up the same override from storage.
+    const fixture = await createComponent();
+    expect(fixture.componentInstance.form()['reducedMotion']).toBe('false');
+
+    toasts.configure({ reducedMotion: undefined });
   });
 
   it('search filters both the rendered fields and the reference table by name/type/description', async () => {

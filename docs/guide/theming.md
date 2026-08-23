@@ -19,6 +19,36 @@ toasts.showToast('Heads up.', {
 });
 ```
 
+## Gradients
+
+`color` (and `theme.background`, for the `filled-background` modifier - see
+[Layouts](layouts.md)) accepts any CSS `background` value, including a
+gradient. `ToastColor.gradient()`/`radialGradient()`/`conicGradient()` build
+the CSS string for you from two or more colors - a hand-written gradient
+string works identically, these are purely a discoverability convenience:
+
+```ts live
+toasts.showToast('Upgraded!', {
+  color: ToastColor.gradient('#28a6f5', '#4bb543'),
+});
+```
+
+`gradient()`/`conicGradient()` take an optional trailing number as the angle
+in degrees, instead of a color stop (`gradient()` defaults to `135`;
+`conicGradient()` defaults to CSS's own `0deg`). `radialGradient()` takes no
+angle, since radial gradients have none:
+
+```ts
+ToastColor.gradient('#28a6f5', '#4bb543', 90);
+// -> 'linear-gradient(90deg, #28a6f5, #4bb543)'
+
+ToastColor.radialGradient('#28a6f5', '#4bb543');
+// -> 'radial-gradient(#28a6f5, #4bb543)'
+
+ToastColor.conicGradient('#28a6f5', '#4bb543', 45);
+// -> 'conic-gradient(from 45deg, #28a6f5, #4bb543)'
+```
+
 ## Fields
 
 | Field | CSS var | Default |

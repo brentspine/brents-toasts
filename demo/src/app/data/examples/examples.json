@@ -10,6 +10,11 @@
     "description": "Every ToastTheme field at once - background, text, details background, action color, and even the normally auto-computed close-icon color."
   },
   {
+    "id": "gradients",
+    "title": "Gradient accent colors",
+    "description": "ToastColor.gradient()/radialGradient()/conicGradient() build a CSS gradient string from two or more colors, usable anywhere a plain color string is - shown across the default, prominent, close-corner, and accent-top looks so you can see how each layout carries a gradient."
+  },
+  {
     "id": "localization",
     "title": "Multilingual out of the box",
     "description": "configure({ locale: 'de' }) switches the library's own chrome text - Details/Close/Confirm labels - live, without touching your own message/title strings."

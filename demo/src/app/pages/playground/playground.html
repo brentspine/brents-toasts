@@ -5,6 +5,20 @@
     Looking for library-wide defaults instead of per-toast options?
     <a routerLink="/config">Set them on the Config page</a> and every toast fired here will pick them up.
   </p>
+  @if (reducedMotionHint()) {
+    <p class="hint reduced-motion-hint">
+      Your system has "reduce motion" enabled, so toasts here (and in the examples below) render
+      without animation by default.
+      <button type="button" class="reduced-motion-fix" (click)="forceAnimationsOn()">Force animations on</button>
+      <br />
+      <span class="reduced-motion-note">
+        Note: this overrides your OS's reduced-motion preference for every toast this library
+        shows, not just this page - only use it if you specifically want to see the animations
+        here. (Same as <code>toasts.configure({{ '{' }} reducedMotion: false {{ '}' }})</code>, or
+        the <code>reducedMotion</code> field on the <a routerLink="/config">Config page</a>.)
+      </span>
+    </p>
+  }
 
   <input
     class="search"

@@ -1,21 +1,86 @@
 import { resolveRgb } from './ToastTheme';
 
+/** Default angle (CSS `deg`) for `ToastColor.gradient()` when none is given - a diagonal
+ *  top-left-to-bottom-right sweep, a reasonable default for a small card/thin bar rather than
+ *  a plain left-to-right (`90deg`) one. */
+const DEFAULT_GRADIENT_ANGLE = 135;
+
+/** Builds a `linear-gradient(...)` CSS string from two or more color stops, for use anywhere a
+ *  plain `color` string is accepted (`ToastOptions.color`, `ToastsConfig.color`/`colors`,
+ *  `ToastTheme.background`, ...) - `background-color: var(--data-background, ...)` was swapped
+ *  for the `background` shorthand throughout `toasts.css` specifically so a gradient string here
+ *  paints correctly instead of being silently dropped (an invalid `background-color` value falls
+ *  back to nothing, not even its own `var()` fallback - see git history for details).
+ *
+ *  The last argument may optionally be a number, taken as the angle in degrees (default
+ *  `135`, a diagonal sweep) rather than a color stop:
+ *
+ *  ```ts
+ *  ToastColor.gradient('#28a6f5', '#4bb543')
+ *  // -> 'linear-gradient(135deg, #28a6f5, #4bb543)'
+ *  ToastColor.gradient('#28a6f5', '#4bb543', '#dfb200', 90)
+ *  // -> 'linear-gradient(90deg, #28a6f5, #4bb543, #dfb200)'
+ *  ```
+ *
+ *  A single color stop is accepted (degenerates to a solid fill, same as plain CSS) rather than
+ *  validated against - there's no failure mode worth guarding here. */
+export function gradient(...args: [...colors: string[], angle: number]): string;
+export function gradient(...colors: string[]): string;
+export function gradient(...args: (string | number)[]): string {
+    const last = args[args.length - 1];
+    const hasAngle = typeof last === 'number';
+    const angle = hasAngle ? last : DEFAULT_GRADIENT_ANGLE;
+    const colors = (hasAngle ? args.slice(0, -1) : args) as string[];
+    return `linear-gradient(${angle}deg, ${colors.join(', ')})`;
+}
+
+/** Builds a `radial-gradient(...)` CSS string from two or more color stops - see `gradient()`
+ *  above for where a gradient string can be used. Radial gradients have no directional angle
+ *  (they default to an ellipse from the center), so unlike `gradient()`/`conicGradient()` there's
+ *  no optional trailing angle argument here. */
+export function radialGradient(...colors: string[]): string {
+    return `radial-gradient(${colors.join(', ')})`;
+}
+
+/** Builds a `conic-gradient(...)` CSS string from two or more color stops - see `gradient()`
+ *  above for where a gradient string can be used. Like `gradient()`, the last argument may
+ *  optionally be a number, taken as the starting angle in degrees (CSS `from <angle>deg`;
+ *  default none, i.e. CSS's own default of `0deg`/12 o'clock) rather than a color stop. */
+export function conicGradient(...args: [...colors: string[], angle: number]): string;
+export function conicGradient(...colors: string[]): string;
+export function conicGradient(...args: (string | number)[]): string {
+    const last = args[args.length - 1];
+    const hasAngle = typeof last === 'number';
+    const colors = (hasAngle ? args.slice(0, -1) : args) as string[];
+    const from = hasAngle ? `from ${last}deg, ` : '';
+    return `conic-gradient(${from}${colors.join(', ')})`;
+}
+
 export const ToastColor = {
     INFO:    '#28a6f5ff',
     SUCCESS: '#4bb543ff',
     WARNING: '#dfb200ff',
     ERROR:   '#ff4433ff',
+    gradient,
+    radialGradient,
+    conicGradient,
 } as const;
 
-export type ToastColorValue = typeof ToastColor[keyof typeof ToastColor];
+/** The type of one of the four bundled severity-default colors (`ToastColor.INFO`/etc.) - does
+ *  *not* include `ToastColor.gradient`/`radialGradient`/`conicGradient`, which are helper
+ *  functions living on the same namespace object for discoverability, not additional default
+ *  color values. */
+export type ToastColorValue = typeof ToastColor.INFO | typeof ToastColor.SUCCESS | typeof ToastColor.WARNING | typeof ToastColor.ERROR;
 
 /** Shape of `ToastsConfig.colors` - one default CSS color string per `ToastSeverity`, widened
  *  from the bundled literal hex defaults so a consumer's own palette can substitute any valid
- *  CSS color. Purely a lookup table (`severity` -> default `color`) by default - unlike the
- *  pre-#56 design, nothing matches a `color` value back against this to infer severity *unless*
- *  `ToastsConfig.autoDetectSeverity` is explicitly opted into (see `detectSeverityFromColor`
- *  below); see `ToastSeverity`. */
-export type ToastColorPalette = Record<keyof typeof ToastColor, string>;
+ *  CSS color (including a `ToastColor.gradient(...)` string). Purely a lookup table (`severity`
+ *  -> default `color`) by default - unlike the pre-#56 design, nothing matches a `color` value
+ *  back against this to infer severity *unless* `ToastsConfig.autoDetectSeverity` is explicitly
+ *  opted into (see `detectSeverityFromColor` below); see `ToastSeverity`. Keyed off
+ *  `ToastSeverity` rather than `keyof typeof ToastColor` so `ToastColor`'s own gradient helper
+ *  functions don't leak into this Record's required keys. */
+export type ToastColorPalette = Record<keyof typeof ToastSeverity, string>;
 
 /** The four severities a toast can carry - see `ToastOptions.severity`. Keys match `ToastColor`'s
  *  (and `ToastColorPalette`'s), since a severity's whole job is naming which palette entry is its
