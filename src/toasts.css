@@ -149,13 +149,18 @@
    horizontal strip across the top of the card instead of a left vertical
    bar, Material-style - via a ::before pseudo-element on .bt-toast itself,
    not .bt-toast-close, so this modifier's own CSS never touches the close
-   button's position/behavior. It does collapse the now-redundant default
+   button's resting position. At rest it collapses the now-redundant default
    left bar entirely (width/opacity 0, not display:none, so layout stays
    stable) - the top strip already carries the color-identity role, so a
-   second hover-only accent competing with it read as unfinished. Dismissal
-   still works via click/Enter/Space/Escape on the row regardless (see
-   Toasts.ts) - same as `close-hidden` already relies on. Composes with
-   close-corner/close-pinned-right by placing THIS rule before theirs
+   second always-on accent competing with it read as unfinished. On
+   hover/focus-visible it reveals the same functional close button as the
+   default look (width/opacity/background, and the content sliding over to
+   make room) rather than staying suppressed - #129 was exactly this reveal
+   being broken (a resurrected invisible box that shifted layout with
+   nothing to show for it); the fix is this modifier explicitly opting back
+   into the reveal rather than fighting it. Dismissal also still works via
+   click/Enter/Space/Escape on the row regardless (see Toasts.ts). Composes
+   with close-corner/close-pinned-right by placing THIS rule before theirs
    below - each of those explicitly re-asserts every property it cares
    about (width, opacity, display), so it wins outright regardless of which
    modifier name happens to be listed first in `modifiers`, since CSS
@@ -179,11 +184,26 @@
     display: flex;
     width: 0;
     opacity: 0;
-    transition: none;
+}
+/* The default look's own hover/focus-visible rules (`.bt-toast-row.bt-closable:hover...
+   .bt-toast-close`, near the top of this file) out-specificity the plain rest-state rule
+   right above this comment (they add :hover/:not(:has(...)) to the selector), which is what
+   let width leak through to 20px on hover even before this rule existed, with opacity stuck
+   at 0 - the invisible-box bug from #129. Restating both width AND opacity explicitly here
+   (rather than just opacity, relying on the default rule's width) makes the reveal a
+   deliberate, self-contained choice instead of an accidental side effect of selector
+   specificity math. transition is intentionally left unset so it falls through to the base
+   `.bt-toast-close` rule's `transition: width 0.2s`, giving the same smooth reveal as the
+   default look instead of an abrupt snap. */
+.bt-toast[data-bt-modifiers~="accent-top"] .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-close,
+.bt-toast[data-bt-modifiers~="accent-top"] .bt-toast-row.bt-closable:focus-visible .bt-toast-close {
+    width: 20px;
+    opacity: 1;
+    cursor: pointer;
 }
 .bt-toast[data-bt-modifiers~="accent-top"] .bt-toast-row .bt-toast-content { margin-left: 12px; margin-right: 12px; }
-.bt-toast[data-bt-modifiers~="accent-top"] .bt-toast-row.bt-closable:hover .bt-toast-content,
-.bt-toast[data-bt-modifiers~="accent-top"] .bt-toast-row.bt-closable:focus-visible .bt-toast-content { margin-right: 12px; }
+.bt-toast[data-bt-modifiers~="accent-top"] .bt-toast-row.bt-closable:hover:not(:has(.bt-toast-actions:hover)) .bt-toast-content,
+.bt-toast[data-bt-modifiers~="accent-top"] .bt-toast-row.bt-closable:focus-visible .bt-toast-content { margin-right: 0; }
 
 /* The three close-button variants below (close-hidden, close-corner,
    close-pinned-right) are mutually exclusive in effect (see the comment on

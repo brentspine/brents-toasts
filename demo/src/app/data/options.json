@@ -134,7 +134,7 @@
         { "value": "wide", "description": "Bigger min/max-width and roomier padding. Mutually exclusive with compact." },
         { "value": "stacked-actions", "description": "Buttons and the details toggle wrap onto their own full-width row below the message." },
         { "value": "full-bleed", "description": "Toast stretches to the snackbar's full content width, square corners." },
-        { "value": "accent-top", "description": "Accent becomes a horizontal strip across the top instead of a left vertical bar, and removes the now-redundant default hover-reveal close bar entirely." },
+        { "value": "accent-top", "description": "Accent becomes a horizontal strip across the top instead of a left vertical bar. The close bar stays collapsed at rest but still reveals on hover/focus, same as the default look." },
         { "value": "close-hidden", "description": "Removes all accent-bar/close-swatch chrome - just text (and buttons/progress, if present). Mutually exclusive with close-corner/close-pinned-right." },
         { "value": "close-corner", "description": "Close button becomes a small circle overlaid on the card's top-right corner. Mutually exclusive with close-hidden/close-pinned-right." },
         { "value": "close-pinned-right", "description": "Close button always visible, pinned to the row's trailing edge, in the row's normal flex flow. Mutually exclusive with close-hidden/close-corner." },
