@@ -10,8 +10,8 @@ import { ToastPosition, IMPLEMENTED_POSITIONS, POSITION_EDGE, collapsedPosition,
 import { ToastAnimation, getToastAnimation, systemPrefersReducedMotion, type ToastAnimationValue, type ToastAnimationDefinition } from './ToastAnimation';
 import { ToastLayout, isKnownLayout, getLayoutModifiers, type ToastLayoutValue } from './ToastLayout';
 import { isKnownModifier, type ToastModifierValue } from './ToastModifier';
-import { ToastTransition, getToastTransition, type ToastTransitionValue } from './ToastTransition';
-import { createStepButton, type ToastButton, type ToastButtonStep } from './ToastButton';
+import { ToastTransition, getToastTransition, type ToastTransitionValue, type ToastTransitionDefinition } from './ToastTransition';
+import { createStepButton, isStepButtonActive, type ToastButton, type ToastButtonStep } from './ToastButton';
 import { ToastLocales, matchToastLocale, detectBrowserLocales, type ToastTranslations } from './ToastLocale';
 import type { ToastTheme } from './ToastTheme';
 import { ToastIcon, getIconSource, type ToastIconValue, type ToastIconSource } from './ToastIcon';
@@ -389,7 +389,10 @@ export type ToastEventName = keyof ToastEventMap;
 /** Handler shape for `Toasts.on(event, handler)`/`off(event, handler)` - see `ToastEventMap`. */
 export type ToastEventHandler<E extends ToastEventName> = (payload: ToastEventMap[E]) => void;
 
-interface ResolvedToastOptions {
+/** A toast's fully-resolved options - every default (`configure()`'s or the library's own)
+ *  already applied, unlike `ToastOptions` where almost everything is optional. The `options`
+ *  portion of `getToastState()`'s return value. */
+export interface ResolvedToastOptions {
     severity: ToastSeverityValue;
     color: string;
     duration: number;
@@ -502,6 +505,32 @@ export interface ToastTimerInfo {
     paused: boolean;
 }
 
+/** Snapshot returned by `getToastState()` - the toast's currently-resolved options (`ResolvedToastOptions`,
+ *  reflecting any `updateToast` patches applied since creation, not just the original `showToast()` call)
+ *  plus its `message`, and what's happening to it right now. Computed fresh on every call, not
+ *  live-updating - like `ToastTimerInfo`, `timer`/`transitioning` can be stale moments after this call
+ *  returns. */
+export interface ToastStateInfo extends ResolvedToastOptions {
+    /** This toast's current content - a plain string, or the exact `Node` passed to `showToast`/`updateToast`, if any. */
+    message: string | Node;
+    /** Auto-dismiss countdown snapshot - same shape/semantics as `getToastTimer(id)`. `null` for a sticky toast (`duration: 0`). */
+    timer: ToastTimerInfo | null;
+    /** Whether this toast's `details` block is currently expanded. Always `false` if it has no details block at all. */
+    detailsOpen: boolean;
+    /** Whether an `updateToast(id, { transition })`/`playToastTransition()` transition is currently playing
+     *  on this toast's card. Only tracked for a transition whose definition sets `durationMs` (the built-in
+     *  `FADE`/`SHAKE_LR` do; `NONE` and a custom one registered via `registerToastTransition` without
+     *  `durationMs` never report `true` here). */
+    transitioning: boolean;
+    /** Whether any of this toast's buttons (top-level `buttons`, or a `details` item's own `buttons`) is
+     *  currently mid multi-step flow: a `stepButton()`/`detailsCopyButton()` (see `ToastButtonStep`) past
+     *  its first step, or *any* action button disabled - which covers a step button's own async step still
+     *  settling, and `confirmButton()`'s pending `onConfirm` (which disables every button on the toast, not
+     *  just itself). Doesn't catch `confirmButton()`'s initial Yes/No prompt - that's a full toast content
+     *  swap, not a disabled/stepped button, so there's nothing here to detect it by. */
+    inStepAction: boolean;
+}
+
 /** Per-position `maxToasts`/`evictOldest` override - see `Toasts.configurePosition()`. */
 export type PositionConfig = Partial<Pick<ToastsConfig, 'maxToasts' | 'evictOldest'>>;
 
@@ -580,6 +609,13 @@ export class Toasts {
     private _progressConfig: WeakMap<HTMLElement, ResolvedProgress>;
     private _data: WeakMap<HTMLElement, unknown>;
     private _toastState: WeakMap<HTMLElement, ToastState>;
+    // When an `updateToast(id, { transition })`/`playToastTransition()` transition with a
+    // known `durationMs` (see `ToastTransitionDefinition`) is started, records when and for how
+    // long - `getToastState()`'s `transitioning` field is computed fresh from this on every
+    // call (`Date.now() - startedAt < durationMs`) rather than needing a completion callback
+    // threaded back through `ToastTransitionDefinition.run()`. Never set at all for `NONE` or a
+    // custom transition without `durationMs` - see there.
+    private _transitionState: WeakMap<HTMLElement, { startedAt: number; durationMs: number }>;
     // Raw hover/focus presence, independent of `pauseOnHover` itself -
     // tracked separately from the timer's own paused/running state so
     // `_syncPauseState` can tell whether the *other* trigger is still
@@ -627,6 +663,7 @@ export class Toasts {
         this._progressConfig = new WeakMap();
         this._data = new WeakMap();
         this._toastState = new WeakMap();
+        this._transitionState = new WeakMap();
         this._pointerFocusState = new WeakMap();
         this._shownAt = new WeakMap();
         this._pendingMinVisibleRemoval = new WeakMap();
@@ -1211,6 +1248,7 @@ export class Toasts {
 
         if (update.transition && hasVisualChange) {
             const transitionDef = getToastTransition(this._resolveTransition(update.transition))!;
+            this._recordTransition(toastContainer, transitionDef);
             transitionDef.run(toast, applyVisuals);
         } else {
             applyVisuals();
@@ -1259,7 +1297,16 @@ export class Toasts {
         const toast = toastContainer.querySelector<HTMLElement>('.bt-toast');
         if (!toast) return;
         const transitionDef = getToastTransition(this._resolveTransition(transition))!;
+        this._recordTransition(toastContainer, transitionDef);
         transitionDef.run(toast, () => {});
+    }
+
+    // Records when a transition with a known `durationMs` started, for `getToastState()`'s
+    // `transitioning` field to compute against - see `_transitionState`. No-op for `NONE`/a
+    // custom transition that doesn't set `durationMs`.
+    private _recordTransition(toastContainer: HTMLElement, transitionDef: ToastTransitionDefinition): void {
+        if (!transitionDef.durationMs) return;
+        this._transitionState.set(toastContainer, { startedAt: Date.now(), durationMs: transitionDef.durationMs });
     }
 
     /** Appends (or, with `index`, inserts) one button into `id`'s `buttons` - same as passing a
@@ -1445,6 +1492,38 @@ export class Toasts {
         if (!el) return undefined;
         const owner = this._ownerOf(el);
         return owner !== this ? owner.getToastData<T>(id) : (this._data.get(el) as T | undefined);
+    }
+
+    /**
+     * Reads back `id`'s full current state as a fresh snapshot (see `ToastStateInfo`) - its
+     * currently-resolved options (reflecting any `updateToast` patches applied since creation,
+     * not just the original `showToast()` call) and `message`, plus what's happening to it right
+     * now: `timer` (same as `getToastTimer(id)`), `detailsOpen`, `transitioning` (an
+     * `updateToast`/`playToastTransition` transition currently playing), and `inStepAction` (a
+     * `stepButton()`/`detailsCopyButton()` past its first step, or any button disabled - including
+     * `confirmButton()`'s pending `onConfirm`). Computed fresh
+     * on every call, not a live-updating value - like `getToastTimer`, `timer`/`transitioning`
+     * can be stale moments after this call returns. Returns `null` if `id` doesn't exist.
+     */
+    getToastState(id: string): ToastStateInfo | null {
+        const el = document.getElementById(id);
+        if (!el) return null;
+        const owner = this._ownerOf(el);
+        if (owner !== this) return owner.getToastState(id);
+        const state = this._toastState.get(el);
+        if (!state) return null;
+
+        const detailsOpen = el.querySelector('.bt-toast-details')?.classList.contains('bt-open') ?? false;
+
+        const transition = this._transitionState.get(el);
+        const transitioning = transition !== undefined && Date.now() - transition.startedAt < transition.durationMs;
+
+        let inStepAction = false;
+        el.querySelectorAll<HTMLButtonElement>('.bt-toast-action').forEach((btn) => {
+            if (isStepButtonActive(btn)) inStepAction = true;
+        });
+
+        return { ...state, timer: this.getToastTimer(id), detailsOpen, transitioning, inStepAction };
     }
 
     /**

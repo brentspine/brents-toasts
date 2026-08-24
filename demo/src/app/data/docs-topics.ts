@@ -24,5 +24,6 @@ export const DOCS_TOPICS: DocsTopic[] = [
   { slug: 'config', title: 'Config' },
   { slug: 'theming', title: 'Theming' },
   { slug: 'localization', title: 'Localization' },
+  { slug: 'state', title: 'Toast state' },
   { slug: 'builder-reference', title: 'ToastBuilder reference' },
 ];

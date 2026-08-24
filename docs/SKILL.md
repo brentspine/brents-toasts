@@ -158,6 +158,13 @@ cases, and worked examples before implementing anything non-trivial with it.
   class names/DOM structure stay the same either way. → [guide/config.md](guide/config.md)
 - **Per-toast data** - `setToastData`/`getToastData(id)`: attach a payload so one shared button
   handler can act on many toasts. Not general app state. → [guide/data.md](guide/data.md)
+- **Reading full toast state** - `getToastState(id)` returns a fresh snapshot: every resolved
+  option + current `message` (reflecting `updateToast` patches, not just the original
+  `showToast()` call), plus `timer` (same shape as `getToastTimer`), `detailsOpen`,
+  `transitioning` (an `updateToast`/`playToastTransition` transition currently playing - only for
+  a transition whose definition sets `durationMs`), and `inStepAction` (a `stepButton`/
+  `detailsCopyButton` past its first step, or any button disabled - including `confirmButton`'s
+  pending `onConfirm`). `null` if `id` doesn't exist. → [guide/state.md](guide/state.md)
 
 ## Common mistakes to avoid
 

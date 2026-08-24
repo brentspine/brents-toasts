@@ -90,6 +90,21 @@ interface StepButtonState {
 // `Toasts`'s own `_onCloseCallbacks`/`_resizeObservers: WeakMap<HTMLElement, ...>`.
 const stepState = new WeakMap<HTMLButtonElement, StepButtonState>();
 
+/**
+ * Whether `el` (a rendered `.bt-toast-action` button) is currently mid multi-step flow - on any
+ * `createStepButton` step past the first, or simply disabled. The `disabled` check alone is what
+ * makes this also pick up `confirmButton()`'s pending `onConfirm` (which disables every button on
+ * the toast directly, rather than going through `stepState`) without `confirmButton` needing to
+ * know anything about step tracking itself. Used by `Toasts.getToastState()` to report
+ * `inStepAction`. `false` for an enabled plain (non-step) button, since it never gets an entry in
+ * `stepState` at all.
+ */
+export function isStepButtonActive(el: HTMLButtonElement): boolean {
+    if (el.disabled) return true;
+    const state = stepState.get(el);
+    return state !== undefined && state.index !== 0;
+}
+
 function applyStep(el: HTMLButtonElement, steps: ToastButtonStep[], fromIndex: number | undefined, toIndex: number): void {
     if (fromIndex !== undefined) {
         const prevClassName = steps[fromIndex]?.className;

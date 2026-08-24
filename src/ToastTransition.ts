@@ -36,6 +36,14 @@ export interface ToastTransitionDefinition {
      * rather than pieces settling at different times.
      */
     run(toast: HTMLElement, mutate: () => void): void;
+    /** Total wall-clock time (ms) the transition visually takes from start to finish - what
+     *  `Toasts.getToastState()`'s `transitioning` field uses to report whether this transition
+     *  is still playing, without needing a completion callback threaded back through `run`.
+     *  Omit (or `0`) for a transition with no visible duration (e.g. `NONE`) - `transitioning`
+     *  then never reports `true` for it. A custom transition registered via
+     *  `registerToastTransition` without this set simply never shows up as `transitioning`
+     *  either - there's no way to infer how long an arbitrary `run()` takes. */
+    durationMs?: number;
 }
 
 // No transition at all: applies the patch instantly. Registered (rather
@@ -59,6 +67,7 @@ const FADE_DURATION_MS = 150;
 // alone, so e.g. a promise() loading->success patch (message AND color
 // changing together) doesn't look mismatched.
 const fadeDefinition: ToastTransitionDefinition = {
+    durationMs: FADE_DURATION_MS * 2,
     run(toast, mutate) {
         const previousTransition = toast.style.transition;
         toast.style.transition = `opacity ${FADE_DURATION_MS}ms ease-in-out`;
@@ -82,6 +91,7 @@ const SHAKE_STEP_MS = 60;
 const SHAKE_OFFSETS_PX = [-8, 8, -6, 6, -3, 3, 0];
 
 const shakeLrDefinition: ToastTransitionDefinition = {
+    durationMs: SHAKE_OFFSETS_PX.length * SHAKE_STEP_MS,
     run(toast, mutate) {
         mutate();
         const previousTransition = toast.style.transition;

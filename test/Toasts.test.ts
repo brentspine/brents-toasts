@@ -2639,6 +2639,154 @@ describe('playToastTransition', () => {
     });
 });
 
+describe('getToastState (#68)', () => {
+    afterEach(() => { vi.useRealTimers(); cleanup(); });
+
+    it('returns null for a nonexistent id', () => {
+        const t = new Toasts();
+        expect(t.getToastState('nope')).toBeNull();
+    });
+
+    it('returns the resolved options and message for a freshly shown toast', () => {
+        const t = new Toasts();
+        const id = t.showToast('Hello', { title: 'T', severity: ToastSeverity.SUCCESS, duration: 0, closable: true });
+        const state = t.getToastState(id)!;
+        expect(state.message).toBe('Hello');
+        expect(state.title).toBe('T');
+        expect(state.severity).toBe(ToastSeverity.SUCCESS);
+        expect(state.closable).toBe(true);
+        expect(state.timer).toBeNull();
+        expect(state.detailsOpen).toBe(false);
+        expect(state.transitioning).toBe(false);
+        expect(state.inStepAction).toBe(false);
+    });
+
+    it('reflects updateToast patches, not just the original showToast() call', () => {
+        const t = new Toasts();
+        const id = t.showToast('a', { duration: 0 });
+        t.updateToast(id, { message: 'b', color: '#123456' });
+        const state = t.getToastState(id)!;
+        expect(state.message).toBe('b');
+        expect(state.color).toBe('#123456');
+    });
+
+    it('timer mirrors getToastTimer for a timed toast, and is null for a sticky one', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const timedId = t.showToast('x', { duration: 5000 });
+        expect(t.getToastState(timedId)!.timer).toEqual({ duration: 5000, remaining: 5000, paused: false });
+
+        const stickyId = t.showToast('y', { duration: 0 });
+        expect(t.getToastState(stickyId)!.timer).toBeNull();
+    });
+
+    it('detailsOpen reflects whether the details block is currently expanded', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, details: ['d1'] });
+        expect(t.getToastState(id)!.detailsOpen).toBe(false);
+
+        (document.getElementById(id)!.querySelector('.bt-toast-actions button') as HTMLButtonElement).click();
+        expect(t.getToastState(id)!.detailsOpen).toBe(true);
+    });
+
+    it('transitioning is true while a playToastTransition() FADE/SHAKE_LR is playing, false once it settles', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0 });
+
+        t.playToastTransition(id, ToastTransition.FADE);
+        expect(t.getToastState(id)!.transitioning).toBe(true);
+        vi.advanceTimersByTime(300); // FADE_DURATION_MS * 2
+        expect(t.getToastState(id)!.transitioning).toBe(false);
+
+        t.playToastTransition(id, ToastTransition.SHAKE_LR);
+        expect(t.getToastState(id)!.transitioning).toBe(true);
+        vi.advanceTimersByTime(7 * 60);
+        expect(t.getToastState(id)!.transitioning).toBe(false);
+    });
+
+    it('transitioning tracks an updateToast(id, { transition }) transition too', () => {
+        vi.useFakeTimers();
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0 });
+
+        t.updateToast(id, { message: 'y', transition: ToastTransition.FADE });
+        expect(t.getToastState(id)!.transitioning).toBe(true);
+        vi.advanceTimersByTime(300);
+        expect(t.getToastState(id)!.transitioning).toBe(false);
+    });
+
+    it('never reports transitioning for NONE or a custom transition without durationMs', () => {
+        vi.useFakeTimers();
+        registerToastTransition('custom-no-duration', { run: (_toast, mutate) => mutate() });
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0 });
+
+        t.playToastTransition(id, ToastTransition.NONE);
+        expect(t.getToastState(id)!.transitioning).toBe(false);
+
+        t.playToastTransition(id, 'custom-no-duration');
+        expect(t.getToastState(id)!.transitioning).toBe(false);
+    });
+
+    it('inStepAction reflects a stepButton() past its first step', () => {
+        const t = new Toasts();
+        const id = t.showToast('x', { duration: 0, buttons: [t.stepButton([{ label: 'Copy' }, { label: 'Copied!' }])] });
+        expect(t.getToastState(id)!.inStepAction).toBe(false);
+
+        (document.getElementById(id)!.querySelector('.bt-toast-action') as HTMLButtonElement).click();
+        expect(t.getToastState(id)!.inStepAction).toBe(true);
+    });
+
+    it('inStepAction is true while an async step\'s onClick is still settling', async () => {
+        const t = new Toasts();
+        let resolveStep: () => void;
+        const id = t.showToast('x', {
+            duration: 0,
+            buttons: [t.stepButton([{ label: 'Go', onClick: () => new Promise<void>(resolve => { resolveStep = resolve; }) }, { label: 'Done' }])],
+        });
+
+        (document.getElementById(id)!.querySelector('.bt-toast-action') as HTMLButtonElement).click();
+        expect(t.getToastState(id)!.inStepAction).toBe(true);
+
+        resolveStep!();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(t.getToastState(id)!.inStepAction).toBe(true); // advanced to step index 1, still non-first
+    });
+
+    it('inStepAction also catches confirmButton()\'s pending onConfirm, but not its Yes/No prompt', async () => {
+        const t = new Toasts();
+        let resolveConfirm: () => void;
+        const onConfirm = vi.fn(() => new Promise<void>(resolve => { resolveConfirm = resolve; }));
+        const id = t.showToast('x', { duration: 0, buttons: [t.confirmButton('Delete', onConfirm, { doneMessage: null })] });
+
+        const click = (label: string) => {
+            const btn = Array.from(document.getElementById(id)!.querySelectorAll<HTMLButtonElement>('.bt-toast-action'))
+                .find(b => b.textContent === label)!;
+            btn.click();
+        };
+
+        click('Delete');
+        expect(t.getToastState(id)!.inStepAction).toBe(false); // Yes/No prompt shown, nothing disabled yet
+
+        click('Yes');
+        expect(t.getToastState(id)!.inStepAction).toBe(true); // pending onConfirm disables every button
+
+        resolveConfirm!();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(t.getToastState(id)!.inStepAction).toBe(false);
+    });
+
+    it('delegates to the owning instance for a toast created by another same-position instance', () => {
+        const t1 = new Toasts();
+        const t2 = new Toasts();
+        const id = t1.showToast('x', { duration: 0, title: 'from t1' });
+        expect(t2.getToastState(id)!.title).toBe('from t1');
+    });
+});
+
 describe('promise', () => {
     afterEach(cleanup);
 

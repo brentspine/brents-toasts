@@ -222,7 +222,11 @@ call `mutate()` whenever the new content should appear, and pass its
 card element and a `mutate` callback that applies every visual field the
 update touched in one go, so a multi-field patch (message *and* color
 changing together, say) reads as one clean change instead of pieces
-settling at different times.
+settling at different times. Also set `durationMs` (total wall-clock time
+the transition visually takes) if you want [`getToastState()`](state.md)'s
+`transitioning` field to report `true` while it's playing - both built-ins
+above set it; a custom transition that omits it just never shows up as
+`transitioning`.
 
 It's a no-op passed to `showToast`/`ToastBuilder`; there's nothing to
 transition from on a toast's first render (`ToastBuilder.withTransition()`

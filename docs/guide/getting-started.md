@@ -158,4 +158,5 @@ is never affected by `allowHtml`.
 - [Config](config.md): library-wide/page-scoped defaults, positions
 - [Theming](theming.md)
 - [Localization](localization.md)
+- [Toast state](state.md): a fresh snapshot of a toast's resolved options, timer, and in-flight state
 - [ToastBuilder reference](builder-reference.md): every builder method
