@@ -1745,7 +1745,11 @@ describe('button/detail helpers', () => {
 });
 
 describe('animations', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
     afterEach(() => {
+        vi.runAllTimers();
         vi.useRealTimers();
         cleanup();
     });
