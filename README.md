@@ -88,3 +88,7 @@ TypeScript-first: full `.d.ts` types ship with every build, documented via JSDoc
 ## License
 
 Apache-2.0
+
+## Code of Conduct
+
+See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
