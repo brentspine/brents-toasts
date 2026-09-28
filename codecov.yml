@@ -1,0 +1,8 @@
+coverage:
+  status:
+    project:
+      default:
+        threshold: 0.1%   # tolerate minor instrumentation noise between tool versions
+    patch:
+      default:
+        threshold: 0.1%
