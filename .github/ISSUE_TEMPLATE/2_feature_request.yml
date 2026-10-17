@@ -50,6 +50,6 @@ body:
     id: additional
     attributes:
       label: Additional context
-      description: Anything else: links, screenshots, similar features in other libraries.
+      description: "Anything else: links, screenshots, similar features in other libraries."
     validations:
       required: false
