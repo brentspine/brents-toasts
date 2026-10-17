@@ -24,7 +24,7 @@ body:
     id: description
     attributes:
       label: What happened?
-      description: A clear description of the bug.
+      description: A clear description of the bug. Include any error messages, console output, or screenshots.
     validations:
       required: true
 
